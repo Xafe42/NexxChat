@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "305319661189",
+    "project_id": "nexxchat-1f0fc",
+    "storage_bucket": "nexxchat-1f0fc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:305319661189:android:5f798efc727a82e85863ec",
+        "android_client_info": {
+          "package_name": "at.isha.nexxchat_firebase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlw8KX0Hxc_hEvvJ4bZW_4yj12Th6FItI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
