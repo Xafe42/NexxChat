@@ -96,8 +96,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               SizedBox(height: 10,) ,
         
               MyButton(color: Colors.blue[800]!, titel: 'Register ', onPressed:  () async {
-                //print(email) ;
-                //print(password) ;
+               
                 setState(() {
                    showSpinner = true ;
                 });
@@ -110,6 +109,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         
                 }catch (e) {
                    print(e) ;
+                   setState(() {
+                         showSpinner = false ;
+                   });
                 }
               })
         

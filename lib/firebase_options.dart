@@ -83,4 +83,5 @@ class DefaultFirebaseOptions {
     authDomain: 'nexxchat-1f0fc.firebaseapp.com',
     storageBucket: 'nexxchat-1f0fc.firebasestorage.app',
   );
+
 }

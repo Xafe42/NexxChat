@@ -1,17 +1,22 @@
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")        
+    id("dev.flutter.flutter-gradle-plugin")     
 }
 
 android {
-    namespace = "com.example.nexxchat_firebase"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    namespace = "at.isha.nexxchat_firebase"    
+    compileSdk = 34                            
+
+    defaultConfig {
+        applicationId = "at.isha.nexxchat_firebase"   
+        minSdk = flutter.minSdkVersion                                   
+        targetSdk = 34                                
+        versionCode = 1                               
+        versionName = "1.0"                           
+        multiDexEnabled = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -19,29 +24,20 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
 
-    defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "at.isha.nexxchat_firebase"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-        multiDexEnabled true 
-
+   buildTypes {
+    getByName("release") {
+        signingConfig = signingConfigs.getByName("debug")
+        isMinifyEnabled = false
+        isShrinkResources = false
     }
-
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
-        }
+    getByName("debug") {
+        isMinifyEnabled = false
+        isShrinkResources = false
     }
+}
 }
 
 flutter {
@@ -49,9 +45,17 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.
-    kotlin:kotlin-stdlib-jdk7:$kotlin-version"
-    implementation platform('com.google.firebase:firebase-bom:28.4.0')
-    implementation 'com.android.support:multidex:1.0.3'
+    // Kotlin stdlib
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24")
+
+    // MultiDex
+    implementation("androidx.multidex:multidex:2.0.1")
+
+    
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+
+    
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
     
 }
