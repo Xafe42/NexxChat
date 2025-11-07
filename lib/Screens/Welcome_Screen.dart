@@ -39,7 +39,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           ),
                           const SizedBox(height: 12), // Abstand zwischen Logo und Text
                           const Text(
-                            'MessageMe', // App-Name
+                            'NexxChat', // App-Name
                             textAlign: TextAlign.center, // Zentrierter Text
                             style: TextStyle(
                               fontSize: 40,

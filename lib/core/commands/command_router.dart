@@ -29,6 +29,15 @@ class CommandRouter {
       }
     }
 
+    // Tetris
+    if (t == '/tetris') {
+      return ChatCommand(
+        type: 'tetris',
+        data: {},
+        previewText: '🎮 Starte Tetris!',
+      );
+    }
+
     return null; // Kein bekanntes Kommando
   }
 }

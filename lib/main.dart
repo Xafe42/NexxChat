@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MessageMe app', // Titel der App
+      title: 'NexxChat', // Titel der App
       debugShowCheckedModeBanner: false, // Entfernt das Debug-Banner
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple), // Hauptfarbe der App

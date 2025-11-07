@@ -7,6 +7,7 @@ import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
+import '../widgets/tetris_preview.dart';
 
 final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
 late User signedInUser; // Aktuell eingeloggter Benutzer
@@ -78,7 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Image.asset('images/nexxchat.png', height: 25), // Logo
             const SizedBox(width: 10),
-            const Text('MessageMe'), // App-Name
+            const Text('NexxChat'), // App-Name
           ],
         ),
         actions: [
@@ -105,6 +106,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 text: _activeCmd!.previewText!,
                 onCancel: () => setState(() => _activeCmd = null), // Abbrechen
                 onSend: _send, // Senden
+              ),
+            // Zeigt Vorschau für "tetris"-Kommando an
+            if (_activeCmd?.type == 'tetris')
+              TetrisPreview(
+                onCancel: () => setState(() => _activeCmd = null),
+                onSend: _send,
               ),
             Container(
               decoration: const BoxDecoration(
