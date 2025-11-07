@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../core/models/chat_command.dart';
-import '../core/commands/command_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../apps/hello/hello_app.dart';
+import '../core/commands/command_router.dart';
+import '../core/models/chat_command.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
 
@@ -73,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: Colors.yellow[900],
         title: Row(
           children: [
-            Image.asset('images/logo.jpeg', height: 25),
+            Image.asset('images/nexxchat.png', height: 25),
             const SizedBox(width: 10),
             const Text('MessageMe'),
           ],
