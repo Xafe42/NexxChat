@@ -33,7 +33,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           SizedBox(
                             height: 180,
                             child: Image.asset(
-                              'images/logo.jpeg',
+                              'images/nexxchat.png',
                               fit: BoxFit.contain,
                             ),
                           ),

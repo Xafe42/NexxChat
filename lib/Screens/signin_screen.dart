@@ -59,7 +59,7 @@ class SignInScreenState extends State<SignInScreen> {
             children: [
               SizedBox(
                 height: 180.0,
-                child: Image.asset('images/logo.jpeg'),
+                child: Image.asset('images/nexxchat.png'),
               ),
               const SizedBox(height: 50.0),
               TextField(

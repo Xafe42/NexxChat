@@ -30,7 +30,7 @@ class RegistrationScreenState extends State<RegistrationScreen> {
             children: [
               SizedBox( // ✅ ersetzt Container für whitespace
                 height: 180.0,
-                child: Image.asset('images/logo.jpeg'),
+                child: Image.asset('images/nexxchat.png'),
               ),
               const SizedBox(height: 50.0),
               TextField(
