@@ -14,11 +14,11 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final messageTextContoller = TextEditingController();
+  final messageTextController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+
   String? messageText;
-  String? activeCommand;
-  Map<String, dynamic> cmdData = {};
+  String? previewText; 
 
   @override
   void initState() {
@@ -31,31 +31,73 @@ class _ChatScreenState extends State<ChatScreen> {
       final user = _auth.currentUser;
       if (user != null) {
         signedInUser = user;
-        print(signedInUser.email);
       }
     } catch (e) {
       print(e);
     }
   }
 
-  void handleTextChange(String value) {
+  
+  void handleInputChange(String value) {
     messageText = value;
-    final t = value.trim();
-    if (t.startsWith('/hello')) {
-      final parts = t.split(' ');
-      final who = parts.length > 1 ? parts.sublist(1).join(' ') : 'World';
-      setState(() {
-        activeCommand = 'hello';
-        cmdData = {'who': who};
-      });
-    } else {
-      if (activeCommand != null) {
-        setState(() {
-          activeCommand = null;
-          cmdData = {};
-        });
+
+    final raw = value;                 
+    final t = value.trimRight();       
+
+    String? nextPreview;
+
+    if (t == '/hello') {
+      nextPreview = '👋 Hello World from NexxChat!';
+    } else if (t.startsWith('/hello ')) {
+      final afterCmd = t.substring(7); 
+      if (afterCmd.isNotEmpty) {
+        
+        final who = afterCmd.split(' ').first;
+        if (who.isNotEmpty) {
+          nextPreview = '👋 Hello $who from NexxChat!';
+        }
       }
     }
+
+    setState(() => previewText = nextPreview);
+  }
+
+  void resetInput() {
+    setState(() {
+      previewText = null;
+      messageTextController.clear();
+      messageText = '';
+    });
+  }
+
+  Future<void> sendMessage() async {
+    final text = messageText?.trim();
+    if (text == null || text.isEmpty) return;
+
+    if (text.startsWith('/hello')) {
+     
+      final afterCmd = text.length >= 7 ? text.substring(7).trimLeft() : '';
+      final who = afterCmd.isNotEmpty ? afterCmd.split(' ').first : 'World';
+
+      await _firestore.collection('messages').add({
+        'type': 'app',
+        'payload': {
+          'app': 'hello',
+          'data': {'who': who},
+        },
+        'sender': signedInUser.email,
+        'time': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await _firestore.collection('messages').add({
+        'type': 'text',
+        'payload': {'text': text},
+        'sender': signedInUser.email,
+        'time': FieldValue.serverTimestamp(),
+      });
+    }
+
+    resetInput();
   }
 
   @override
@@ -86,129 +128,65 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const MessageStreamBilder(),
+
+            // Preview غير حاجز
+            if (previewText != null)
+              Container(
+                color: Colors.grey[100],
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        previewText!,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => previewText = null),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              ),
+
+           
             Container(
               decoration: const BoxDecoration(
                 border: Border(
                   top: BorderSide(color: Colors.orange, width: 2),
                 ),
               ),
-              child: activeCommand == 'hello'
-                  ? _HelloComposer(
-                      who: cmdData['who'] ?? 'World',
-                      onCancel: () {
-                        setState(() {
-                          activeCommand = null;
-                          cmdData = {};
-                          messageTextContoller.clear();
-                          messageText = '';
-                        });
-                      },
-                      onSend: () async {
-                        await _firestore.collection('messages').add({
-                          'type': 'app',
-                          'payload': {
-                            'app': 'hello',
-                            'data': {'who': cmdData['who'] ?? 'World'},
-                          },
-                          'sender': signedInUser.email,
-                          'time': FieldValue.serverTimestamp(),
-                        });
-                        setState(() {
-                          activeCommand = null;
-                          cmdData = {};
-                          messageTextContoller.clear();
-                          messageText = '';
-                        });
-                      },
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: messageTextContoller,
-                            onChanged: handleTextChange,
-                            decoration: const InputDecoration(
-                              contentPadding: EdgeInsets.symmetric(
-                                vertical: 10,
-                                horizontal: 20,
-                              ),
-                              hintText: 'Write your message here...',
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            final text = messageText?.trim();
-                            if (text == null || text.isEmpty) return;
-                            messageTextContoller.clear();
-                            await _firestore.collection('messages').add({
-                              'type': 'text',
-                              'payload': {'text': text},
-                              'sender': signedInUser.email,
-                              'time': FieldValue.serverTimestamp(),
-                            });
-                            setState(() => messageText = '');
-                          },
-                          child: Text(
-                            'Send',
-                            style: TextStyle(
-                              color: Colors.blue[800],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: messageTextController,
+                      onChanged: handleInputChange,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                        hintText: 'Write your message here...',
+                        border: InputBorder.none,
+                      ),
                     ),
+                  ),
+                  TextButton(
+                    onPressed: sendMessage,
+                    child: Text(
+                      'Send',
+                      style: TextStyle(
+                        color: Colors.blue[800],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HelloComposer extends StatelessWidget {
-  final String who;
-  final VoidCallback onSend;
-  final VoidCallback onCancel;
-  const _HelloComposer({
-    required this.who,
-    required this.onSend,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Text('👋'),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Preview → Hello ${who}!'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          TextButton(onPressed: onCancel, child: const Text('Cancel')),
-          const SizedBox(width: 4),
-          ElevatedButton(onPressed: onSend, child: const Text('Send')),
-        ],
       ),
     );
   }
