@@ -8,50 +8,52 @@ import '../core/models/chat_command.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
 
-final _firestore = FirebaseFirestore.instance;
-late User signedInUser;
+final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
+late User signedInUser; // Aktuell eingeloggter Benutzer
 
 class ChatScreen extends StatefulWidget {
-  static const String screenRoute = 'chat_screen';
+  static const String screenRoute = 'chat_screen'; // Route für Navigator
   const ChatScreen({super.key});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState(); // Erstellt den State
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _ctrl = TextEditingController();
-  final _auth = FirebaseAuth.instance;
+  final _ctrl = TextEditingController(); // Controller für TextField
+  final _auth = FirebaseAuth.instance; // Firebase Auth Instanz
 
-  String _raw = '';
-  ChatCommand? _activeCmd;
+  String _raw = ''; // Rohtext des Eingabefelds
+  ChatCommand? _activeCmd; // Aktives Chat-Kommando
 
   @override
   void initState() {
     super.initState();
-    final user = _auth.currentUser;
-    if (user != null) signedInUser = user;
+    final user = _auth.currentUser; // Prüfen, ob Benutzer eingeloggt
+    if (user != null) signedInUser = user; // Setzt aktuellen Benutzer
   }
 
+  // Wird aufgerufen, wenn sich der Text im Eingabefeld ändert
   void _onChanged(String v) {
     _raw = v;
-    setState(() => _activeCmd = CommandRouter.detect(v));
+    setState(() => _activeCmd = CommandRouter.detect(v)); // Prüft auf Befehle
   }
 
+  // Sendet die Nachricht oder das Kommando
   Future<void> _send() async {
     final txt = _raw.trim();
-    if (txt.isEmpty) return;
+    if (txt.isEmpty) return; // Leere Nachrichten ignorieren
 
-    if (_activeCmd != null) {
+    if (_activeCmd != null) { // Wenn ein Kommando erkannt wurde
       final cmd = _activeCmd!;
-      if (cmd.type == 'hello') {
+      if (cmd.type == 'hello') { // Beispielkommando "hello"
         final payload = HelloApp.buildPayload(cmd.data);
         await _firestore.collection('messages').add({
           ...payload,
           'sender': signedInUser.email,
         });
       }
-    } else {
+    } else { // Normale Textnachricht
       await _firestore.collection('messages').add({
         'type': 'text',
         'payload': {'text': txt},
@@ -61,9 +63,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     setState(() {
-      _raw = '';
-      _activeCmd = null;
-      _ctrl.clear();
+      _raw = ''; // Eingabefeld leeren
+      _activeCmd = null; // Aktives Kommando zurücksetzen
+      _ctrl.clear(); // Controller zurücksetzen
     });
   }
 
@@ -71,19 +73,19 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.yellow[900],
+        backgroundColor: Colors.yellow[900], // AppBar-Farbe
         title: Row(
           children: [
-            Image.asset('images/nexxchat.png', height: 25),
+            Image.asset('images/nexxchat.png', height: 25), // Logo
             const SizedBox(width: 10),
-            const Text('MessageMe'),
+            const Text('MessageMe'), // App-Name
           ],
         ),
         actions: [
           IconButton(
             onPressed: () {
-              _auth.signOut();
-              Navigator.pop(context);
+              _auth.signOut(); // Abmelden
+              Navigator.pop(context); // Zurück zur Willkommensseite
             },
             icon: const Icon(Icons.close),
           ),
@@ -94,35 +96,35 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: MessageStreamBuilder(
-                currentUserEmail: signedInUser.email ?? '',
+                currentUserEmail: signedInUser.email ?? '', // Nachrichtenstrom
               ),
             ),
+            // Zeigt Vorschau für "hello"-Kommando an
             if (_activeCmd?.type == 'hello' && _activeCmd?.previewText != null)
               HelloPreview(
                 text: _activeCmd!.previewText!,
-                onCancel: () => setState(() => _activeCmd = null),
-                onSend: _send,
+                onCancel: () => setState(() => _activeCmd = null), // Abbrechen
+                onSend: _send, // Senden
               ),
             Container(
               decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.orange, width: 2)),
+                border: Border(top: BorderSide(color: Colors.orange, width: 2)), // Trennlinie
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _ctrl,
-                      onChanged: _onChanged,
+                      controller: _ctrl, // Controller für Texteingabe
+                      onChanged: _onChanged, // Textänderungen überwachen
                       decoration: const InputDecoration(
-                        contentPadding:
-                            EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                        hintText: 'Write your message here...',
+                        contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                        hintText: 'Write your message here...', // Platzhalter
                         border: InputBorder.none,
                       ),
                     ),
                   ),
                   TextButton(
-                    onPressed: _send,
+                    onPressed: _send, // Nachricht senden
                     child: Text(
                       'Send',
                       style: TextStyle(

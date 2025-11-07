@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class HelloPreview extends StatelessWidget {
-  final String text;       
-  final VoidCallback onCancel;
-  final VoidCallback onSend;
+  final String text;       // Vorschautext des Kommandos
+  final VoidCallback onCancel; // Funktion bei Abbrechen
+  final VoidCallback onSend;   // Funktion bei Senden
 
   const HelloPreview({
     super.key,
@@ -15,19 +15,27 @@ class HelloPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeInOut,
-      color: Colors.grey[100],
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      duration: const Duration(milliseconds: 180), // Animation beim Ein-/Ausblenden
+      curve: Curves.easeInOut, // Animationskurve
+      color: Colors.grey[100], // Hintergrundfarbe
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Innenabstand
       child: Row(
         children: [
           Expanded(
-            child: Text(text,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            child: Text(
+              text, // Zeigt den Vorschautext
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
-          TextButton(onPressed: onCancel, child: const Text('Cancel')),
-          const SizedBox(width: 4),
-          ElevatedButton(onPressed: onSend, child: const Text('Send')),
+          TextButton(
+            onPressed: onCancel, // Abbrechen-Button
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 4), // Abstand zwischen Buttons
+          ElevatedButton(
+            onPressed: onSend, // Senden-Button
+            child: const Text('Send'),
+          ),
         ],
       ),
     );
