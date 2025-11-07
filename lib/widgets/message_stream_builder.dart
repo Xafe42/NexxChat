@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../apps/hello/hello_app.dart';
+import '../widgets/tetris_container.dart';
 
 final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
 
@@ -34,6 +35,25 @@ class MessageStreamBuilder extends StatelessWidget {
           if (type == 'app' && data['payload']?['app'] == 'hello') { // Spezieller App-Content
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
+          } else if (type == 'tetris') { // Tetris-Nachricht
+          content = Stack(
+            children: [
+              SingleChildScrollView( // Scrollbar hinzufügen
+                scrollDirection: Axis.vertical, // Vertikales Scrollen
+                child: TetrisContainer(), // Zeigt das Tetris-Spiel
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red, size: 28), // Deutlicher Button
+                  onPressed: () {
+                    message.reference.delete(); // Nachricht löschen
+                  },
+                ),
+              ),
+            ],
+          );
           } else { // Normale Textnachricht
             final text = data['payload']?['text'] ?? '';
             content = Text(

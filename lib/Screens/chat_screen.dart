@@ -54,6 +54,14 @@ class _ChatScreenState extends State<ChatScreen> {
           'sender': signedInUser.email,
         });
       }
+      if (cmd.type == 'tetris') { // Neues Kommando "tetris"
+        await _firestore.collection('messages').add({
+          'type': 'tetris', // Typ Tetris
+          'payload': {}, // ggf. zusätzliche Daten
+          'sender': signedInUser.email,
+          'time': FieldValue.serverTimestamp(),
+        });
+      }
     } else { // Normale Textnachricht
       await _firestore.collection('messages').add({
         'type': 'text',
@@ -110,8 +118,8 @@ class _ChatScreenState extends State<ChatScreen> {
             // Zeigt Vorschau für "tetris"-Kommando an
             if (_activeCmd?.type == 'tetris')
               TetrisPreview(
-                onCancel: () => setState(() => _activeCmd = null),
-                onSend: _send,
+                onCancel: () => setState(() => _activeCmd = null), // Abbrechen
+                onSend: _send, // Senden
               ),
             Container(
               decoration: const BoxDecoration(
