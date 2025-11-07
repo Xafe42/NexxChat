@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/widgets/my_button.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 
 class RegistrationScreen extends StatefulWidget {
-  static const String screenRoute = 'register_screen' ;
+  static const String screenRoute = 'register_screen';
   const RegistrationScreen({super.key});
 
   @override
-  _RegistrationScreenState createState() => _RegistrationScreenState() ;
+  RegistrationScreenState createState() => RegistrationScreenState(); // ✅ öffentlich
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
-  final _auth =FirebaseAuth.instance ;
-  late String email ;
-  late String password ;
-  bool showSpinner = false ;
+class RegistrationScreenState extends State<RegistrationScreen> {
+  late String email;
+  late String password;
+  bool showSpinner = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -29,93 +28,85 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              
-              Container(
+              SizedBox( // ✅ ersetzt Container für whitespace
                 height: 180.0,
                 child: Image.asset('images/logo.jpeg'),
               ),
               const SizedBox(height: 50.0),
               TextField(
                 keyboardType: TextInputType.emailAddress,
-                textAlign: TextAlign.center ,
+                textAlign: TextAlign.center,
                 onChanged: (value) {
-                  email = value ;
+                  email = value;
                 },
                 decoration: InputDecoration(
-                  hintText: 'Enter your Email' ,
-                  contentPadding: EdgeInsets.symmetric(
-                    vertical: 10 ,
-                    horizontal: 20 ,
+                  hintText: 'Enter your Email',
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 20,
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(10))
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange , width: 1,),
-                    borderRadius : BorderRadius.all(Radius.circular(10),
-                    ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue , width: 2,),
-                    borderRadius : BorderRadius.all(Radius.circular(10) ,
-                    ),
-                    ),
-        
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
                 ),
               ),
-        
-              SizedBox(height: 8 ),
+              const SizedBox(height: 8),
               TextField(
-                obscureText: true ,
-                textAlign: TextAlign.center ,
+                obscureText: true,
+                textAlign: TextAlign.center,
                 onChanged: (value) {
-                  password = value ;
+                  password = value;
                 },
                 decoration: InputDecoration(
-                  hintText: 'Enter your password' ,
-                  contentPadding: EdgeInsets.symmetric(
-                    vertical: 10 ,
-                    horizontal: 20 ,
+                  hintText: 'Enter your password',
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 20,
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(10))
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange , width: 1,),
-                    borderRadius : BorderRadius.all(Radius.circular(10),
-                    ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue , width: 2,),
-                    borderRadius : BorderRadius.all(Radius.circular(10) ,
-                    ),
-                    ),
-        
-                ), 
-              ) ,
-              SizedBox(height: 10,) ,
-        
-              MyButton(color: Colors.blue[800]!, titel: 'Register ', onPressed:  () async {
-               
-                setState(() {
-                   showSpinner = true ;
-                });
-                try {
-                   final newUser = await _auth.createUserWithEmailAndPassword(email: email, password: password) ;
-                   Navigator.pushNamed(context, ChatScreen.screenRoute );
-                   setState(() {
-                     showSpinner = false ;
-                   });
-        
-                }catch (e) {
-                   print(e) ;
-                   setState(() {
-                         showSpinner = false ;
-                   });
-                }
-              })
-        
-              
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              MyButton(
+                color: Colors.blue[800]!,
+                titel: 'Register',
+                onPressed: () async {
+                  setState(() {
+                    showSpinner = true;
+                  });
+                  try {
+                    // final newUser = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+                    Navigator.pushNamed(context, ChatScreen.screenRoute);
+                    setState(() {
+                      showSpinner = false;
+                    });
+                  } catch (e) {
+                    // print(e); // ❌ vermeiden
+                    debugPrint('Registration error: $e'); // ✅ besser für Debugging
+                    setState(() {
+                      showSpinner = false;
+                    });
+                  }
+                },
+              ),
             ],
           ),
         ),

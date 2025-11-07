@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
 import '../apps/hello/hello_app.dart';
 
 final _firestore = FirebaseFirestore.instance;
@@ -55,9 +56,9 @@ class MessageStreamBuilder extends StatelessWidget {
           messageWidgets.add(
             MessageBubble(
               sender: sender,
-              child: content,
               time: formattedTime,
               isMe: isMe,
+              child: content,
             ),
           );
         }

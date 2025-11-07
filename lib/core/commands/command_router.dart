@@ -2,7 +2,6 @@ import '../models/chat_command.dart';
 
 class CommandRouter {
   static ChatCommand? detect(String raw) {
-    final value = raw;                
     final t = raw.trimRight();         
     // /hello → Preview "World"
     if (t == '/hello') {
