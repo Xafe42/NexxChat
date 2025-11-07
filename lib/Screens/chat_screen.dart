@@ -52,9 +52,9 @@ class _ChatScreenState extends State<ChatScreen> {
         await _firestore.collection('messages').add({
           ...payload,
           'sender': signedInUser.email,
+          'time': FieldValue.serverTimestamp(),
         });
-      }
-      if (cmd.type == 'tetris') { // Neues Kommando "tetris"
+      } else if (cmd.type == 'tetris') { // Neues Kommando "tetris"
         await _firestore.collection('messages').add({
           'type': 'tetris', // Typ Tetris
           'payload': {}, // ggf. zusätzliche Daten
