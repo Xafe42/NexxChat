@@ -38,7 +38,7 @@ class _TetrisPreviewState extends State<TetrisPreview> {
       child: Column(
         children: [
           SizedBox(
-            height: 300,
+            height: 500,
             child: WebViewWidget(controller: _controller),
           ),
           const SizedBox(height: 8),
