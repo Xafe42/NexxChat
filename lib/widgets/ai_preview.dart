@@ -3,67 +3,81 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-// Dein Hugging Face Token hier einfügen
-const String hfToken = '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';
+// --- KONSTANTEN FÜR GOOGLE GEMINI API ---
 
-// Modell auswählen
-const String model = 'gpt2';
+// ✅ AKTION: Der API-Key bleibt leer (wird vom System im Backend injiziert)
+const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
+const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
+const String geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
+const String systemPrompt = "Du bist ein hilfreicher, präziser und freundlicher Chat-Assistent.";
 
-/// Funktion, um KI-Antwort zu holen und den Prompt-Präfix zu entfernen.
+// ------------------------------------------
+
+/// Funktion, um KI-Antwort zu holen (jetzt über Gemini API)
 Future<String> fetchAi(String prompt) async {
-  final url = Uri.parse('https://api-inference.huggingface.co/models/$model');
+  final url = Uri.parse(geminiApiUrl);
   final trimmedPrompt = prompt.trim();
 
-  try {
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $hfToken',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'inputs': trimmedPrompt,
-        // Model-Loading abwarten, falls es gerade erst gestartet wird
-        'options': {'wait_for_model': true}, 
-      }),
-    );
+  if (trimmedPrompt.isEmpty) {
+    return 'Fehler: Bitte geben Sie einen Prompt nach /ai ein.';
+  }
 
-    // 👉 Debug-Ausgabe
-    print('Response: ${response.body}');
+  final payload = {
+    'contents': [{'parts': [{'text': trimmedPrompt}]}],
+    'systemInstruction': {'parts': [{'text': systemPrompt}]},
+  };
 
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
+  const maxRetries = 3;
+  int retryDelayMs = 1000;
 
-      if (jsonData is List && jsonData.isNotEmpty) {
-        final String fullResponse = jsonData[0]['generated_text'] ?? '';
-        
-        // **Wichtige Korrektur:** Entferne den ursprünglichen Prompt aus der Antwort.
-        // T5-Modelle fügen den Prompt oft an den Anfang der generierten Ausgabe.
-        if (fullResponse.trim().toLowerCase().startsWith(trimmedPrompt.toLowerCase())) {
-          return fullResponse.substring(trimmedPrompt.length).trim();
+  for (int attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      print('Gemini API Response Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        final generatedText = result['candidates']?[0]['content']?['parts']?[0]['text'];
+
+        if (generatedText != null) {
+          return generatedText.trim();
+        }
+        return 'Fehler: KI hat keinen Text generiert.';
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['error']?['message'] ?? 'Unbekannter API-Fehler';
+
+        if (response.statusCode == 429 && attempt < maxRetries - 1) {
+          print('Rate limit hit (429). Retrying in ${retryDelayMs / 1000}s...');
+          await Future.delayed(Duration(milliseconds: retryDelayMs));
+          retryDelayMs *= 2; 
+          continue; 
         }
         
-        return fullResponse.trim();
+        // 🛑 WICHTIG: Wenn der Fehler 403 (Forbidden) weiterhin auftritt,
+        // liegt es daran, dass die Umgebung den Schlüssel NICHT bereitstellt.
+        if (response.statusCode == 403) {
+             return 'KI-Fehler (403): Zugriff verweigert. Der interne API-Schlüssel konnte nicht geladen werden.';
+        }
+
+        return 'KI-Fehler (${response.statusCode}): $errorMessage';
       }
-      
-      // Fehler, wenn 200, aber leere oder falsche Struktur
-      return 'Fehler: Unerwartetes Antwortformat (kein Text gefunden).';
-      
-    } else {
-      // Verbesserte Fehlerbehandlung für non-200 Statuscodes
-      try {
-        final errorData = jsonDecode(response.body);
-        // Hugging Face Fehlerantworten enthalten oft einen 'error'-Schlüssel
-        final errorMsg = errorData['error'] ?? 'Unbekannter API-Fehler.';
-        return 'KI-Fehler (${response.statusCode}): $errorMsg';
-      } catch (e) {
-        // Wenn die Antwort kein lesbares JSON ist (z.B. bei einem Timeout)
-        return 'Fehler bei der KI-Anfrage (${response.statusCode}).';
+    } catch (e) {
+      if (attempt < maxRetries - 1) {
+        print('Network error: $e. Retrying in ${retryDelayMs / 1000}s...');
+        await Future.delayed(Duration(milliseconds: retryDelayMs));
+        retryDelayMs *= 2;
+        continue;
       }
+      return 'Netzwerkfehler: $e';
     }
-  } catch (e) {
-    return 'Netzwerkfehler: $e';
   }
+  return 'KI-Fehler: Maximale Wiederholungsversuche überschritten.';
 }
 
 class AiPreview extends StatefulWidget {
@@ -96,59 +110,108 @@ class _AiPreviewState extends State<AiPreview> {
     setState(() {
       _loading = true;
     });
-    final result = await fetchAi(widget.prompt);
-    setState(() {
-      _response = result;
-      _loading = false;
-    });
+    
+    if (widget.prompt.isNotEmpty) {
+      final result = await fetchAi(widget.prompt);
+      
+      // Korrektur: Prüfen, ob das Widget noch im Baum ist (mounted)
+      if (mounted) { 
+        setState(() {
+          _response = result;
+          _loading = false;
+        });
+      }
+    } else {
+      // Korrektur: Prüfen, ob das Widget noch im Baum ist (mounted)
+      if (mounted) {
+        setState(() {
+          _response = 'Fehler: Kein Prompt eingegeben.';
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      color: Colors.grey[100],
+      margin: const EdgeInsets.only(bottom: 8.0), 
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.smart_toy),
+              const Icon(Icons.smart_toy, color: Colors.blueAccent),
               const SizedBox(width: 8),
-              const Text('AI Preview'),
+              // Korrektur: Expanded behebt den RenderFlex Overflow
+              Expanded( 
+                child: Text(
+                  'AI Preview (${geminiModel})', 
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis, // Verhindert horizontalen Overflow
+                ),
+              ), 
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close, size: 20),
                 onPressed: widget.onCancel,
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (_loading)
-            const CircularProgressIndicator()
-          else
-            // Text-Widget mit angepasstem Padding für bessere Lesbarkeit
+          const Divider(height: 10),
+          // Scrollbarer Bereich für die Antwort
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: SingleChildScrollView(
+              child: _loading
+                  ? const Center(child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(color: Colors.blueAccent),
+                    ))
+                  : Text(_response ?? 'Keine Antwort', style: const TextStyle(fontSize: 14)),
+            ),
+          ),
+          
+          if (!_loading && _response != null && !_response!.startsWith('KI-Fehler'))
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(_response ?? 'Keine Antwort'),
-            ),
-          if (!_loading)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: widget.onCancel,
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (_response != null) {
-                      await widget.onSend(_response!);
-                    }
-                  },
-                  child: const Text('Send'),
-                ),
-              ],
-            ),
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      if (_response != null) {
+                        await widget.onSend(_response!);
+                      }
+                    },
+                    icon: const Icon(Icons.send, size: 18),
+                    label: const Text('Send'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            )
         ],
       ),
     );
