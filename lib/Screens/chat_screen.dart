@@ -6,6 +6,7 @@ import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
+import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
@@ -146,6 +147,31 @@ class _ChatScreenState extends State<ChatScreen> {
                     onSend: _send,
                   ),
 
+                if (_activeCmd?.type == "ai")
+                  AiPreview(
+                    prompt: _activeCmd!.data["prompt"],
+                    onCancel: () => setState(() => _activeCmd = null),
+                    onSend: (response) async {
+                      // Firestore speichern
+                      await _firestore.collection('messages').add({
+                        'type': 'ai', // Nachrichtentyp AI
+                        'payload': {
+                          'prompt': _activeCmd!.data["prompt"], // Ursprünglicher Prompt
+                          'response': response // Antwort der KI
+                        },
+                        'sender': signedInUser.email, // Wer die Nachricht sendet
+                        'time': FieldValue.serverTimestamp(), // Zeitstempel
+                      });
+                      // UI zurücksetzen
+                      setState(() {
+                        _ctrl.clear(); // Inputfeld leeren
+                        _activeCmd = null; // Aktives Kommando löschen
+                        _raw = ''; // Rohtext zurücksetzen
+                      });
+                    },
+                  ),
+
+
                 if (_activeCmd?.type == "event")
                   EventPreview(
                     onCancel: () => setState(() => _activeCmd = null),
@@ -270,12 +296,22 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 12),
               _commandCard(
-                icon: "📅",
-                title: "Event",
-                description: "Create a group event with voting",
+              icon: "📅",
+              title: "Event",
+              description: "Create a group event with voting",
+              onTap: () {
+                _ctrl.text = "/event";
+                _onChanged("/event");
+              },
+              ),
+              const SizedBox(height: 12),
+              _commandCard(
+                icon: "🤖",
+                title: "AI",
+                description: "Chat with AI",
                 onTap: () {
-                  _ctrl.text = "/event";
-                  _onChanged("/event");
+                  _ctrl.text = "/ai ";
+                  _onChanged("/ai ");
                 },
               ),
             ],

@@ -45,6 +45,15 @@ class CommandRouter {
         previewText: 'Create an event');
     }
 
+    if (t.startsWith("/ai")) { // Space optional
+      final prompt = t.length > 3 ? t.substring(4).trim() : ""; // Text nach /ai
+      return ChatCommand(
+        type: "ai",
+        data: {"prompt": prompt},
+        previewText: "🤖 AI wird antworten...",
+      );
+    }
+
     return null; // Kein bekanntes Kommando
   }
 }
