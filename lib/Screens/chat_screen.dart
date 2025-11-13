@@ -60,7 +60,24 @@ class _ChatScreenState extends State<ChatScreen> {
           'sender': signedInUser.email,
         });
       }
+     // TETRIS APP
+      if (cmd.type == 'tetris') {
+        final payload = {
+        "type": "app",
+        "payload": {
+        "app": "tetris",
+        "data": {
+        "score": cmd.data["score"] ?? 0,
+         }
+            },
+        "time": FieldValue.serverTimestamp(),
+      };
 
+  await _firestore.collection('messages').add({
+    ...payload,
+    "sender": signedInUser.email,
+  });
+}
       // EVENT APP → sending happens in EventPreview.onSend
 
     } else {

@@ -37,7 +37,38 @@ class MessageStreamBuilder extends StatelessWidget {
           if (type == 'app' && data['payload']?['app'] == 'hello') {
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
-          }
+          } 
+          // TETRIS APP
+          else if (type == 'app' && data['payload']?['app'] == 'tetris') {
+  final score = data['payload']?['data']?['score'] ?? 0;
+
+  content = Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.deepPurple.shade50,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.videogame_asset, size: 30, color: Colors.deepPurple),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Tetris Score",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "Score: $score",
+              style: const TextStyle(fontSize: 15),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
           // EVENT REFERENCE (LIVE STREAMING)
         
           else if (type == 'event_ref') {
