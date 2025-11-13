@@ -41,7 +41,18 @@ class _ChatScreenState extends State<ChatScreen> {
   void _onChanged(String v) {
     setState(() {
       _raw = v;
-      _activeCmd = CommandRouter.detect(v);
+
+      // Spezieller Handling für /ai, um Prompt im Command zu speichern
+      if (v.startsWith('/ai')) {
+        final prompt = v.length > 3 ? v.substring(3).trim() : '';
+        _activeCmd = ChatCommand(
+          type: 'ai',
+          data: {'prompt': prompt},
+          previewText: null,
+        );
+      } else {
+        _activeCmd = CommandRouter.detect(v);
+      }
     });
   }
 
@@ -61,25 +72,27 @@ class _ChatScreenState extends State<ChatScreen> {
           'sender': signedInUser.email,
         });
       }
-     // TETRIS APP
+
+      // TETRIS APP
       if (cmd.type == 'tetris') {
         final payload = {
-        "type": "app",
-        "payload": {
-        "app": "tetris",
-        "data": {
-        "score": cmd.data["score"] ?? 0,
-         }
-            },
-        "time": FieldValue.serverTimestamp(),
-      };
+          "type": "app",
+          "payload": {
+            "app": "tetris",
+            "data": {"score": cmd.data["score"] ?? 0}
+          },
+          "time": FieldValue.serverTimestamp(),
+        };
 
-  await _firestore.collection('messages').add({
-    ...payload,
-    "sender": signedInUser.email,
-  });
-}
+        await _firestore.collection('messages').add({
+          ...payload,
+          "sender": signedInUser.email,
+        });
+      }
+
       // EVENT APP → sending happens in EventPreview.onSend
+
+      // AI APP → sending happens in AiPreview.onSend
 
     } else {
       await _firestore.collection('messages').add({
@@ -119,11 +132,9 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-
       body: SafeArea(
         child: Stack(
           children: [
-
             /// MAIN CHAT STREAM
             Column(
               children: [
@@ -148,58 +159,49 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
 
                 if (_activeCmd?.type == "ai")
-                  AiPreview(
-                    prompt: _activeCmd!.data["prompt"],
-                    onCancel: () => setState(() => _activeCmd = null),
-                    onSend: (response) async {
-                      // Firestore speichern
-                      await _firestore.collection('messages').add({
-                        'type': 'ai', // Nachrichtentyp AI
-                        'payload': {
-                          'prompt': _activeCmd!.data["prompt"], // Ursprünglicher Prompt
-                          'response': response // Antwort der KI
-                        },
-                        'sender': signedInUser.email, // Wer die Nachricht sendet
-                        'time': FieldValue.serverTimestamp(), // Zeitstempel
-                      });
-                      // UI zurücksetzen
-                      setState(() {
-                        _ctrl.clear(); // Inputfeld leeren
-                        _activeCmd = null; // Aktives Kommando löschen
-                        _raw = ''; // Rohtext zurücksetzen
-                      });
-                    },
-                  ),
-
+                AiPreview(
+                  onCancel: () => setState(() => _activeCmd = null),
+                  onSend: (prompt, response) async {
+                    await _firestore.collection('messages').add({
+                      'type': 'ai',
+                      'payload': {'prompt': prompt, 'response': response},
+                      'sender': signedInUser.email,
+                      'time': FieldValue.serverTimestamp(),
+                    });
+                    setState(() {
+                      _activeCmd = null;
+                    });
+                  },
+                ),
 
                 if (_activeCmd?.type == "event")
                   EventPreview(
                     onCancel: () => setState(() => _activeCmd = null),
-                   onSend: (formData) async {
-         // 1) Build payload
-         final payload = EventApp.buildPayload(formData);
+                    onSend: (formData) async {
+                      // 1) Build payload
+                      final payload = EventApp.buildPayload(formData);
 
-         // 2) Save inside "events" collection
-         final eventDoc = await _firestore.collection("events").add({
-           ...payload,
-           "creator": signedInUser.email,
-         });
+                      // 2) Save inside "events" collection
+                      final eventDoc = await _firestore.collection("events").add({
+                        ...payload,
+                        "creator": signedInUser.email,
+                      });
 
-         // 3) Add message in "messages" referencing the saved event
-         await _firestore.collection("messages").add({
-           "type": "event_ref",
-           "eventId": eventDoc.id,
-           "sender": signedInUser.email,
-           "time": FieldValue.serverTimestamp(),
-         });
+                      // 3) Add message in "messages" referencing the saved event
+                      await _firestore.collection("messages").add({
+                        "type": "event_ref",
+                        "eventId": eventDoc.id,
+                        "sender": signedInUser.email,
+                        "time": FieldValue.serverTimestamp(),
+                      });
 
-  // 4) Reset UI
-  setState(() {
-    _ctrl.clear();
-    _activeCmd = null;
-    _raw = "";
-  });
-},
+                      // 4) Reset UI
+                      setState(() {
+                        _ctrl.clear();
+                        _activeCmd = null;
+                        _raw = "";
+                      });
+                    },
                   ),
 
                 /// MESSAGE INPUT
@@ -271,7 +273,6 @@ class _ChatScreenState extends State<ChatScreen> {
               )
             ],
           ),
-
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -296,13 +297,13 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 12),
               _commandCard(
-              icon: "📅",
-              title: "Event",
-              description: "Create a group event with voting",
-              onTap: () {
-                _ctrl.text = "/event";
-                _onChanged("/event");
-              },
+                icon: "📅",
+                title: "Event",
+                description: "Create a group event with voting",
+                onTap: () {
+                  _ctrl.text = "/event";
+                  _onChanged("/event");
+                },
               ),
               const SizedBox(height: 12),
               _commandCard(
@@ -369,6 +370,3 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-
-
-

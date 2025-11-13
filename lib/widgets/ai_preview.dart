@@ -79,15 +79,12 @@ Future<String> fetchAi(String prompt) async {
   }
   return 'KI-Fehler: Maximale Wiederholungsversuche überschritten.';
 }
-
 class AiPreview extends StatefulWidget {
-  final String prompt;
   final VoidCallback onCancel;
-  final Future<void> Function(String response) onSend;
+  final Future<void> Function(String prompt, String response) onSend;
 
   const AiPreview({
     super.key,
-    required this.prompt,
     required this.onCancel,
     required this.onSend,
   });
@@ -97,57 +94,67 @@ class AiPreview extends StatefulWidget {
 }
 
 class _AiPreviewState extends State<AiPreview> {
-  String? _response;
-  bool _loading = true;
+  final _ctrl = TextEditingController();
+  final List<Map<String, String>> _messages = []; // prompt + response history
+  bool _loading = false;
+  String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchAiResponse();
-  }
+  Future<void> _sendPrompt() async {
+    final prompt = _ctrl.text.trim();
+    if (prompt.isEmpty) return;
 
-  Future<void> _fetchAiResponse() async {
     setState(() {
       _loading = true;
+      _error = null;
+      _messages.add({'role': 'user', 'text': prompt});
+      _ctrl.clear();
     });
-    
-    if (widget.prompt.isNotEmpty) {
-      final result = await fetchAi(widget.prompt);
-      
-      // Korrektur: Prüfen, ob das Widget noch im Baum ist (mounted)
-      if (mounted) { 
-        setState(() {
-          _response = result;
-          _loading = false;
-        });
-      }
-    } else {
-      // Korrektur: Prüfen, ob das Widget noch im Baum ist (mounted)
+
+    try {
+      final response = await fetchAi(prompt);
       if (mounted) {
         setState(() {
-          _response = 'Fehler: Kein Prompt eingegeben.';
+          _messages.add({'role': 'ai', 'text': response});
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Fehler: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
           _loading = false;
         });
       }
     }
   }
 
+  Future<void> _sendToFirestore() async {
+    for (var msg in _messages.where((m) => m['role'] == 'user')) {
+      final prompt = msg['text']!;
+      final response = _messages.firstWhere(
+        (m) => m['role'] == 'ai' && !_messages.contains(m),
+        orElse: () => {'text': ''},
+      )['text']!;
+      await widget.onSend(prompt, response);
+    }
+    setState(() {
+      _messages.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 8.0), 
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 4)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,62 +163,50 @@ class _AiPreviewState extends State<AiPreview> {
             children: [
               const Icon(Icons.smart_toy, color: Colors.blueAccent),
               const SizedBox(width: 8),
-              // Korrektur: Expanded behebt den RenderFlex Overflow
-              Expanded( 
-                child: Text(
-                  'AI Preview (${geminiModel})', 
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis, // Verhindert horizontalen Overflow
+              const Expanded(child: Text('AI Preview', style: TextStyle(fontWeight: FontWeight.bold))),
+              IconButton(icon: const Icon(Icons.close, size: 20), onPressed: widget.onCancel),
+            ],
+          ),
+          const Divider(),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                return Align(
+                  alignment: msg['role'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: msg['role'] == 'user' ? Colors.blue.shade100 : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(msg['text']!, style: const TextStyle(fontSize: 14)),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: const InputDecoration(hintText: 'Type your message...'),
+                  onSubmitted: (_) => _sendPrompt(),
                 ),
-              ), 
-              const Spacer(),
+              ),
               IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: widget.onCancel,
+                icon: const Icon(Icons.send),
+                onPressed: _loading ? null : _sendPrompt,
               ),
             ],
           ),
-          const Divider(height: 10),
-          // Scrollbarer Bereich für die Antwort
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: SingleChildScrollView(
-              child: _loading
-                  ? const Center(child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(color: Colors.blueAccent),
-                    ))
-                  : Text(_response ?? 'Keine Antwort', style: const TextStyle(fontSize: 14)),
-            ),
-          ),
-          
-          if (!_loading && _response != null && !_response!.startsWith('KI-Fehler'))
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      if (_response != null) {
-                        await widget.onSend(_response!);
-                      }
-                    },
-                    icon: const Icon(Icons.send, size: 18),
-                    label: const Text('Send'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            )
         ],
       ),
     );

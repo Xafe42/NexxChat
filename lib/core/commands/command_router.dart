@@ -46,27 +46,17 @@ class CommandRouter {
     }
 
     // AI-Befehl: Erfordert '/ai ' gefolgt von einem nicht-leeren Prompt
-    if (t.startsWith("/ai ")) { 
-      // Extrahiere den Text nach "/ai "
-      final prompt = t.substring(4).trim(); 
-      
-      // ✅ Korrektur: Die Vorschau wird NUR ausgelöst, wenn der Prompt NICHT leer ist.
+    if (t.startsWith("/ai ")) {
+      final prompt = t.substring(4).trim();
       if (prompt.isNotEmpty) {
         return ChatCommand(
           type: "ai",
           data: {"prompt": prompt},
-          previewText: "🤖 AI wird antworten...",
+          previewText: null, // keine Vorschau
         );
       }
-      
-      // Wenn der Text nur "/ai " ist, wird hier null zurückgegeben.
-      return null;
     }
-    
-    // Wenn nur "/ai" (ohne Leerzeichen) getippt wurde, soll auch nichts passieren.
-    if (t == '/ai') {
-        return null;
-    }
+
 
     return null; // No known command
   }
