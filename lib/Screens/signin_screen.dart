@@ -33,7 +33,10 @@ class SignInScreenState extends State<SignInScreen> {
       if (!mounted) return; // Prüft, ob Widget noch existiert
 
       if (user.user != null) {
-        Navigator.pushNamed(context, ChatScreen.screenRoute); // Weiterleitung zum Chat
+        Navigator.pushNamed(
+          context,
+          ChatScreen.screenRoute,
+        ); // Weiterleitung zum Chat
       }
     } catch (e) {
       debugPrint('Fehler beim Anmelden: $e'); // Fehlerausgabe
@@ -53,10 +56,14 @@ class SignInScreenState extends State<SignInScreen> {
       body: ModalProgressHUD(
         inAsyncCall: showSpinner, // Zeigt Spinner während Ladezeit
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0), // Abstand zu den Seiten
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24.0,
+          ), // Abstand zu den Seiten
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // Vertikale Zentrierung
-            crossAxisAlignment: CrossAxisAlignment.stretch, // Widgets füllen die Breite
+            mainAxisAlignment:
+                MainAxisAlignment.center, // Vertikale Zentrierung
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch, // Widgets füllen die Breite
             children: [
               SizedBox(
                 height: 180.0,
@@ -69,7 +76,10 @@ class SignInScreenState extends State<SignInScreen> {
                 onChanged: (value) => email = value, // Email speichern
                 decoration: InputDecoration(
                   hintText: 'Enter your Email', // Platzhalter
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 20,
+                  ),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
@@ -90,7 +100,10 @@ class SignInScreenState extends State<SignInScreen> {
                 onChanged: (value) => password = value, // Passwort speichern
                 decoration: InputDecoration(
                   hintText: 'Enter your password', // Platzhalter
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 20,
+                  ),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),

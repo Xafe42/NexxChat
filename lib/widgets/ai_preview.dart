@@ -5,13 +5,15 @@ import 'package:http/http.dart' as http;
 
 // --- KONSTANTEN FÜR GOOGLE GEMINI API ---
 // API-Key für den Zugriff auf die Google Gemini API
-const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
+const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
 // Modellname
 const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
 // URL für die API-Anfrage, inkl. API-Key
-const String geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
+const String geminiApiUrl =
+    'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
 // System-Prompt für die KI (z. B. Rollenbeschreibung)
-const String systemPrompt = "Du bist ein hilfreicher, präziser und freundlicher Chat-Assistent.";
+const String systemPrompt =
+    "Du bist ein hilfreicher, präziser und freundlicher Chat-Assistent.";
 
 // ------------------------------------------
 
@@ -27,8 +29,18 @@ Future<String> fetchAi(String prompt) async {
 
   // Payload für die API: enthält Prompt und Systemanweisung
   final payload = {
-    'contents': [{'parts': [{'text': trimmedPrompt}]}],
-    'systemInstruction': {'parts': [{'text': systemPrompt}]},
+    'contents': [
+      {
+        'parts': [
+          {'text': trimmedPrompt},
+        ],
+      },
+    ],
+    'systemInstruction': {
+      'parts': [
+        {'text': systemPrompt},
+      ],
+    },
   };
 
   const maxRetries = 3; // maximale Wiederholversuche bei Fehlern
@@ -48,7 +60,8 @@ Future<String> fetchAi(String prompt) async {
       // Erfolg: 200 OK
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
-        final generatedText = result['candidates']?[0]['content']?['parts']?[0]['text'];
+        final generatedText =
+            result['candidates']?[0]['content']?['parts']?[0]['text'];
 
         if (generatedText != null) {
           return generatedText.trim(); // KI-Antwort zurückgeben
@@ -57,19 +70,20 @@ Future<String> fetchAi(String prompt) async {
       } else {
         // Fehlerbehandlung
         final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['error']?['message'] ?? 'Unbekannter API-Fehler';
+        final errorMessage =
+            errorBody['error']?['message'] ?? 'Unbekannter API-Fehler';
 
         // Rate-Limit Fehler: 429 → Retry mit wachsender Verzögerung
         if (response.statusCode == 429 && attempt < maxRetries - 1) {
           print('Rate limit hit (429). Retrying in ${retryDelayMs / 1000}s...');
           await Future.delayed(Duration(milliseconds: retryDelayMs));
-          retryDelayMs *= 2; 
-          continue; 
+          retryDelayMs *= 2;
+          continue;
         }
-        
+
         // Zugriff verweigert: 403 → Schlüssel nicht verfügbar
         if (response.statusCode == 403) {
-             return 'KI-Fehler (403): Zugriff verweigert. Der interne API-Schlüssel konnte nicht geladen werden.';
+          return 'KI-Fehler (403): Zugriff verweigert. Der interne API-Schlüssel konnte nicht geladen werden.';
         }
 
         return 'KI-Fehler (${response.statusCode}): $errorMessage';
@@ -93,13 +107,10 @@ Future<String> fetchAi(String prompt) async {
 // Widget für die Vorschau von AI-Nachrichten
 class AiPreview extends StatefulWidget {
   final VoidCallback onCancel; // Callback für Abbrechen
-  final Future<void> Function(String prompt, String response) onSend; // Callback zum Senden
+  final Future<void> Function(String prompt, String response)
+  onSend; // Callback zum Senden
 
-  const AiPreview({
-    super.key,
-    required this.onCancel,
-    required this.onSend,
-  });
+  const AiPreview({super.key, required this.onCancel, required this.onSend});
 
   @override
   State<AiPreview> createState() => _AiPreviewState();
@@ -107,7 +118,8 @@ class AiPreview extends StatefulWidget {
 
 class _AiPreviewState extends State<AiPreview> {
   final _ctrl = TextEditingController(); // Controller für Texteingabe
-  final List<Map<String, String>> _messages = []; // Verlauf: prompt + KI-Antworten
+  final List<Map<String, String>> _messages =
+      []; // Verlauf: prompt + KI-Antworten
   bool _loading = false; // Ladeindikator
   String? _error; // Fehleranzeige
 
@@ -171,7 +183,9 @@ class _AiPreviewState extends State<AiPreview> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 4)],
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 4),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,8 +195,16 @@ class _AiPreviewState extends State<AiPreview> {
             children: [
               const Icon(Icons.smart_toy, color: Colors.blueAccent),
               const SizedBox(width: 8),
-              const Expanded(child: Text('AI Preview', style: TextStyle(fontWeight: FontWeight.bold))),
-              IconButton(icon: const Icon(Icons.close, size: 20), onPressed: widget.onCancel),
+              const Expanded(
+                child: Text(
+                  'AI Preview',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: widget.onCancel,
+              ),
             ],
           ),
           const Divider(),
@@ -194,22 +216,30 @@ class _AiPreviewState extends State<AiPreview> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 return Align(
-                  alignment: msg['role'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: msg['role'] == 'user'
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 2),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: msg['role'] == 'user' ? Colors.blue.shade100 : Colors.grey.shade200,
+                      color: msg['role'] == 'user'
+                          ? Colors.blue.shade100
+                          : Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(msg['text']!, style: const TextStyle(fontSize: 14)),
+                    child: Text(
+                      msg['text']!,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ),
                 );
               },
             ),
           ),
           // Fehleranzeige
-          if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+          if (_error != null)
+            Text(_error!, style: const TextStyle(color: Colors.red)),
           // Eingabefeld und Senden-Button
           Row(
             children: [
@@ -218,7 +248,9 @@ class _AiPreviewState extends State<AiPreview> {
                   controller: _ctrl,
                   minLines: 1,
                   maxLines: 4,
-                  decoration: const InputDecoration(hintText: 'Type your message...'),
+                  decoration: const InputDecoration(
+                    hintText: 'Type your message...',
+                  ),
                   onSubmitted: (_) => _sendPrompt(),
                 ),
               ),

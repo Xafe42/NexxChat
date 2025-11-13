@@ -27,9 +27,11 @@ class _TetrisPreviewState extends State<TetrisPreview> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse(
-        'https://www.geo.de/geolino/spiele/13349-rtkl-onlinespiel-tetris',
-      ))
+      ..loadRequest(
+        Uri.parse(
+          'https://www.geo.de/geolino/spiele/13349-rtkl-onlinespiel-tetris',
+        ),
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
@@ -102,9 +104,7 @@ class _TetrisPreviewState extends State<TetrisPreview> {
                     child: WebViewWidget(controller: _controller),
                   ),
                   if (_isLoading)
-                    const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    const Center(child: CircularProgressIndicator()),
                 ],
               ),
             ),
@@ -129,5 +129,3 @@ class _TetrisPreviewState extends State<TetrisPreview> {
     );
   }
 }
-
-

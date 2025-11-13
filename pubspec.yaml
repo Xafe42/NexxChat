@@ -40,6 +40,9 @@ dependencies:
   modal_progress_hud_nsn: ^0.5.1
   webview_flutter: ^4.0.7
   http: ^1.1.0
+  image_picker: ^0.8.7
+  firebase_storage: 13.0.3
+
 
 dev_dependencies:
   flutter_test:
