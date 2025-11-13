@@ -4,34 +4,39 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 // --- KONSTANTEN FÜR GOOGLE GEMINI API ---
-
-// ✅ AKTION: Der API-Key bleibt leer (wird vom System im Backend injiziert)
+// API-Key für den Zugriff auf die Google Gemini API
 const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
+// Modellname
 const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
+// URL für die API-Anfrage, inkl. API-Key
 const String geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
+// System-Prompt für die KI (z. B. Rollenbeschreibung)
 const String systemPrompt = "Du bist ein hilfreicher, präziser und freundlicher Chat-Assistent.";
 
 // ------------------------------------------
 
-/// Funktion, um KI-Antwort zu holen (jetzt über Gemini API)
+// Funktion, um eine KI-Antwort von der Gemini API zu holen
 Future<String> fetchAi(String prompt) async {
   final url = Uri.parse(geminiApiUrl);
-  final trimmedPrompt = prompt.trim();
+  final trimmedPrompt = prompt.trim(); // Whitespace entfernen
 
+  // Prüfen, ob der Prompt leer ist
   if (trimmedPrompt.isEmpty) {
     return 'Fehler: Bitte geben Sie einen Prompt nach /ai ein.';
   }
 
+  // Payload für die API: enthält Prompt und Systemanweisung
   final payload = {
     'contents': [{'parts': [{'text': trimmedPrompt}]}],
     'systemInstruction': {'parts': [{'text': systemPrompt}]},
   };
 
-  const maxRetries = 3;
-  int retryDelayMs = 1000;
+  const maxRetries = 3; // maximale Wiederholversuche bei Fehlern
+  int retryDelayMs = 1000; // Startverzögerung zwischen Versuchen
 
   for (int attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      // HTTP POST Anfrage an die API
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -40,18 +45,21 @@ Future<String> fetchAi(String prompt) async {
 
       print('Gemini API Response Status: ${response.statusCode}');
 
+      // Erfolg: 200 OK
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
         final generatedText = result['candidates']?[0]['content']?['parts']?[0]['text'];
 
         if (generatedText != null) {
-          return generatedText.trim();
+          return generatedText.trim(); // KI-Antwort zurückgeben
         }
         return 'Fehler: KI hat keinen Text generiert.';
       } else {
+        // Fehlerbehandlung
         final errorBody = jsonDecode(response.body);
         final errorMessage = errorBody['error']?['message'] ?? 'Unbekannter API-Fehler';
 
+        // Rate-Limit Fehler: 429 → Retry mit wachsender Verzögerung
         if (response.statusCode == 429 && attempt < maxRetries - 1) {
           print('Rate limit hit (429). Retrying in ${retryDelayMs / 1000}s...');
           await Future.delayed(Duration(milliseconds: retryDelayMs));
@@ -59,8 +67,7 @@ Future<String> fetchAi(String prompt) async {
           continue; 
         }
         
-        // 🛑 WICHTIG: Wenn der Fehler 403 (Forbidden) weiterhin auftritt,
-        // liegt es daran, dass die Umgebung den Schlüssel NICHT bereitstellt.
+        // Zugriff verweigert: 403 → Schlüssel nicht verfügbar
         if (response.statusCode == 403) {
              return 'KI-Fehler (403): Zugriff verweigert. Der interne API-Schlüssel konnte nicht geladen werden.';
         }
@@ -68,6 +75,7 @@ Future<String> fetchAi(String prompt) async {
         return 'KI-Fehler (${response.statusCode}): $errorMessage';
       }
     } catch (e) {
+      // Netzwerkfehler → Retry
       if (attempt < maxRetries - 1) {
         print('Network error: $e. Retrying in ${retryDelayMs / 1000}s...');
         await Future.delayed(Duration(milliseconds: retryDelayMs));
@@ -77,11 +85,15 @@ Future<String> fetchAi(String prompt) async {
       return 'Netzwerkfehler: $e';
     }
   }
+
+  // Falls alle Versuche fehlschlagen
   return 'KI-Fehler: Maximale Wiederholungsversuche überschritten.';
 }
+
+// Widget für die Vorschau von AI-Nachrichten
 class AiPreview extends StatefulWidget {
-  final VoidCallback onCancel;
-  final Future<void> Function(String prompt, String response) onSend;
+  final VoidCallback onCancel; // Callback für Abbrechen
+  final Future<void> Function(String prompt, String response) onSend; // Callback zum Senden
 
   const AiPreview({
     super.key,
@@ -94,15 +106,17 @@ class AiPreview extends StatefulWidget {
 }
 
 class _AiPreviewState extends State<AiPreview> {
-  final _ctrl = TextEditingController();
-  final List<Map<String, String>> _messages = []; // prompt + response history
-  bool _loading = false;
-  String? _error;
+  final _ctrl = TextEditingController(); // Controller für Texteingabe
+  final List<Map<String, String>> _messages = []; // Verlauf: prompt + KI-Antworten
+  bool _loading = false; // Ladeindikator
+  String? _error; // Fehleranzeige
 
+  // Funktion, um den Prompt an die KI zu senden
   Future<void> _sendPrompt() async {
     final prompt = _ctrl.text.trim();
     if (prompt.isEmpty) return;
 
+    // UI-Zustand aktualisieren: Ladezustand, Fehler zurücksetzen, User-Nachricht speichern
     setState(() {
       _loading = true;
       _error = null;
@@ -111,27 +125,29 @@ class _AiPreviewState extends State<AiPreview> {
     });
 
     try {
+      // KI-Antwort holen
       final response = await fetchAi(prompt);
       if (mounted) {
         setState(() {
-          _messages.add({'role': 'ai', 'text': response});
+          _messages.add({'role': 'ai', 'text': response}); // Antwort speichern
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Fehler: $e';
+          _error = 'Fehler: $e'; // Fehler anzeigen
         });
       }
     } finally {
       if (mounted) {
         setState(() {
-          _loading = false;
+          _loading = false; // Ladezustand zurücksetzen
         });
       }
     }
   }
 
+  // Funktion, um alle User/KI-Paare an Firestore zu senden
   Future<void> _sendToFirestore() async {
     for (var msg in _messages.where((m) => m['role'] == 'user')) {
       final prompt = msg['text']!;
@@ -141,6 +157,7 @@ class _AiPreviewState extends State<AiPreview> {
       )['text']!;
       await widget.onSend(prompt, response);
     }
+    // Verlauf leeren
     setState(() {
       _messages.clear();
     });
@@ -159,6 +176,7 @@ class _AiPreviewState extends State<AiPreview> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Kopfzeile mit Titel und Abbrechen-Button
           Row(
             children: [
               const Icon(Icons.smart_toy, color: Colors.blueAccent),
@@ -168,6 +186,7 @@ class _AiPreviewState extends State<AiPreview> {
             ],
           ),
           const Divider(),
+          // Verlauf der Nachrichten anzeigen
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 200),
             child: ListView.builder(
@@ -189,7 +208,9 @@ class _AiPreviewState extends State<AiPreview> {
               },
             ),
           ),
+          // Fehleranzeige
           if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+          // Eingabefeld und Senden-Button
           Row(
             children: [
               Expanded(
