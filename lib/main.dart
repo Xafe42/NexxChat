@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
-import 'package:nexxchat_firebase/Screens/welcome_screen.dart';
+import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
 
 
 void main() async{

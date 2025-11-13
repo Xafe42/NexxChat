@@ -112,6 +112,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: TextField(
                       controller: _ctrl,
                       onChanged: _onChanged,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      minLines: 1,
+                      maxLines: 5,
                       decoration: const InputDecoration(
                         contentPadding:
                             EdgeInsets.symmetric(vertical: 10, horizontal: 20),
