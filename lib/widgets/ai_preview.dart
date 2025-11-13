@@ -1,11 +1,69 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
+// Dein Hugging Face Token hier einfügen
+const String hfToken = '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';
 
-// Beispiel für eine Dummy-Funktion => richtige Ki fehlt noch
-// https://huggingface.co/docs/inference-providers/index
+// Modell auswählen
+const String model = 'gpt2';
+
+/// Funktion, um KI-Antwort zu holen und den Prompt-Präfix zu entfernen.
 Future<String> fetchAi(String prompt) async {
-  await Future.delayed(const Duration(seconds: 2)); // Simuliert Wartezeit
-  return "Antwort der KI auf: $prompt"; // Dummy-Antwort
+  final url = Uri.parse('https://api-inference.huggingface.co/models/$model');
+  final trimmedPrompt = prompt.trim();
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $hfToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'inputs': trimmedPrompt,
+        // Model-Loading abwarten, falls es gerade erst gestartet wird
+        'options': {'wait_for_model': true}, 
+      }),
+    );
+
+    // 👉 Debug-Ausgabe
+    print('Response: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+
+      if (jsonData is List && jsonData.isNotEmpty) {
+        final String fullResponse = jsonData[0]['generated_text'] ?? '';
+        
+        // **Wichtige Korrektur:** Entferne den ursprünglichen Prompt aus der Antwort.
+        // T5-Modelle fügen den Prompt oft an den Anfang der generierten Ausgabe.
+        if (fullResponse.trim().toLowerCase().startsWith(trimmedPrompt.toLowerCase())) {
+          return fullResponse.substring(trimmedPrompt.length).trim();
+        }
+        
+        return fullResponse.trim();
+      }
+      
+      // Fehler, wenn 200, aber leere oder falsche Struktur
+      return 'Fehler: Unerwartetes Antwortformat (kein Text gefunden).';
+      
+    } else {
+      // Verbesserte Fehlerbehandlung für non-200 Statuscodes
+      try {
+        final errorData = jsonDecode(response.body);
+        // Hugging Face Fehlerantworten enthalten oft einen 'error'-Schlüssel
+        final errorMsg = errorData['error'] ?? 'Unbekannter API-Fehler.';
+        return 'KI-Fehler (${response.statusCode}): $errorMsg';
+      } catch (e) {
+        // Wenn die Antwort kein lesbares JSON ist (z.B. bei einem Timeout)
+        return 'Fehler bei der KI-Anfrage (${response.statusCode}).';
+      }
+    }
+  } catch (e) {
+    return 'Netzwerkfehler: $e';
+  }
 }
 
 class AiPreview extends StatefulWidget {
@@ -35,7 +93,10 @@ class _AiPreviewState extends State<AiPreview> {
   }
 
   Future<void> _fetchAiResponse() async {
-    final result = await fetchAi(widget.prompt); // Dein Backend/API
+    setState(() {
+      _loading = true;
+    });
+    final result = await fetchAi(widget.prompt);
     setState(() {
       _response = result;
       _loading = false;
@@ -65,7 +126,11 @@ class _AiPreviewState extends State<AiPreview> {
           if (_loading)
             const CircularProgressIndicator()
           else
-            Text(_response ?? 'Keine Antwort'),
+            // Text-Widget mit angepasstem Padding für bessere Lesbarkeit
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(_response ?? 'Keine Antwort'),
+            ),
           if (!_loading)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

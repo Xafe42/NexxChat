@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^6.0.3
   modal_progress_hud_nsn: ^0.5.1
   webview_flutter: ^4.0.7
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
