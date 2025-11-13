@@ -37,6 +37,13 @@ class CommandRouter {
         previewText: '🎮 Starte Tetris!',
       );
     }
+      // event 
+    if (t == '/event') {
+      return ChatCommand(
+        type: 'event',
+        data: {},
+        previewText: 'Create an event');
+    }
 
     return null; // Kein bekanntes Kommando
   }
