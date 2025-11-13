@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../apps/hello/hello_app.dart';
+import '../apps/hello_app.dart';
+import '../widgets/event_card.dart';
 
 final _firestore = FirebaseFirestore.instance;
 
@@ -31,10 +32,78 @@ class MessageStreamBuilder extends StatelessWidget {
           final isMe = currentUserEmail == sender;
 
           Widget content;
+          // HELLO APP
+        
           if (type == 'app' && data['payload']?['app'] == 'hello') {
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
-          } else {
+          } 
+          // TETRIS APP
+          else if (type == 'app' && data['payload']?['app'] == 'tetris') {
+  final score = data['payload']?['data']?['score'] ?? 0;
+
+  content = Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.deepPurple.shade50,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.videogame_asset, size: 30, color: Colors.deepPurple),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Tetris Score",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "Score: $score",
+              style: const TextStyle(fontSize: 15),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+          // EVENT REFERENCE (LIVE STREAMING)
+        
+          else if (type == 'event_ref') {
+            final eventId = data['eventId'];
+
+            content = StreamBuilder<DocumentSnapshot>(
+              stream: _firestore.collection('events').doc(eventId).snapshots(),
+              builder: (context, snap) {
+                if (!snap.hasData || !snap.data!.exists) {
+                  return const Text("Loading event...");
+                }
+
+                final eventData = snap.data!.data() as Map<String, dynamic>;
+                final payload = eventData['payload']['data'] ?? {};
+                final votes = payload['votes'] ?? {
+                  'yes': [],
+                  'maybe': [],
+                  'no': []
+                };
+
+                return EventCard(
+                  title: payload['title'] ?? '',
+                  datetime: DateTime.tryParse(payload['datetime'] ?? ''),
+                  location: payload['location'] ?? '',
+                  description: payload['description'] ?? '',
+                  votes: votes,
+                  messageId: eventId,        
+                  currentUser: currentUserEmail,
+                );
+              },
+            );
+          }
+          // DEFAULT TEXT MESSAGE
+         
+          else {
             final text = data['payload']?['text'] ?? '';
             content = Text(
               text.toString(),
@@ -45,13 +114,13 @@ class MessageStreamBuilder extends StatelessWidget {
             );
           }
 
-        String formattedTime = '';
-        if (time != null && time is Timestamp) {
-          final date = time.toDate();
-          final h = date.hour.toString().padLeft(2, '0');
-          final m = date.minute.toString().padLeft(2, '0');
-          formattedTime = '$h:$m';
-        }
+          // Format HH:MM
+          String formattedTime = '';
+          if (time != null && time is Timestamp) {
+            final date = time.toDate();
+            formattedTime =
+                '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+          }
 
           messageWidgets.add(
             MessageBubble(
@@ -72,6 +141,9 @@ class MessageStreamBuilder extends StatelessWidget {
     );
   }
 }
+
+
+//  MESSAGE BUBBLE
 
 class MessageBubble extends StatelessWidget {
   final String sender;
@@ -114,8 +186,7 @@ class MessageBubble extends StatelessWidget {
                   ),
             color: isMe ? Colors.blue[800] : Colors.white,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               child: Column(
                 crossAxisAlignment:
                     isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,

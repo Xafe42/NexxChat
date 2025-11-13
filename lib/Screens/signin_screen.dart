@@ -5,22 +5,23 @@ import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/widgets/my_button.dart';
 
 class SignInScreen extends StatefulWidget {
-  static const String screenRoute = 'signin_screen';
+  static const String screenRoute = 'signin_screen'; // Route für Navigator
   const SignInScreen({super.key});
 
   @override
-  SignInScreenState createState() => SignInScreenState();
+  SignInScreenState createState() => SignInScreenState(); // Erstellt den State
 }
 
 class SignInScreenState extends State<SignInScreen> {
-  final _auth = FirebaseAuth.instance;
-  String email = '';
-  String password = '';
-  bool showSpinner = false;
+  final _auth = FirebaseAuth.instance; // Firebase Auth Instanz
+  String email = ''; // Eingabe für E-Mail
+  String password = ''; // Eingabe für Passwort
+  bool showSpinner = false; // Ladeindikator
 
+  // Methode für Anmeldung
   Future<void> _signIn() async {
     setState(() {
-      showSpinner = true;
+      showSpinner = true; // Spinner anzeigen
     });
 
     try {
@@ -29,17 +30,17 @@ class SignInScreenState extends State<SignInScreen> {
         password: password,
       );
 
-      if (!mounted) return;
+      if (!mounted) return; // Prüft, ob Widget noch existiert
 
       if (user.user != null) {
-        Navigator.pushNamed(context, ChatScreen.screenRoute);
+        Navigator.pushNamed(context, ChatScreen.screenRoute); // Weiterleitung zum Chat
       }
     } catch (e) {
-      debugPrint('Fehler beim Anmelden: $e');
+      debugPrint('Fehler beim Anmelden: $e'); // Fehlerausgabe
     } finally {
       if (mounted) {
         setState(() {
-          showSpinner = false;
+          showSpinner = false; // Spinner ausblenden
         });
       }
     }
@@ -48,30 +49,27 @@ class SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // Hintergrundfarbe
       body: ModalProgressHUD(
-        inAsyncCall: showSpinner,
+        inAsyncCall: showSpinner, // Zeigt Spinner während Ladezeit
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0), // Abstand zu den Seiten
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center, // Vertikale Zentrierung
+            crossAxisAlignment: CrossAxisAlignment.stretch, // Widgets füllen die Breite
             children: [
               SizedBox(
                 height: 180.0,
-                child: Image.asset('images/logo.jpeg'),
+                child: Image.asset('images/nexxchat.png'), // Logo anzeigen
               ),
-              const SizedBox(height: 50.0),
+              const SizedBox(height: 50.0), // Abstand
               TextField(
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.emailAddress, // Email-Tastatur
                 textAlign: TextAlign.center,
-                onChanged: (value) => email = value,
+                onChanged: (value) => email = value, // Email speichern
                 decoration: InputDecoration(
-                  hintText: 'Enter your Email',
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 20,
-                  ),
+                  hintText: 'Enter your Email', // Platzhalter
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
@@ -85,17 +83,14 @@ class SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8), // Abstand
               TextField(
-                obscureText: true,
+                obscureText: true, // Passwort ausblenden
                 textAlign: TextAlign.center,
-                onChanged: (value) => password = value,
+                onChanged: (value) => password = value, // Passwort speichern
                 decoration: InputDecoration(
-                  hintText: 'Enter your password',
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 20,
-                  ),
+                  hintText: 'Enter your password', // Platzhalter
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
@@ -109,11 +104,11 @@ class SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 10), // Abstand
               MyButton(
-                color: Colors.yellow[900]!,
-                titel: 'Sign in',
-                onPressed: _signIn,
+                color: Colors.yellow[900]!, // Buttonfarbe
+                titel: 'Sign in', // Buttontext
+                onPressed: _signIn, // Anmeldung ausführen
               ),
             ],
           ),
