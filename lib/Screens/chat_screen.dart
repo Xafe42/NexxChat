@@ -2,12 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../apps/hello/hello_app.dart';
+import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
 import '../widgets/tetris_preview.dart';
+import '../apps/event_app.dart';
+import '../widgets/event_preview.dart';
 
 final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
 late User signedInUser; // Aktuell eingeloggter Benutzer
@@ -100,6 +102,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 currentUserEmail: signedInUser.email ?? '', // Nachrichtenstrom
               ),
             ),
+
+           
+
             // Zeigt Vorschau für "hello"-Kommando an
             if (_activeCmd?.type == 'hello' && _activeCmd?.previewText != null)
               HelloPreview(
@@ -113,6 +118,24 @@ class _ChatScreenState extends State<ChatScreen> {
                 onCancel: () => setState(() => _activeCmd = null),
                 onSend: _send,
               ),
+            if (_activeCmd?.type == 'event')
+              EventPreview(
+                onCancel: () => setState(() => _activeCmd = null),
+                onSend: (formData) async {
+                  final payload = EventApp.buildPayload(formData);
+                  await _firestore.collection('messages').add({
+                    ...payload,
+                    'sender': signedInUser.email,
+                  });
+
+                  setState(() {
+                    _ctrl.clear();
+                    _activeCmd = null;
+                    _raw = '';
+                  });
+                },
+              ),
+
             Container(
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: Colors.orange, width: 2)), // Trennlinie

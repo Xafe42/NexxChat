@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-
-import '../apps/hello/hello_app.dart';
+import '../widgets/event_card.dart';
+import '../apps/hello_app.dart';
 
 final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
 
@@ -31,10 +31,40 @@ class MessageStreamBuilder extends StatelessWidget {
           final isMe = currentUserEmail == sender; // Prüft, ob die Nachricht vom aktuellen Benutzer stammt
 
           Widget content;
+
+          // -------------------------
+          //       HELLO APP
+          // -------------------------
           if (type == 'app' && data['payload']?['app'] == 'hello') { // Spezieller App-Content
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
-          } else { // Normale Textnachricht
+          }
+
+          // -------------------------
+          //       EVENT APP
+          // -------------------------
+          else if (type == 'app' && data['payload']?['app'] == 'event') {
+  final d = data['payload']?['data'] ?? {};
+
+  content = EventCard(
+    title: d['title'] ?? '',
+    datetime: DateTime.tryParse(d['datetime'] ?? ''),
+    location: d['location'] ?? '',
+    description: d['description'] ?? '',
+    votes: d['votes'] ?? {
+      'yes': [],
+      'maybe': [],
+      'no': [],
+    },
+    messageId: message.id,                
+    currentUser: currentUserEmail,        
+  );
+}
+
+          // -------------------------
+          //     DEFAULT TEXT
+          // -------------------------
+           else { // Normale Textnachricht
             final text = data['payload']?['text'] ?? '';
             content = Text(
               text.toString(),
