@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
@@ -29,17 +28,59 @@ class _ChatScreenState extends State<ChatScreen> {
   String _raw = ''; // Rohtext des Eingabefelds
   ChatCommand? _activeCmd; // Aktives Chat-Kommando
 
+  //commands 
+   final List<Map<String, String>> _allCommands = const [
+    {'command': '/hello',  'label': '👋 Hello'},
+    {'command': '/tetris', 'label': '🎮 Tetris'},
+    {'command': '/event',  'label': '📅 Event'},
+  ];
+  //UI Liste
+  List<Map<String, String>> _suggestions = [];
+
   @override
   void initState() {
     super.initState();
     final user = _auth.currentUser; // Prüfen, ob Benutzer eingeloggt
     if (user != null) signedInUser = user; // Setzt aktuellen Benutzer
   }
+   // Update Suggestions 
+  void _updateSuggestions(String value) {
+    final t = value.trimLeft();
 
+    if (t.startsWith('/')) {
+      final lower = t.toLowerCase();
+      _suggestions = _allCommands
+          .where((cmd) => cmd['command']!.startsWith(lower))
+          .toList();
+    } else {
+      _suggestions = [];
+    }
+  }
+  // Suggestions aus mini-app auswählen
+  void _applyCommand(String cmd) {
+    setState(() {
+      _raw = cmd;
+      _ctrl.text = cmd;
+      _ctrl.selection = TextSelection.fromPosition(
+        TextPosition(offset: _ctrl.text.length),
+      );
+      _activeCmd = CommandRouter.detect(cmd);
+      _suggestions = [];
+    });
+  }
   // Wird aufgerufen, wenn sich der Text im Eingabefeld ändert
+    // Wird aufgerufen, wenn sich der Text im Eingabefeld ändert
   void _onChanged(String v) {
     _raw = v;
-    setState(() => _activeCmd = CommandRouter.detect(v)); // Prüft auf Befehle
+
+    setState(() {
+      _activeCmd = CommandRouter.detect(v);
+      if (_activeCmd == null) {
+        _updateSuggestions(v);
+      } else {
+        _suggestions = [];
+      }
+    });
   }
 
   // Sendet die Nachricht oder das Kommando
@@ -135,6 +176,28 @@ class _ChatScreenState extends State<ChatScreen> {
                   });
                 },
               ),
+             // " / commands" 
+            if (_suggestions.isNotEmpty && _activeCmd == null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                color: Colors.grey[100],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _suggestions.map((cmd) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          label: Text(cmd['label']!),
+                          onPressed: () => _applyCommand(cmd['command']!),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
 
             Container(
               decoration: const BoxDecoration(

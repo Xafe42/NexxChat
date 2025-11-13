@@ -32,38 +32,38 @@ class MessageStreamBuilder extends StatelessWidget {
 
           Widget content;
 
-          // -------------------------
+          
           //       HELLO APP
-          // -------------------------
+          
           if (type == 'app' && data['payload']?['app'] == 'hello') { // Spezieller App-Content
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
           }
 
-          // -------------------------
+          
           //       EVENT APP
-          // -------------------------
+          
           else if (type == 'app' && data['payload']?['app'] == 'event') {
-  final d = data['payload']?['data'] ?? {};
+            final d = data['payload']?['data'] ?? {};
 
-  content = EventCard(
-    title: d['title'] ?? '',
-    datetime: DateTime.tryParse(d['datetime'] ?? ''),
-    location: d['location'] ?? '',
-    description: d['description'] ?? '',
-    votes: d['votes'] ?? {
-      'yes': [],
-      'maybe': [],
-      'no': [],
-    },
-    messageId: message.id,                
-    currentUser: currentUserEmail,        
-  );
-}
+             content = EventCard(
+             title: d['title'] ?? '',
+             datetime: DateTime.tryParse(d['datetime'] ?? ''),
+             location: d['location'] ?? '',
+             description: d['description'] ?? '',
+             votes: d['votes'] ?? {
+            'yes': [],
+            'maybe': [],
+            'no': [],
+            },
+            messageId: message.id,                
+            currentUser: currentUserEmail,        
+           );
+             }
 
-          // -------------------------
+          
           //     DEFAULT TEXT
-          // -------------------------
+          
            else { // Normale Textnachricht
             final text = data['payload']?['text'] ?? '';
             content = Text(

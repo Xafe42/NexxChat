@@ -40,9 +40,7 @@ class _EventCardState extends State<EventCard> {
     noList = List<String>.from(widget.votes['no'] ?? []);
   }
 
-  // -----------------------------------------------------------
   //   Update Firestore + local UI state
-  // -----------------------------------------------------------
   Future<void> _vote(String type) async {
     final user = widget.currentUser;
 
@@ -180,9 +178,8 @@ class _EventCardState extends State<EventCard> {
     );
   }
 
-  // -----------------------------------------------------------
   // UI helpers
-  // -----------------------------------------------------------
+  
   Widget _calendarBadge(DateTime? dt) {
     final day = dt?.day.toString().padLeft(2, '0') ?? "--";
     final month = dt != null ? _monthName(dt.month) : "";
@@ -252,3 +249,5 @@ class _EventCardState extends State<EventCard> {
     return months[m];
   }
 }
+
+

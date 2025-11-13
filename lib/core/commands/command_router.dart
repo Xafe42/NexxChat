@@ -37,7 +37,7 @@ class CommandRouter {
         previewText: '🎮 Starte Tetris!',
       );
     }
-      // event (always opens preview form)
+      // event 
     if (t == '/event') {
       return ChatCommand(
         type: 'event',
