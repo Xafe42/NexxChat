@@ -3,24 +3,24 @@ import 'package:flutter/material.dart';
 import '../widgets/event_card.dart';
 import '../apps/hello_app.dart';
 
-final _firestore = FirebaseFirestore.instance; // Firestore-Instanz
+final _firestore = FirebaseFirestore.instance;
 
 class MessageStreamBuilder extends StatelessWidget {
-  final String currentUserEmail; // E-Mail des aktuellen Benutzers
+  final String currentUserEmail;
   const MessageStreamBuilder({super.key, required this.currentUserEmail});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore.collection('messages').orderBy('time').snapshots(), // Echtzeit-Stream der Nachrichten
+      stream: _firestore.collection('messages').orderBy('time').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) { // Ladeindikator, falls noch keine Daten
+        if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(backgroundColor: Colors.blue),
           );
         }
 
-        final messages = snapshot.data!.docs.reversed; // Neueste Nachrichten unten
+        final messages = snapshot.data!.docs.reversed;
         final List<MessageBubble> messageWidgets = [];
 
         for (var message in messages) {
@@ -28,43 +28,50 @@ class MessageStreamBuilder extends StatelessWidget {
           final sender = (data['sender'] ?? '').toString();
           final time = data['time'];
           final type = data['type'] ?? 'text';
-          final isMe = currentUserEmail == sender; // Prüft, ob die Nachricht vom aktuellen Benutzer stammt
+          final isMe = currentUserEmail == sender;
 
           Widget content;
-
-          
-          //       HELLO APP
-          
-          if (type == 'app' && data['payload']?['app'] == 'hello') { // Spezieller App-Content
+          // HELLO APP
+        
+          if (type == 'app' && data['payload']?['app'] == 'hello') {
             final who = data['payload']?['data']?['who'] ?? 'World';
             content = HelloApp.buildCard(who.toString());
           }
+          // EVENT REFERENCE (LIVE STREAMING)
+        
+          else if (type == 'event_ref') {
+            final eventId = data['eventId'];
 
-          
-          //       EVENT APP
-          
-          else if (type == 'app' && data['payload']?['app'] == 'event') {
-            final d = data['payload']?['data'] ?? {};
+            content = StreamBuilder<DocumentSnapshot>(
+              stream: _firestore.collection('events').doc(eventId).snapshots(),
+              builder: (context, snap) {
+                if (!snap.hasData || !snap.data!.exists) {
+                  return const Text("Loading event...");
+                }
 
-             content = EventCard(
-             title: d['title'] ?? '',
-             datetime: DateTime.tryParse(d['datetime'] ?? ''),
-             location: d['location'] ?? '',
-             description: d['description'] ?? '',
-             votes: d['votes'] ?? {
-            'yes': [],
-            'maybe': [],
-            'no': [],
-            },
-            messageId: message.id,                
-            currentUser: currentUserEmail,        
-           );
-             }
+                final eventData = snap.data!.data() as Map<String, dynamic>;
+                final payload = eventData['payload']['data'] ?? {};
+                final votes = payload['votes'] ?? {
+                  'yes': [],
+                  'maybe': [],
+                  'no': []
+                };
 
-          
-          //     DEFAULT TEXT
-          
-           else { // Normale Textnachricht
+                return EventCard(
+                  title: payload['title'] ?? '',
+                  datetime: DateTime.tryParse(payload['datetime'] ?? ''),
+                  location: payload['location'] ?? '',
+                  description: payload['description'] ?? '',
+                  votes: votes,
+                  messageId: eventId,        
+                  currentUser: currentUserEmail,
+                );
+              },
+            );
+          }
+          // DEFAULT TEXT MESSAGE
+         
+          else {
             final text = data['payload']?['text'] ?? '';
             content = Text(
               text.toString(),
@@ -75,13 +82,12 @@ class MessageStreamBuilder extends StatelessWidget {
             );
           }
 
-          // Formatiert Zeit als HH:MM
+          // Format HH:MM
           String formattedTime = '';
           if (time != null && time is Timestamp) {
             final date = time.toDate();
-            final h = date.hour.toString().padLeft(2, '0');
-            final m = date.minute.toString().padLeft(2, '0');
-            formattedTime = '$h:$m';
+            formattedTime =
+                '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
           }
 
           messageWidgets.add(
@@ -95,7 +101,7 @@ class MessageStreamBuilder extends StatelessWidget {
         }
 
         return ListView(
-          reverse: true, // Neueste Nachrichten unten
+          reverse: true,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
           children: messageWidgets,
         );
@@ -104,11 +110,14 @@ class MessageStreamBuilder extends StatelessWidget {
   }
 }
 
+
+//  MESSAGE BUBBLE
+
 class MessageBubble extends StatelessWidget {
-  final String sender; // Absender der Nachricht
-  final Widget child; // Inhalt der Nachricht
-  final String time; // Zeit der Nachricht
-  final bool isMe; // Ob Nachricht vom aktuellen Benutzer stammt
+  final String sender;
+  final Widget child;
+  final String time;
+  final bool isMe;
 
   const MessageBubble({
     required this.sender,
@@ -121,39 +130,39 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(10), // Außenabstand der Nachricht
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, // Ausrichtung je nach Absender
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Text(
-            sender, // Zeigt Absender an
+            sender,
             style: TextStyle(fontSize: 12, color: Colors.yellow[900]),
           ),
           Material(
-            elevation: 5, // Schatten für Nachricht
+            elevation: 5,
             borderRadius: isMe
-                ? const BorderRadius.only( // Runde Ecken für eigene Nachrichten
+                ? const BorderRadius.only(
                     topLeft: Radius.circular(30),
                     bottomLeft: Radius.circular(30),
                     bottomRight: Radius.circular(30),
                   )
-                : const BorderRadius.only( // Runde Ecken für fremde Nachrichten
+                : const BorderRadius.only(
                     topRight: Radius.circular(30),
                     bottomLeft: Radius.circular(30),
                     bottomRight: Radius.circular(30),
                   ),
-            color: isMe ? Colors.blue[800] : Colors.white, // Hintergrundfarbe je nach Absender
+            color: isMe ? Colors.blue[800] : Colors.white,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               child: Column(
                 crossAxisAlignment:
-                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, // Textausrichtung
+                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
-                  child, // Nachrichtentext oder Widget
-                  const SizedBox(height: 5), // Abstand zur Zeit
+                  child,
+                  const SizedBox(height: 5),
                   Text(
-                    time, // Zeit der Nachricht
+                    time,
                     style: TextStyle(
                       fontSize: 10,
                       color: isMe ? Colors.white70 : Colors.black38,

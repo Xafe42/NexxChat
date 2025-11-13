@@ -55,7 +55,7 @@ class _EventCardState extends State<EventCard> {
     });
 
     final ref = FirebaseFirestore.instance
-        .collection('messages')
+        .collection('events')
         .doc(widget.messageId);
 
     await ref.update({

@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class EventApp {
   static Map<String, dynamic> buildPayload(Map<String, dynamic> data) {
     return {
-      'type': 'app',
       'payload': {
         'app': 'event',
         'data': {
@@ -18,6 +17,7 @@ class EventApp {
           }
         }
       },
+      'type': 'event', 
       'time': FieldValue.serverTimestamp(),
     };
   }

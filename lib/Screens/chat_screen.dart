@@ -134,19 +134,31 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (_activeCmd?.type == "event")
                   EventPreview(
                     onCancel: () => setState(() => _activeCmd = null),
-                    onSend: (formData) async {
-                      final payload = EventApp.buildPayload(formData);
-                      await _firestore.collection("messages").add({
-                        ...payload,
-                        "sender": signedInUser.email,
-                      });
+                   onSend: (formData) async {
+         // 1) Build payload
+         final payload = EventApp.buildPayload(formData);
 
-                      setState(() {
-                        _ctrl.clear();
-                        _activeCmd = null;
-                        _raw = "";
-                      });
-                    },
+         // 2) Save inside "events" collection
+         final eventDoc = await _firestore.collection("events").add({
+           ...payload,
+           "creator": signedInUser.email,
+         });
+
+         // 3) Add message in "messages" referencing the saved event
+         await _firestore.collection("messages").add({
+           "type": "event_ref",
+           "eventId": eventDoc.id,
+           "sender": signedInUser.email,
+           "time": FieldValue.serverTimestamp(),
+         });
+
+  // 4) Reset UI
+  setState(() {
+    _ctrl.clear();
+    _activeCmd = null;
+    _raw = "";
+  });
+},
                   ),
 
                 /// MESSAGE INPUT
@@ -306,3 +318,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
+
+
+
