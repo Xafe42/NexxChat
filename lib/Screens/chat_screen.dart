@@ -1,9 +1,10 @@
-import 'dart:io';
+import 'dart:convert'; // Für Base64
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../apps/event_app.dart';
@@ -25,15 +26,25 @@ Future<XFile?> bildAuswaehlen() async {
   return await picker.pickImage(source: ImageSource.gallery);
 }
 
-// Bild hochladen
+// Bild "hochladen" als Base64 direkt in Firestore
 Future<String?> bildHochladen(XFile file) async {
   try {
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('chat_bilder/${DateTime.now().millisecondsSinceEpoch}_${file.name}');
-    await storageRef.putFile(File(file.path));
-    final downloadUrl = await storageRef.getDownloadURL();
-    return downloadUrl;
+    // Originalbild laden
+    final bytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    // Max. Größe setzen (1024px)
+    const maxSize = 1024;
+    if (image.width > maxSize || image.height > maxSize) {
+      image = img.copyResize(image, width: maxSize, height: maxSize);
+    }
+
+    // Bild in Uint8List konvertieren und als Base64 encodieren
+    final resizedBytes = Uint8List.fromList(img.encodeJpg(image, quality: 85));
+    final base64Image = base64Encode(resizedBytes);
+
+    return base64Image; // Kein Storage mehr nötig
   } catch (e) {
     print('Upload Fehler: $e');
     return null;
@@ -80,15 +91,15 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isSlashToolbarVisible = !_isSlashToolbarVisible);
   }
 
-  // Bild senden
+  // Bild senden ohne Storage
   Future<void> _sendImage() async {
     final file = await bildAuswaehlen();
     if (file != null) {
-      final url = await bildHochladen(file);
-      if (url != null) {
+      final base64Image = await bildHochladen(file);
+      if (base64Image != null) {
         await _firestore.collection('messages').add({
           'type': 'image',
-          'payload': {'url': url},
+          'payload': {'base64': base64Image}, // Base64 statt URL
           'sender': angemeldeterUser.email,
           'time': FieldValue.serverTimestamp(),
         });
@@ -369,7 +380,6 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               const SizedBox(height: 12),
               _commandCard(
                 icon: "👋",
@@ -381,7 +391,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   setState(() => _isSlashToolbarVisible = false);
                 },
               ),
-                            _commandCard(
+              _commandCard(
                 icon: "🖼️",
                 title: "Bild senden",
                 description: "Wähle ein Bild aus der Galerie",

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -101,6 +103,22 @@ class MessageStreamBuilder extends StatelessWidget {
               },
             );
           }
+
+          // IMAGE MESSAGE
+          else if (type == 'image') {
+          final base64Str = data['payload']?['base64'] ?? '';
+          if (base64Str.isNotEmpty) {
+            final bytes = base64Decode(base64Str);
+            content = Image.memory(
+              bytes,
+              width: 200,
+              height: 200,
+              fit: BoxFit.cover,
+            );
+          } else {
+            content = const SizedBox();
+          }
+        }
           // DEFAULT TEXT MESSAGE
          
           else {
