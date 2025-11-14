@@ -55,6 +55,9 @@ class _ChatScreenState extends State<ChatScreen> {
   String _raw = '';
   ChatCommand? _aktiveCmd;
 
+  bool _isAiPreviewVisible = false;
+  bool _isSlashToolbarVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,22 +65,62 @@ class _ChatScreenState extends State<ChatScreen> {
     if (user != null) angemeldeterUser = user;
   }
 
+  // AI Vorschau öffnen
+  void _openAiPreview() {
+    if (_aktiveCmd != null) setState(() => _aktiveCmd = null);
+    setState(() {
+      _isAiPreviewVisible = true;
+      _isSlashToolbarVisible = false;
+    });
+  }
+
+  // Slash Toolbar ein-/ausschalten
+  void _toggleSlashToolbar() {
+    if (_isAiPreviewVisible) setState(() => _isAiPreviewVisible = false);
+    setState(() => _isSlashToolbarVisible = !_isSlashToolbarVisible);
+  }
+
+  // Bild senden
+  Future<void> _sendImage() async {
+    final file = await bildAuswaehlen();
+    if (file != null) {
+      final url = await bildHochladen(file);
+      if (url != null) {
+        await _firestore.collection('messages').add({
+          'type': 'image',
+          'payload': {'url': url},
+          'sender': angemeldeterUser.email,
+          'time': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+    setState(() => _isSlashToolbarVisible = false);
+  }
+
+  // Textfeld Änderung: entscheidet über Toolbar oder Preview
   void _onChanged(String v) {
     setState(() {
       _raw = v;
-      if (v.startsWith('/ai')) {
-        final prompt = v.length > 3 ? v.substring(3).trim() : '';
-        _aktiveCmd = ChatCommand(
-          type: 'ai',
-          data: {'prompt': prompt},
-          previewText: null,
-        );
+
+      // Command erkennen
+      _aktiveCmd = CommandRouter.detect(v);
+
+      // Slash Toolbar nur anzeigen, wenn "/" eingegeben wird, aber kein Command erkannt wurde
+      if (v.startsWith("/") && _aktiveCmd == null) {
+        _isSlashToolbarVisible = true;
+        _isAiPreviewVisible = false;
       } else {
-        _aktiveCmd = CommandRouter.detect(v);
+        _isSlashToolbarVisible = false;
+      }
+
+      // Wenn ein Command erkannt wird, Vorschau öffnen
+      if (_aktiveCmd != null) {
+        _isAiPreviewVisible = false;
       }
     });
   }
 
+  // Nachricht senden
   Future<void> _senden() async {
     final txt = _raw.trim();
     if (txt.isEmpty) return;
@@ -153,55 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     currentUserEmail: angemeldeterUser.email ?? '',
                   ),
                 ),
-
-                // Vorschau Widgets für Commands
-                if (_aktiveCmd?.type == "hello")
-                  HelloPreview(
-                    text: _aktiveCmd!.previewText!,
-                    onCancel: () => setState(() => _aktiveCmd = null),
-                    onSend: _senden,
-                  ),
-                if (_aktiveCmd?.type == "tetris")
-                  TetrisPreview(
-                    onCancel: () => setState(() => _aktiveCmd = null),
-                    onSend: _senden,
-                  ),
-                if (_aktiveCmd?.type == "ai")
-                  AiPreview(
-                    onCancel: () => setState(() => _aktiveCmd = null),
-                    onSend: (prompt, response) async {
-                      await _firestore.collection('messages').add({
-                        'type': 'ai',
-                        'payload': {'prompt': prompt, 'response': response},
-                        'sender': angemeldeterUser.email,
-                        'time': FieldValue.serverTimestamp(),
-                      });
-                      setState(() => _aktiveCmd = null);
-                    },
-                  ),
-                if (_aktiveCmd?.type == "event")
-                  EventPreview(
-                    onCancel: () => setState(() => _aktiveCmd = null),
-                    onSend: (formData) async {
-                      final payload = EventApp.buildPayload(formData);
-                      final eventDoc = await _firestore
-                          .collection("events")
-                          .add({...payload, "creator": angemeldeterUser.email});
-                      await _firestore.collection("messages").add({
-                        "type": "event_ref",
-                        "eventId": eventDoc.id,
-                        "sender": angemeldeterUser.email,
-                        "time": FieldValue.serverTimestamp(),
-                      });
-                      setState(() {
-                        _ctrl.clear();
-                        _aktiveCmd = null;
-                        _raw = "";
-                      });
-                    },
-                  ),
-
-                // Chat Input mit Bild-Button links vom Senden
+                // Chat Input
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: const BoxDecoration(
@@ -213,13 +208,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: TextField(
                           controller: _ctrl,
                           onChanged: _onChanged,
-                          maxLines: null, // Mehrzeilige Eingabe
+                          maxLines: null,
                           keyboardType: TextInputType.multiline,
                           decoration: const InputDecoration(
                             contentPadding: EdgeInsets.symmetric(
-                              vertical: 10,
-                              horizontal: 20,
-                            ),
+                                vertical: 10, horizontal: 20),
                             hintText: 'Schreibe deine Nachricht',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -235,29 +228,18 @@ class _ChatScreenState extends State<ChatScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.image, size: 28, color: Colors.orange),
-                            onPressed: () async {
-                              final file = await bildAuswaehlen();
-                              if (file != null) {
-                                final url = await bildHochladen(file);
-                                if (url != null) {
-                                  await _firestore.collection('messages').add({
-                                    'type': 'image',
-                                    'payload': {'url': url},
-                                    'sender': angemeldeterUser.email,
-                                    'time': FieldValue.serverTimestamp(),
-                                  });
-                                }
-                              }
-                            },
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _senden,
-                            icon: const Icon(Icons.send, color: Colors.white),
-                            label: const Text(
-                              "Senden",
-                              style: TextStyle(color: Colors.white),
+                            icon: Icon(
+                              _isSlashToolbarVisible
+                                  ? Icons.remove_circle_outline
+                                  : Icons.add_circle_outline,
+                              size: 28,
+                              color: Colors.orange,
                             ),
+                            onPressed: _toggleSlashToolbar,
+                          ),
+                          const SizedBox(width: 4),
+                          ElevatedButton(
+                            onPressed: _senden,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange[800],
                               shape: RoundedRectangleBorder(
@@ -265,24 +247,104 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text(
+                                  "Senden",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                SizedBox(width: 6),
+                                Icon(
+                                  Icons.send, // Icon rechts
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-
-                // Toolbar
-                if (_raw.trim() == "/") _slashToolbar(),
               ],
             ),
+
+            // Vorschau Widgets für Commands
+            if (_aktiveCmd?.type == "hello")
+              Positioned(
+                bottom: 70,
+                left: 0,
+                right: 0,
+                child: HelloPreview(
+                  text: _aktiveCmd!.previewText!,
+                  onCancel: () => setState(() => _aktiveCmd = null),
+                  onSend: _senden,
+                ),
+              ),
+            if (_aktiveCmd?.type == "tetris")
+              Positioned(
+                bottom: 70,
+                left: 0,
+                right: 0,
+                child: TetrisPreview(
+                  onCancel: () => setState(() => _aktiveCmd = null),
+                  onSend: _senden,
+                ),
+              ),
+            if (_isAiPreviewVisible)
+              Positioned(
+                bottom: 70,
+                left: 0,
+                right: 0,
+                child: AiPreview(
+                  onCancel: () => setState(() => _isAiPreviewVisible = false),
+                  onSend: (prompt, response) async {
+                    await _firestore.collection('messages').add({
+                      'type': 'ai',
+                      'payload': {'prompt': prompt, 'response': response},
+                      'sender': angemeldeterUser.email,
+                      'time': FieldValue.serverTimestamp(),
+                    });
+                    setState(() => _isAiPreviewVisible = false);
+                  },
+                ),
+              ),
+            if (_aktiveCmd?.type == "event")
+              Positioned(
+                bottom: 70,
+                left: 0,
+                right: 0,
+                child: EventPreview(
+                  onCancel: () => setState(() => _aktiveCmd = null),
+                  onSend: (formData) async {
+                    final payload = EventApp.buildPayload(formData);
+                    final eventDoc = await _firestore
+                        .collection("events")
+                        .add({...payload, "creator": angemeldeterUser.email});
+                    await _firestore.collection("messages").add({
+                      "type": "event_ref",
+                      "eventId": eventDoc.id,
+                      "sender": angemeldeterUser.email,
+                      "time": FieldValue.serverTimestamp(),
+                    });
+                    setState(() {
+                      _ctrl.clear();
+                      _aktiveCmd = null;
+                      _raw = "";
+                    });
+                  },
+                ),
+              ),
+
+            // Slash Toolbar
+            if (_isSlashToolbarVisible) _slashToolbar(),
           ],
         ),
       ),
     );
   }
 
-  // Toolbar
   Widget _slashToolbar() {
     return Positioned(
       left: 0,
@@ -307,6 +369,8 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+
+              const SizedBox(height: 12),
               _commandCard(
                 icon: "👋",
                 title: "Hello",
@@ -314,7 +378,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   _ctrl.text = "/hello ";
                   _onChanged("/hello ");
+                  setState(() => _isSlashToolbarVisible = false);
                 },
+              ),
+                            _commandCard(
+                icon: "🖼️",
+                title: "Bild senden",
+                description: "Wähle ein Bild aus der Galerie",
+                onTap: _sendImage,
               ),
               const SizedBox(height: 12),
               _commandCard(
@@ -324,6 +395,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   _ctrl.text = "/tetris";
                   _onChanged("/tetris");
+                  setState(() => _isSlashToolbarVisible = false);
                 },
               ),
               const SizedBox(height: 12),
@@ -334,6 +406,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   _ctrl.text = "/event";
                   _onChanged("/event");
+                  setState(() => _isSlashToolbarVisible = false);
                 },
               ),
               const SizedBox(height: 12),
@@ -341,10 +414,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 icon: "🤖",
                 title: "AI",
                 description: "Chatte mit AI",
-                onTap: () {
-                  _ctrl.text = "/ai ";
-                  _onChanged("/ai ");
-                },
+                onTap: _openAiPreview,
               ),
             ],
           ),
