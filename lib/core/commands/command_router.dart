@@ -34,7 +34,6 @@ class CommandRouter {
       return ChatCommand(
         type: 'tetris',
         data: {},
-        previewText: '🎮 Starte Tetris!',
       );
     }
       // event 
