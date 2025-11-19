@@ -1,16 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../gamer/gamer.dart';
 
-/// أحجام الأزرار
 const Size directionButtonSize = Size(60, 60);
 const Size smallButtonSize = Size(45, 45);
 
-/// =====================================================
-///  الحاوية الرئيسية للكنترولز
-/// =====================================================
+
+
 class GameController extends StatelessWidget {
   const GameController({super.key});
 
@@ -28,16 +25,16 @@ class GameController extends StatelessWidget {
   }
 }
 
-/// =====================================================
-///  أزرار الجهة اليسار (Sounds - Pause - Reset - Drop)
-/// =====================================================
+
+///buttons (Sounds - Pause - Reset - Drop)
+
 class LeftController extends StatelessWidget {
   const LeftController({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8), // يخلي التنسيق أجمل
+      padding: const EdgeInsets.only(bottom: 8), 
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [

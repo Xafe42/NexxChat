@@ -99,7 +99,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     showSpinner = true;
                   }); // Spinner anzeigen
                   try {
-                    final newUser = await _auth.createUserWithEmailAndPassword(
+                     await _auth.createUserWithEmailAndPassword(
                       email: email,
                       password: password,
                     ); // Registrierungsversuch

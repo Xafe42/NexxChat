@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/apps/flutter-tetris/material/main.dart';
-import '../../../main.dart';
-
 import '../gamer/block.dart';
 import '../material/audios.dart';
 
@@ -34,9 +32,9 @@ class Game extends StatefulWidget {
   static GameControl of(BuildContext context) {
     final state = context.findAncestorStateOfType<GameControl>();
      if (state == null) {
-    print("❌ ERROR: Game.of(context) found NO GameControl");
+    print("ERROR: Game.of(context) found NO GameControl");
   } else {
-    print("✔️ Game.of(context) RETURNED GameControl");
+    print(" Game.of(context) RETURNED GameControl");
   }
   return state!;
   }
@@ -70,7 +68,7 @@ class GameControl extends State<Game> with RouteAware {
 void initState() {
   super.initState();
 
-  print("🔥 GameControl:initState() STARTED");
+  print("GameControl:initState() STARTED");
 
   for (int i = 0; i < gamePadMatrixH; i++) {
     _data.add(List.filled(gamePadMatrixW, 0));
@@ -78,7 +76,7 @@ void initState() {
   }
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    print("🔥 GameControl calling _startGame()");
+    print(" GameControl calling _startGame()");
     _startGame();
   });
 }
@@ -292,7 +290,7 @@ void initState() {
 
     _current = null;
 
-    // check game over (إذا الصف الأول فيه بلوكات)
+    
     if (_data[0].contains(1)) {
       reset();
     } else {
@@ -342,7 +340,7 @@ void initState() {
     () async {
       int line = gamePadMatrixH;
 
-      // نملي الشاشة بلوكات من تحت الفوق
+      
       await Future.doWhile(() async {
         line--;
         for (int i = 0; i < gamePadMatrixW; i++) {
@@ -358,7 +356,7 @@ void initState() {
       _points = 0;
       _cleared = 0;
 
-      // نفرغ الشاشة من فوق لتحت
+      
       await Future.doWhile(() async {
         for (int i = 0; i < gamePadMatrixW; i++) {
           _data[line][i] = 0;

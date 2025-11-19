@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 class Sound extends StatefulWidget {
@@ -15,33 +16,54 @@ class Sound extends StatefulWidget {
   }
 }
 
-// نحافظ على أسماء الأصوات باش الكود الباقي ما يطيحش
-const sounds = [
-  'clean.mp3',
-  'drop.mp3',
-  'explosion.mp3',
-  'move.mp3',
-  'rotate.mp3',
-  'start.mp3',
-];
-
 class SoundState extends State<Sound> {
   bool mute = false;
 
+  /// نخزنو كان الـ AssetSource بش ما يعاودش يحمل من الـ storage
+  final Map<String, AssetSource> _assetCache = {};
+
+  /// نحمل ملف الصوت كان أول مرة
+  Future<AssetSource> _loadAsset(String name) async {
+    if (_assetCache.containsKey(name)) {
+      return _assetCache[name]!;
+    }
+
+    final src = AssetSource('audios/$name');
+    _assetCache[name] = src;
+
+    return src;
+  }
+
+  /// كل نغمة = AudioPlayer جديد (مهم برشا)
+  Future<void> _play(String name) async {
+    if (mute) {
+      debugPrint("🔇 Sound disabled: $name");
+      return;
+    }
+
+    try {
+      final player = AudioPlayer();
+      final asset = await _loadAsset(name);
+
+      await player.play(asset);
+
+      // ندمّرو player كي يكمل الصوت
+      player.onPlayerComplete.listen((_) {
+        player.dispose();
+      });
+    } catch (e) {
+      debugPrint("❌ SOUND ERROR: $e");
+    }
+  }
+
+  void start() => _play('start.mp3');
+  void clear() => _play('clean.mp3');
+  void fall() => _play('drop.mp3');
+  void rotate() => _play('rotate.mp3');
+  void move() => _play('move.mp3');
+
   @override
   Widget build(BuildContext context) {
-    // اللعبة تخدم عادي
     return widget.child;
   }
-
-  // هذه توظّف نفس الـ API بصوت صامت
-  void _log(String name) {
-    debugPrint("🔇 Sound disabled: $name");
-  }
-
-  void start() => _log('start.mp3');
-  void clear() => _log('clean.mp3');
-  void fall() => _log('drop.mp3');
-  void rotate() => _log('rotate.mp3');
-  void move() => _log('move.mp3');
 }

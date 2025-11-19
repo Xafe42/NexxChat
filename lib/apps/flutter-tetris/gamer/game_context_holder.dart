@@ -22,9 +22,8 @@ class _GameContextHolderState extends State<GameContextHolder> {
     final game = context.findAncestorStateOfType<GameControl>();
     if (game != null) {
       game.refreshContext(context);
-      print("🔥 GameContextHolder linked successfully");
+      
     } else {
-      print("❌ GameContextHolder FAILED (No GameControl found)");
     }
   }
 
