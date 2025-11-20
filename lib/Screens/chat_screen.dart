@@ -197,6 +197,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
@@ -208,7 +210,6 @@ class _ChatScreenState extends State<ChatScreen> {
             Navigator.pop(context); // Geht zurück zum Home Screen
           },
         ),
-        titleSpacing: 0,
         title: Row(
           children: [
             Container(
@@ -248,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // INPUT
                 Container(
-                  color: Colors.white,
+                  color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                   child: SafeArea(
                     top: false,
                     child: Container(
@@ -265,10 +266,12 @@ class _ChatScreenState extends State<ChatScreen> {
                               controller: _ctrl,
                               onChanged: _onChanged,
                               maxLines: null,
-                              decoration: const InputDecoration(
+                              style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                              decoration: InputDecoration(
                                 hintText: "Schreibe deine Nachricht",
+                                hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                                 filled: true,
-                                fillColor: Color(0xFFF0F0F0),
+                                fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(20)),
                                   borderSide: BorderSide.none,
@@ -378,18 +381,21 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
     );
   }
-
-  // SLASH MENU
+// SLASH MENU
   Widget _slashToolbar() {
+    // Prüfen, ob Dark Mode aktiv ist
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
     return Positioned(
       left: 0,
       right: 0,
-      bottom: 70,
+      bottom: 80, 
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 18),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor, // Passt sich jetzt an
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -456,6 +462,13 @@ class _ChatScreenState extends State<ChatScreen> {
     required String description,
     required VoidCallback onTap,
   }) {
+    // Farben basierend auf Dark Mode definieren
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
+    final titleColor = isDarkMode ? Colors.white : Colors.black;
+    final descColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -463,8 +476,8 @@ class _ChatScreenState extends State<ChatScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
-          color: Colors.white,
+          border: Border.all(color: borderColor),
+          color: cardColor, 
         ),
         child: Row(
           children: [
@@ -473,17 +486,25 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600)),
-                Text(description,
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade700)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17, 
+                    fontWeight: FontWeight.w600,
+                    color: titleColor, // Farbe angepasst
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: descColor, // Farbe angepasst
+                  ),
+                ),
               ],
             ),
           ],
         ),
       ),
     );
-  }
-}
+  }}

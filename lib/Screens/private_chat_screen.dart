@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../core/chat_theme.dart';
 import '../core/services/chat_service.dart';
+// ChatTheme NICHT importiert, da wir hier den System-Hintergrund nutzen
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -30,13 +30,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void initState() {
     super.initState();
     _user = _auth.currentUser;
-    _loadTheme(); //THEME LADEN
-  }
-
-  // Funktion zum Laden der Farben
-  void _loadTheme() async {
-    await ChatTheme.loadTheme();
-    if (mounted) setState(() {});
   }
 
   Future<void> _send() async {
@@ -58,14 +51,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (_user == null) {
       return const Scaffold(body: Center(child: Text("Not logged in")));
     }
+    
+    // --- DARK MODE LOGIK ---
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final inputColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    // -----------------------
 
     return Scaffold(
-      // 3. HINTERGRUND ANWENDEN
-      backgroundColor: ChatTheme.backgroundColor, 
+      backgroundColor: bgColor, // Reagiert auf Dark Mode
       
       appBar: AppBar(
         title: Text(widget.title),
-        backgroundColor: Colors.orange, // Optional: Einheitliche AppBar Farbe
+        backgroundColor: Colors.orange,
       ),
       body: Column(
         children: [
@@ -78,7 +76,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No messages yet"));
+                  return Center(child: Text("No messages yet", style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black54)));
                 }
 
                 final docs = snapshot.data!.docs;
@@ -97,26 +95,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                         decoration: BoxDecoration(
-                          color: isMe ? ChatTheme.myBubbleColor : Colors.white,
-                          borderRadius: isMe 
-                              ? const BorderRadius.only(
-                                  topLeft: Radius.circular(15),
-                                  bottomLeft: Radius.circular(15),
-                                  bottomRight: Radius.circular(15))
-                              : const BorderRadius.only(
-                                  topRight: Radius.circular(15),
-                                  bottomLeft: Radius.circular(15),
-                                  bottomRight: Radius.circular(15)),
-                          boxShadow: [
-                             BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 2, offset: const Offset(0, 1))
-                          ]
+                          // Standard Blau/Grau für Private Chats (nicht Theme-gebunden)
+                          color: isMe ? Colors.blue[600] : (isDarkMode ? Colors.grey[700] : Colors.grey[300]),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           text,
                           style: TextStyle(
-                            // Textfarbe anpassen (Weiß auf Farbe, Schwarz auf Weiß)
-                            color: isMe ? Colors.white : Colors.black87,
-                            fontSize: 15,
+                            color: isMe ? Colors.white : (isDarkMode ? Colors.white : Colors.black87),
                           ),
                         ),
                       ),
@@ -126,43 +112,43 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               },
             ),
           ),
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Colors.orange.shade200, width: 1),
-                ),
+          
+          // Input Container
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: inputColor,
+              border: Border(
+                top: BorderSide(color: Colors.orange.shade200, width: 1),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      maxLines: 1,
-                      decoration: InputDecoration(
-                        hintText: 'Nachricht...',
-                        filled: true,
-                        fillColor: const Color(0xFFF5F5F5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide.none
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    maxLines: 1,
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    decoration: InputDecoration(
+                      hintText: 'Nachricht...',
+                      hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
+                      filled: true,
+                      fillColor: isDarkMode ? Colors.grey[900] : const Color(0xFFF5F5F5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none
                       ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: ChatTheme.myBubbleColor, // Senden Button passend
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                      onPressed: _send,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  color: Colors.orange,
+                  onPressed: _send,
+                ),
+              ],
             ),
           ),
         ],

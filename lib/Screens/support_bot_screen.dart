@@ -112,6 +112,8 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       // HIER: Hintergrundfarbe aus Theme laden
       backgroundColor: ChatTheme.backgroundColor,
@@ -232,11 +234,11 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             ),
 
           // 3. DESIGN: Input Feld
-          // Hintergrund Weiß setzen gegen Lücken
+          // Hintergrund reagiert auf Dark Mode gegen Lücke unten
           Container(
-            color: Colors.white, 
+            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white, 
             child: SafeArea(
-              top: false, // Unten Safearea beachten
+              top: false, // Nur unten Safearea beachten
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: const BoxDecoration(
@@ -250,15 +252,17 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                       child: TextField(
                         controller: _controller,
                         maxLines: null,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
                           hintText: "Frag mich was du möchtest",
+                          hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                           filled: true,
-                          fillColor: Color(0xFFF0F0F0),
+                          fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         ),
                         onSubmitted: (_) => _sendMessage(),
                       ),
@@ -267,6 +271,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                     ElevatedButton(
                       onPressed: _isLoading ? null : _sendMessage,
                       style: ElevatedButton.styleFrom(
+                        // Senden Button auch in Theme Farbe
                         backgroundColor: ChatTheme.myBubbleColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),

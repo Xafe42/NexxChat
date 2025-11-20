@@ -1,82 +1,114 @@
 import 'package:flutter/material.dart';
 
-import '../core/chat_theme.dart'; // WICHTIG: Importiere deine existierende ChatTheme Datei
+import '../core/chat_theme.dart'; // WICHTIG: Deine Theme Datei importieren
+import '../theme_notifier.dart'; // WICHTIG: Für den Dark Mode Notifier
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white, // Immer weiß, da Dark Mode weg ist
-      appBar: AppBar(
-        title: const Text(
-          "Einstellungen",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Überschrift
-          const Text(
-            "Allgemein",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
-          ),
-          const SizedBox(height: 10),
+    // Wir nutzen ValueListenableBuilder, damit der Switch sofort reagiert
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, child) {
+        final isDarkMode = currentMode == ThemeMode.dark;
 
-          // Personalisierung Karte
-          Card(
+        // Farben basierend auf System-Theme (Dark/Light Mode)
+        final bgColor = Theme.of(context).scaffoldBackgroundColor;
+        final textColor = isDarkMode ? Colors.white : Colors.black;
+        final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey;
+        final cardColor = isDarkMode ? Colors.grey[800] : Colors.grey[100];
+
+        return Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            title: Text(
+              "Einstellungen",
+              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: bgColor,
             elevation: 0,
-            color: Colors.grey[100],
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.palette, color: Colors.orange),
-                  title: const Text("Personalisierung"),
-                  subtitle: const Text("Chat Hintergrund & Farben anpassen"),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                  onTap: () {
-                    // Öffnet das Design-Menü
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ChatDesignScreen()),
-                    );
-                  },
+            automaticallyImplyLeading: false,
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Überschrift
+              Text(
+                "Allgemein",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: subTextColor),
+              ),
+              const SizedBox(height: 10),
+
+              // Einstellungen Karte
+              Card(
+                elevation: 0,
+                color: cardColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  children: [
+                    // 1. DARK MODE SCHALTER (Global)
+                    SwitchListTile(
+                      title: Text("Dark Mode", style: TextStyle(color: textColor)),
+                      secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode, color: textColor),
+                      value: isDarkMode,
+                      activeColor: Colors.orange,
+                      onChanged: (val) {
+                        themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                      },
+                    ),
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+                    ),
+
+                    // 2. PERSONALISIERUNG (Nur für Chats)
+                    ListTile(
+                      leading: const Icon(Icons.palette, color: Colors.orange),
+                      title: Text("Personalisierung", style: TextStyle(color: textColor)),
+                      subtitle: Text("Chat Hintergrund & Farben anpassen", style: TextStyle(color: subTextColor, fontSize: 12)),
+                      trailing: Icon(Icons.arrow_forward_ios, size: 16, color: subTextColor),
+                      onTap: () {
+                        // Öffnet das Design-Menü
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ChatDesignScreen()),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Info Bereich
+              Text(
+                "Info",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: subTextColor),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                elevation: 0,
+                color: cardColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: ListTile(
+                  leading: Icon(Icons.info_outline, color: textColor.withOpacity(0.7)),
+                  title: Text("App Version", style: TextStyle(color: textColor)),
+                  trailing: Text("1.0.0", style: TextStyle(color: subTextColor)),
+                ),
+              ),
+            ],
           ),
-          
-          const SizedBox(height: 20),
-          
-          // Info Bereich (Optional, sieht aber besser aus wenn nicht leer)
-          const Text(
-            "Info",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
-          ),
-          const SizedBox(height: 10),
-          Card(
-            elevation: 0,
-            color: Colors.grey[100],
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: const ListTile(
-              leading: Icon(Icons.info_outline, color: Colors.black54),
-              title: Text("App Version"),
-              trailing: Text("1.0.0", style: TextStyle(color: Colors.grey)),
-            ),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 }
 
-// --- DER SCREEN ZUM FARBEN EINSTELLEN ---
+// --- DER SCREEN ZUM FARBEN EINSTELLEN (Personalisierung) ---
 class ChatDesignScreen extends StatefulWidget {
   const ChatDesignScreen({super.key});
 
@@ -111,19 +143,13 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
   }
 
   void _loadCurrentTheme() async {
-    // Lädt die aktuellen Farben, damit die Vorschau stimmt
     await ChatTheme.loadTheme();
     if (mounted) setState(() {});
   }
 
   void _updateTheme(Color bubble, Color bg) {
-    // Speichert die Farben global in deiner ChatTheme Klasse
     ChatTheme.saveTheme(bubble, bg);
-    
-    // UI aktualisieren (Vorschau)
     setState(() {});
-    
-    // Feedback für den User
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Design gespeichert!"), 
@@ -136,6 +162,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // Dieser Screen bleibt im Light Mode Design (oder anpassbar)
       appBar: AppBar(
         title: const Text("Chat Design", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
@@ -145,7 +172,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // --- VORSCHAU BEREICH ---
+          // --- VORSCHAU BEREICH (Deine gewünschte Version) ---
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -196,7 +223,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
           const SizedBox(height: 30),
           
           // --- FARBWAHL NACHRICHTEN ---
-          const Text("Nachrichten Farbe", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text("Nachrichten Farbe", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
           const SizedBox(height: 10),
           SizedBox(
             height: 50,
@@ -227,7 +254,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
           const SizedBox(height: 30),
 
           // --- FARBWAHL HINTERGRUND ---
-          const Text("Hintergrund", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text("Hintergrund", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
           const SizedBox(height: 10),
           SizedBox(
             height: 50,
