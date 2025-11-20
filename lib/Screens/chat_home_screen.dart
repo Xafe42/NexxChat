@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
+import '../core/chat_theme.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 import 'support_bot_screen.dart';
@@ -54,12 +55,26 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  void _loadTheme() async {
+    await ChatTheme.loadTheme();
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
+    bool isDarkBg = ChatTheme.backgroundColor.computeLuminance() < 0.5;
+    Color textColor = isDarkBg ? Colors.white : Colors.black;
+
     final List<Widget> pages = [
       Column(
         children: [
-           _buildHeader(),
-           Expanded(child: _buildChatList()), 
+           _buildHeader(textColor),
+           Expanded(child: _buildChatList(textColor)), 
         ],
       ),
       const PeopleScreen(),
@@ -67,6 +82,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: pages[_selectedIndex],
       ),
@@ -79,13 +95,16 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: (index) {
+             setState(() => _selectedIndex = index);
+             _loadTheme();
+          },
           selectedItemColor: Colors.orange[800],
           unselectedItemColor: Colors.grey[400],
           showSelectedLabels: false, 
           showUnselectedLabels: false,
           elevation: 0,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
+          backgroundColor: ChatTheme.backgroundColor, 
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: "Chats"),
@@ -99,13 +118,13 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         onPressed: () {
           // Neuer Chat Logik
         },
-        backgroundColor: Colors.black, 
+        backgroundColor: ChatTheme.myBubbleColor, 
         child: const Icon(Icons.add, color: Colors.white),
       ) : null, 
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Color textColor) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Row(
@@ -116,14 +135,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              color: textColor,
             ),
           ),
           Row(
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100], 
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200], 
                   shape: BoxShape.circle
                 ),
                 child: IconButton(
@@ -134,7 +153,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               const SizedBox(width: 10),
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100], 
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200], 
                   shape: BoxShape.circle
                 ),
                 child: IconButton(
@@ -154,8 +173,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
   // 3. Die Chat Liste
-  Widget _buildChatList() {
-    // Wir nutzen einen ListView mit itemCount + 1 (1 für den Live Chat, der Rest statisch)
+  Widget _buildChatList(Color textColor) {
+    // ListView mit itemCount + 1 (1 für den Live Chat, der Rest statisch)
     return ListView.builder(
       itemCount: 1 + _staticChats.length, 
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -164,7 +183,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         // --- FALL 1: Der erste Chat (Index 0) ist der ECHTE Firebase Chat ---
         if (index == 0) {
           return StreamBuilder<QuerySnapshot>(
-            // Wir holen die letzte Nachricht, sortiert nach Zeit
+            // Holen der letzte Nachricht, sortiert nach Zeit
             stream: _firestore
                 .collection('messages')
                 .orderBy('time', descending: true)
@@ -185,6 +204,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                   lastMessage = "📷 Foto";
                 } else if (data['type'] == 'app' && data['payload']['app'] == 'tetris') {
                    lastMessage = "🎮 Tetris Score: ${data['payload']['data']['score']}";
+                } else if (data['type'] == 'ai') {
+                   lastMessage = "🤖 AI: ${data['payload']['response']}";
+                } else if (data['type'] == 'event_ref') {
+                   lastMessage = "📅 Neues Event";
                 } else {
                   lastMessage = data['payload']?['text'] ?? "Nachricht";
                 }
@@ -195,7 +218,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 lastMessage = "Keine Nachrichten";
               }
 
-              // Wir bauen das Chat-Objekt dynamisch zusammen
+              // Bauen desChat-Objekt dynamisch zusammen
               final liveChat = {
                 "name": "Global Community",
                 "message": lastMessage,
@@ -207,7 +230,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 "color": Colors.orange,
               };
 
-              return _buildChatTile(liveChat, isLive: true);
+              return _buildChatTile(liveChat, isLive: true, textColor: textColor);
             },
           );
         }
@@ -215,13 +238,13 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         // --- FALL 2: Alle anderen Chats (Statisch / Bot) ---
         // index - 1, weil der erste Platz vom Live Chat belegt ist
         final chat = _staticChats[index - 1];
-        return _buildChatTile(chat, isLive: false);
+        return _buildChatTile(chat, isLive: false, textColor: textColor);
       },
     );
   }
 
   // Hilfsfunktion zum Bauen einer einzelnen Chat-Kachel
-  Widget _buildChatTile(Map<String, dynamic> chat, {required bool isLive}) {
+  Widget _buildChatTile(Map<String, dynamic> chat, {required bool isLive, required Color textColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: InkWell(
@@ -264,7 +287,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 5),

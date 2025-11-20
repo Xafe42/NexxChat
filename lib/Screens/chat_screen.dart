@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
+import '../core/chat_theme.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../widgets/ai_preview.dart';
@@ -69,6 +70,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     final user = _auth.currentUser;
     if (user != null) angemeldeterUser = user;
+    _loadTheme();
+  }
+
+  void _loadTheme() async {
+    await ChatTheme.loadTheme();
+    if (mounted) setState(() {});
   }
 
   void _openAiPreview() {
@@ -191,6 +198,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.yellow[900],
         // Zurück-Button hinzugefügt
@@ -200,16 +208,27 @@ class _ChatScreenState extends State<ChatScreen> {
             Navigator.pop(context); // Geht zurück zum Home Screen
           },
         ),
+        titleSpacing: 0,
         title: Row(
           children: [
-            Image.asset('images/nexxchat.png', height: 25),
+            Container(
+               padding: const EdgeInsets.all(6),
+               decoration: const BoxDecoration(
+                 color: Colors.white,
+                 shape: BoxShape.circle,
+               ),
+               child: Image.asset('images/nexxchat.png', height: 25),
+            ),
             const SizedBox(width: 10),
-            const Text("NexxChat"),
+            const Text(
+                "NexxChat",
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: Colors.black),
             onPressed: () {
               _auth.signOut();
               Navigator.pop(context);
@@ -217,8 +236,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Stack(
+      body: Stack(
           children: [
             Column(
               children: [
@@ -230,52 +248,58 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // INPUT
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Colors.orange, width: 2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _ctrl,
-                          onChanged: _onChanged,
-                          maxLines: null,
-                          decoration: const InputDecoration(
-                            hintText: "Schreibe deine Nachricht",
-                            filled: true,
-                            fillColor: Color(0xFFF0F0F0),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
-                              borderSide: BorderSide.none,
+                  color: Colors.white,
+                  child: SafeArea(
+                    top: false,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.orange, width: 2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _ctrl,
+                              onChanged: _onChanged,
+                              maxLines: null,
+                              decoration: const InputDecoration(
+                                hintText: "Schreibe deine Nachricht",
+                                filled: true,
+                                fillColor: Color(0xFFF0F0F0),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isSlashToolbarVisible
-                              ? Icons.remove_circle_outline
-                              : Icons.add_circle_outline,
-                          size: 28,
-                          color: Colors.orange,
-                        ),
-                        onPressed: _toggleSlashToolbar,
-                      ),
-                      ElevatedButton(
-                        onPressed: _senden,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[800],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                          IconButton(
+                            icon: Icon(
+                              _isSlashToolbarVisible
+                                  ? Icons.remove_circle_outline
+                                  : Icons.add_circle_outline,
+                              size: 28,
+                              color: Colors.orange,
+                            ),
+                            onPressed: _toggleSlashToolbar,
                           ),
-                        ),
-                        child: const Text("Senden",
-                            style: TextStyle(color: Colors.white)),
+                          ElevatedButton(
+                            onPressed: _senden,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ChatTheme.myBubbleColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text("Senden",
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -352,13 +376,11 @@ class _ChatScreenState extends State<ChatScreen> {
             if (_isSlashToolbarVisible) _slashToolbar(),
           ],
         ),
-      ),
     );
   }
 
   // SLASH MENU
   Widget _slashToolbar() {
-    // ... (Toolbar Code bleibt gleich) ...
     return Positioned(
       left: 0,
       right: 0,
