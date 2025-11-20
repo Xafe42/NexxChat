@@ -19,10 +19,9 @@ class Sound extends StatefulWidget {
 class SoundState extends State<Sound> {
   bool mute = false;
 
-  /// نخزنو كان الـ AssetSource بش ما يعاودش يحمل من الـ storage
   final Map<String, AssetSource> _assetCache = {};
 
-  /// نحمل ملف الصوت كان أول مرة
+ 
   Future<AssetSource> _loadAsset(String name) async {
     if (_assetCache.containsKey(name)) {
       return _assetCache[name]!;
@@ -34,7 +33,7 @@ class SoundState extends State<Sound> {
     return src;
   }
 
-  /// كل نغمة = AudioPlayer جديد (مهم برشا)
+  
   Future<void> _play(String name) async {
     if (mute) {
       debugPrint("🔇 Sound disabled: $name");
@@ -47,7 +46,7 @@ class SoundState extends State<Sound> {
 
       await player.play(asset);
 
-      // ندمّرو player كي يكمل الصوت
+      
       player.onPlayerComplete.listen((_) {
         player.dispose();
       });

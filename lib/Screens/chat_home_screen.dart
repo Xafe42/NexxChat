@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:nexxchat_firebase/Screens/people_screen.dart';
+import 'people_screen.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart'; // Import Settings
 import 'welcome_screens.dart'; // Für den Logout-Redirect
@@ -58,7 +59,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
            Expanded(child: _buildChatList()), // Die eigentliche Liste
         ],
       ),
-      const Center(child: Text("People Screen (Placeholder)")),
+      const PeopleScreen(),
       const SettingsScreen(), // Der neue Einstellungs-Screen (Index 2)
     ];
 

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
@@ -100,15 +101,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     showSpinner = true;
                   }); // Spinner anzeigen
                   try {
-                    await _auth.createUserWithEmailAndPassword(
+                    UserCredential userCred =
+                        await _auth.createUserWithEmailAndPassword(
                       email: email,
                       password: password,
                     ); // Registrierungsversuch
+
+                    // USER IN FIRESTORE SPEICHERN
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(userCred.user!.uid)
+                        .set({
+                      "uid": userCred.user!.uid,
+                      "email": email,
+                      "fullName": email.split('@')[0],
+                      "profilePic": "",
+                      "groups": [],
+                    });
+
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       ChatHomeScreen.screenRoute, // Weiterleitung zur Übersicht
                       (route) => false,
-                    ); 
+                    );
                     setState(() {
                       showSpinner = false;
                     }); // Spinner ausblenden
