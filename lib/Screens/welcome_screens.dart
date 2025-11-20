@@ -16,17 +16,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white, // Hintergrundfarbe des Bildschirms
-      body: SafeArea( // Schützt Inhalte vor Notch und Systemleisten
+      body: SafeArea(
+        // Schützt Inhalte vor Notch und Systemleisten
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView( // Scrollbar bei kleinen Bildschirmen
+            return SingleChildScrollView(
+              // Scrollbar bei kleinen Bildschirmen
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight), // Mindestens Bildschirmhöhe
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ), // Mindestens Bildschirmhöhe
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24), // Abstand zu den Seiten
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                  ), // Abstand zu den Seiten
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, // Vertikal zentriert
-                    crossAxisAlignment: CrossAxisAlignment.stretch, // Buttons nehmen volle Breite ein
+                    mainAxisAlignment:
+                        MainAxisAlignment.center, // Vertikal zentriert
+                    crossAxisAlignment: CrossAxisAlignment
+                        .stretch, // Buttons nehmen volle Breite ein
                     children: [
                       Column(
                         children: [
@@ -34,10 +42,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             height: 180, // Feste Höhe für das Logo
                             child: Image.asset(
                               'images/nexxchat.png', // App-Logo
-                              fit: BoxFit.contain, // Logo proportional skalieren
+                              fit:
+                                  BoxFit.contain, // Logo proportional skalieren
                             ),
                           ),
-                          const SizedBox(height: 12), // Abstand zwischen Logo und Text
+                          const SizedBox(
+                            height: 12,
+                          ), // Abstand zwischen Logo und Text
                           const Text(
                             'NexxChat', // App-Name
                             textAlign: TextAlign.center, // Zentrierter Text
@@ -49,12 +60,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 30), // Abstand zwischen Text und Buttons
+                      const SizedBox(
+                        height: 30,
+                      ), // Abstand zwischen Text und Buttons
                       MyButton(
                         color: Colors.yellow[900]!, // Farbe des Buttons
                         titel: 'Sign in', // Button-Text
                         onPressed: () {
-                          Navigator.pushNamed(context, SignInScreen.screenRoute); // Navigiert zum Login
+                          Navigator.pushNamed(
+                            context,
+                            SignInScreen.screenRoute,
+                          ); // Navigiert zum Login
                         },
                       ),
                       const SizedBox(height: 12), // Abstand zwischen Buttons
@@ -62,8 +78,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         color: Colors.blue[800]!, // Farbe des Buttons
                         titel: 'Register', // Button-Text
                         onPressed: () {
-                          Navigator.pushNamed(context, RegistrationScreen.screenRoute); // Navigiert zur Registrierung
-                        }, 
+                          Navigator.pushNamed(
+                            context,
+                            RegistrationScreen.screenRoute,
+                          ); // Navigiert zur Registrierung
+                        },
                       ),
                       const SizedBox(height: 12), // Abstand am unteren Ende
                     ],
