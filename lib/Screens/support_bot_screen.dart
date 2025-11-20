@@ -56,7 +56,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
       final payload = {
         'contents': apiHistory,
         'systemInstruction': {
-          'parts': [{'text': "Du bist ein hilfreicher Support-Bot für die App NexxChat. Antworte kurz und präzise."}],
+          'parts': [{'text': "Du bist ein hilfreicher Bot der alle Fragen zu Themen knapp und Hilfreich beantwortet."}],
         },
       };
 

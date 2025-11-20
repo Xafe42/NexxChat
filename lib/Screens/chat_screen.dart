@@ -268,7 +268,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               maxLines: null,
                               style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                               decoration: InputDecoration(
-                                hintText: "Schreibe deine Nachricht",
+                                hintText: "Nachricht",
                                 hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                                 filled: true,
                                 fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
