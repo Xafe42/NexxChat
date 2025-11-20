@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 import 'package:nexxchat_firebase/Screens/chat_home_screen.dart'; // Import Übersicht
+import 'package:nexxchat_firebase/core/app_colors.dart';
 import 'package:nexxchat_firebase/widgets/my_button.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -22,7 +23,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Widget build(BuildContext context) {
     // ... (Dein UI Code bleibt hier unverändert) ...
     return Scaffold(
-      backgroundColor: Colors.white, // Hintergrundfarbe
+      backgroundColor: AppColors.background , // Hintergrundfarbe
       body: ModalProgressHUD(
         inAsyncCall: showSpinner, // Zeigt Spinner während Ladezeit
         child: Padding(
@@ -56,11 +57,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderSide: BorderSide(color: AppColors.primaryDark, width: 1),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderSide: BorderSide(color: AppColors.borderblue, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                 ),
@@ -82,18 +83,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderSide: BorderSide(color: AppColors.borderdark, width: 1),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderSide: BorderSide(color: AppColors.borderblue, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                 ),
               ),
               SizedBox(height: 10), // Abstand
               MyButton(
-                color: Colors.blue[800]!, // Buttonfarbe
+                color: AppColors.buttonDark, // Buttonfarbe
                 titel: 'Register', // Buttontext
                 onPressed: () async {
                   setState(() {

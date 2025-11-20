@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart'; // Import Settings
 import 'welcome_screens.dart'; // Für den Logout-Redirect
+import 'package:nexxchat_firebase/core/app_colors.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   static const String screenRoute = "chat_home_screen";
@@ -26,7 +27,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "avatar": "images/nexxchat.png", // Dein Asset
       "isGroup": true,
       "unread": 3,
-      "color": Colors.orange,
+      "color": AppColors.primaryDark,
     },
     {
       "name": "Event Planung",
@@ -35,7 +36,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "avatar": null,
       "isGroup": true,
       "unread": 0,
-      "color": Colors.blue,
+      "color": AppColors.secondary,
     },
     {
       "name": "Support Bot",
@@ -44,7 +45,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "avatar": null,
       "isGroup": false,
       "unread": 1,
-      "color": Colors.purple,
+      "color": AppColors.secondary,
     },
   ];
 
@@ -80,8 +81,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: Colors.orange[800],
-          unselectedItemColor: Colors.grey[400],
+          selectedItemColor: AppColors.primaryDark,
+          unselectedItemColor: AppColors.unselectedItemColor,
           showSelectedLabels: false, // Minimalistischer Look
           showUnselectedLabels: false,
           elevation: 0,
@@ -100,8 +101,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         onPressed: () {
           // Hier könnte man einen neuen Chat starten
         },
-        backgroundColor: Colors.black, // Harter Kontrast für Modernität
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: AppColors.backgrounddark, // Harter Kontrast für Modernität
+        child: const Icon(Icons.add, color: AppColors.background),
       ) : null, // FAB nur auf der Chat Seite anzeigen
     );
   }
@@ -119,7 +120,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               fontSize: 28,
               fontWeight: FontWeight.bold,
               // Farbe passt sich dem Theme an
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              color: Theme.of(context).brightness == Brightness.dark ? AppColors.background : AppColors.backgrounddark,
             ),
           ),
           Row(
@@ -138,11 +139,11 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               // Logout Button integriert
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100], 
+                  color: Theme.of(context).brightness == Brightness.dark ? AppColors.boxColorDark : AppColors.boxColorLight, 
                   shape: BoxShape.circle
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.redAccent),
+                  icon: const Icon(Icons.logout, color: AppColors.iconButtonColor),
                   onPressed: () {
                     _auth.signOut();
                     Navigator.pushNamedAndRemoveUntil(
@@ -219,7 +220,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             // Textfarbe passt sich an
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                            color: Theme.of(context).brightness == Brightness.dark ? AppColors.background : AppColors.backgrounddark,
                           ),
                         ),
                         const SizedBox(height: 5),
@@ -230,7 +231,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             color: (chat['unread'] as int) > 0 
-                                ? (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87) 
+                                ? (Theme.of(context).brightness == Brightness.dark ? AppColors.textSecondary : AppColors.textPrimary) 
                                 : Colors.grey,
                             fontWeight: (chat['unread'] as int) > 0 ? FontWeight.w600 : FontWeight.normal,
                           ),
@@ -244,19 +245,19 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     children: [
                       Text(
                         chat['time'],
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 5),
                       if ((chat['unread'] as int) > 0)
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: Colors.orange,
+                            color: AppColors.primarylight,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             chat['unread'].toString(),
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ),
                     ],

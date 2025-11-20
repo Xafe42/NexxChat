@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
+import 'package:nexxchat_firebase/core/app_colors.dart';
 import 'package:nexxchat_firebase/widgets/my_button.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Hintergrundfarbe des Bildschirms
+      backgroundColor: AppColors.background , // Hintergrundfarbe des Bildschirms
       body: SafeArea(
         // Schützt Inhalte vor Notch und Systemleisten
         child: LayoutBuilder(
@@ -55,7 +56,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             style: TextStyle(
                               fontSize: 40,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xff2e386b), // Schriftfarbe
+                              color: AppColors.textBlue, // Schriftfarbe
                             ),
                           ),
                         ],
@@ -64,7 +65,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         height: 30,
                       ), // Abstand zwischen Text und Buttons
                       MyButton(
-                        color: Colors.yellow[900]!, // Farbe des Buttons
+                        color: AppColors.borderdark , // Farbe des Buttons
                         titel: 'Sign in', // Button-Text
                         onPressed: () {
                           Navigator.pushNamed(
@@ -75,7 +76,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                       const SizedBox(height: 12), // Abstand zwischen Buttons
                       MyButton(
-                        color: Colors.blue[800]!, // Farbe des Buttons
+                        color: AppColors.buttonDark , // Farbe des Buttons
                         titel: 'Register', // Button-Text
                         onPressed: () {
                           Navigator.pushNamed(

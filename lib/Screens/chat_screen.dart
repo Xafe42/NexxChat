@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:nexxchat_firebase/core/app_colors.dart';
 
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
@@ -192,7 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.yellow[900],
+        backgroundColor: AppColors.primarylight,
         // Zurück-Button hinzugefügt
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -233,7 +234,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: const BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: Colors.orange, width: 2),
+                      top: BorderSide(color: AppColors.primaryDark, width: 2),
                     ),
                   ),
                   child: Row(
@@ -246,7 +247,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           decoration: const InputDecoration(
                             hintText: "Schreibe deine Nachricht",
                             filled: true,
-                            fillColor: Color(0xFFF0F0F0),
+                            fillColor: AppColors.textFieldColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.all(Radius.circular(20)),
                               borderSide: BorderSide.none,
@@ -260,20 +261,20 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? Icons.remove_circle_outline
                               : Icons.add_circle_outline,
                           size: 28,
-                          color: Colors.orange,
+                          color: AppColors.primarylight,
                         ),
                         onPressed: _toggleSlashToolbar,
                       ),
                       ElevatedButton(
                         onPressed: _senden,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[800],
+                          backgroundColor: AppColors.primaryDark,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
                         child: const Text("Senden",
-                            style: TextStyle(color: Colors.white)),
+                            style: TextStyle(color: AppColors.textLight)),
                       ),
                     ],
                   ),
@@ -371,7 +372,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.18),
+              color: AppColors.boxColorDark.withOpacity(0.18),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -441,8 +442,8 @@ class _ChatScreenState extends State<ChatScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
-          color: Colors.white,
+          border: Border.all(color: AppColors.inputFill),
+          color: AppColors.background,
         ),
         child: Row(
           children: [
@@ -456,7 +457,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         fontSize: 17, fontWeight: FontWeight.w600)),
                 Text(description,
                     style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade700)),
+                        fontSize: 13, color: AppColors.textSecondary )),
               ],
             ),
           ],

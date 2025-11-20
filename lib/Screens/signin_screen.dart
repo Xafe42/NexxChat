@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 import 'package:nexxchat_firebase/Screens/chat_home_screen.dart'; // Import Übersicht
+import 'package:nexxchat_firebase/core/app_colors.dart';
 import 'package:nexxchat_firebase/widgets/my_button.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class SignInScreenState extends State<SignInScreen> {
   Widget build(BuildContext context) {
     // ... (Dein UI Code bleibt hier unverändert) ...
     return Scaffold(
-      backgroundColor: Colors.white, // Hintergrundfarbe
+      backgroundColor: AppColors.background , // Hintergrundfarbe
       body: ModalProgressHUD(
         inAsyncCall: showSpinner, // Zeigt Spinner während Ladezeit
         child: Padding(
@@ -86,11 +87,11 @@ class SignInScreenState extends State<SignInScreen> {
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   enabledBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderSide: BorderSide(color: AppColors.borderdark, width: 1),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderSide: BorderSide(color: AppColors.borderblue, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                 ),
@@ -110,18 +111,18 @@ class SignInScreenState extends State<SignInScreen> {
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   enabledBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.orange, width: 1),
+                    borderSide: BorderSide(color: AppColors.borderdark, width: 1),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                   focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderSide: BorderSide(color: AppColors.borderblue , width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
                 ),
               ),
               const SizedBox(height: 10), // Abstand
               MyButton(
-                color: Colors.yellow[900]!, // Buttonfarbe
+                color: AppColors.buttonLight, // Buttonfarbe
                 titel: 'Sign in', // Buttontext
                 onPressed: _signIn, // Anmeldung ausführen
               ),
