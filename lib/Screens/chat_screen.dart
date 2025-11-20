@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
-import '../Screens/TetrisFullScreenPage.dart'; 
+import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
@@ -170,7 +170,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       if (cmd.type == "event") {
-       
+        
       }
     } else {
       await _firestore.collection("messages").add({
@@ -193,6 +193,13 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.yellow[900],
+        // Zurück-Button hinzugefügt
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context); // Geht zurück zum Home Screen
+          },
+        ),
         title: Row(
           children: [
             Image.asset('images/nexxchat.png', height: 25),
@@ -351,6 +358,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // SLASH MENU
   Widget _slashToolbar() {
+    // ... (Toolbar Code bleibt gleich) ...
     return Positioned(
       left: 0,
       right: 0,
@@ -447,8 +455,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     style: const TextStyle(
                         fontSize: 17, fontWeight: FontWeight.w600)),
                 Text(description,
-                    style:
-                        TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.grey.shade700)),
               ],
             ),
           ],

@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
-import 'package:nexxchat_firebase/Screens/chat_screen.dart';
+import 'package:nexxchat_firebase/Screens/chat_home_screen.dart'; // Import Übersicht
 import 'package:nexxchat_firebase/widgets/my_button.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -20,6 +20,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (Dein UI Code bleibt hier unverändert) ...
     return Scaffold(
       backgroundColor: Colors.white, // Hintergrundfarbe
       body: ModalProgressHUD(
@@ -99,14 +100,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     showSpinner = true;
                   }); // Spinner anzeigen
                   try {
-                     await _auth.createUserWithEmailAndPassword(
+                    await _auth.createUserWithEmailAndPassword(
                       email: email,
                       password: password,
                     ); // Registrierungsversuch
-                    Navigator.pushNamed(
+                    Navigator.pushNamedAndRemoveUntil(
                       context,
-                      ChatScreen.screenRoute,
-                    ); // Weiterleitung zum Chat
+                      ChatHomeScreen.screenRoute, // Weiterleitung zur Übersicht
+                      (route) => false,
+                    ); 
                     setState(() {
                       showSpinner = false;
                     }); // Spinner ausblenden
