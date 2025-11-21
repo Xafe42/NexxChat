@@ -7,7 +7,7 @@ import 'chat_screen.dart';
 import 'image_bot_screen.dart'; // <--- NEUER IMPORT (Dateinamen ggf. anpassen)
 import 'settings_screen.dart';
 import 'support_bot_screen.dart';
-import 'welcome_screens.dart'; 
+
 
 class ChatHomeScreen extends StatefulWidget {
   static const String screenRoute = "chat_home_screen";

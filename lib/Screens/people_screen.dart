@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme_notifier.dart';
 import '../core/services/chat_service.dart';
 import 'private_chat_screen.dart';
+import '../Screens/SearchUsersScreen.dart';
 
 class PeopleScreen extends StatefulWidget {
   const PeopleScreen({super.key});
@@ -23,11 +24,26 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
+    final bg = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: bg,
+
+      // FAB für neue Chats
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: isDark ? Colors.grey[800] : Colors.black,
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchUsersScreen()),
+          );
+        },
+      ),
+
       body: Column(
         children: [
+          // HEADER -------------------------------------------------------------
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
             child: Row(
@@ -41,6 +57,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                   ),
                 ),
                 const Spacer(),
+
                 Container(
                   decoration: BoxDecoration(
                     color: isDark ? Colors.grey[800] : Colors.grey[200],
@@ -55,6 +72,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
             ),
           ),
 
+          // SUCHE -------------------------------------------------------------
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -82,6 +100,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
           const SizedBox(height: 5),
 
+          // LISTE DER CHATS ---------------------------------------------------
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -121,11 +140,13 @@ class _PeopleScreenState extends State<PeopleScreen> {
                           .doc(otherUid)
                           .get(),
                       builder: (context, userSnap) {
-                        if (!userSnap.hasData) return const SizedBox();
+                        if (!userSnap.hasData || !userSnap.data!.exists) {
+                          return const SizedBox();
+                        }
 
-                        final user = userSnap.data!;
-                        final fullName = user['fullName'];
-                        final profilePic = user['profilePic'];
+                        final data = userSnap.data!;
+                        final fullName = data['fullName'];
+                        final profilePic = data['profilePic'];
                         final lastMsg = conv['lastMessage'] ?? '';
                         final lastTime = conv['lastMessageTime'];
 
@@ -151,10 +172,12 @@ class _PeopleScreenState extends State<PeopleScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Row(
                               children: [
+                                // AVATAR ------------------------------------------------
                                 CircleAvatar(
                                   radius: 25,
-                                  backgroundImage:
-                                      profilePic != '' ? NetworkImage(profilePic) : null,
+                                  backgroundImage: profilePic != ''
+                                      ? NetworkImage(profilePic)
+                                      : null,
                                   child: profilePic == ''
                                       ? Text(
                                           fullName[0].toUpperCase(),
@@ -166,10 +189,14 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                       : null,
                                   backgroundColor: Colors.teal,
                                 ),
+
                                 const SizedBox(width: 14),
+
+                                // NAME + LAST MESSAGE
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         fullName,
@@ -193,6 +220,8 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                     ],
                                   ),
                                 ),
+
+                                // TIME
                                 if (lastTime != null)
                                   Text(
                                     _formatTime(lastTime),

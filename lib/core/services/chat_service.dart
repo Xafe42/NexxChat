@@ -9,7 +9,7 @@ class ChatService {
     required String currentUid,
     required String otherUid,
   }) async {
-    // نلقاو conversation موجودة بين الزوز
+    
     final query = await _db
         .collection('conversations')
         .where('isGroup', isEqualTo: false)
@@ -24,7 +24,7 @@ class ChatService {
       }
     }
 
-    // ما فماش → نخلق واحدة جديدة
+    
     final docRef = await _db.collection('conversations').add({
       'isGroup': false,
       'members': [currentUid, otherUid],
@@ -46,7 +46,7 @@ class ChatService {
         .collection('conversations')
         .doc(conversationId)
         .collection('messages')
-        .orderBy('timestamp', descending: true) // ⚠️ نستعمل timestamp
+        .orderBy('timestamp', descending: true) 
         .snapshots();
   }
 
@@ -56,9 +56,9 @@ class ChatService {
     required String conversationId,
     required String text,
     required String senderUid,
-    required String senderEmail, // نخلّيه تالوقت لو تحتاجو
+    required String senderEmail, 
   }) async {
-    // نجيب الـ members باش نعرف الـ receiverId
+    
     final convSnap =
         await _db.collection('conversations').doc(conversationId).get();
 
@@ -73,7 +73,7 @@ class ChatService {
         .doc(conversationId)
         .collection('messages');
 
-    // نعمل doc ID قبل ما نبعث (كيف WhatsApp clone)
+    
     final newDoc = messagesRef.doc();
 
     final message = ChatMessage(
@@ -81,19 +81,19 @@ class ChatService {
       content: text,
       senderId: senderUid,
       receiverId: receiverId,
-      timestamp: Timestamp.now(), // local, أما في DB باش نحط serverTimestamp
+      timestamp: Timestamp.now(), 
       status: MessageStatus.sent,
     );
 
-    // نبعث الميساج
+    
     await newDoc.set({
       ...message.toMap(),
       'senderEmail': senderEmail,
       'timestamp': FieldValue
-          .serverTimestamp(), // في DB: serverTimestamp (باش نرتبو به)
+          .serverTimestamp(), 
     });
 
-    // نحدّث conversation (آخر ميساج)
+    
     await _db.collection('conversations').doc(conversationId).update({
       'lastMessage': text,
       'lastMessageTime': FieldValue.serverTimestamp(),
