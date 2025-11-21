@@ -11,24 +11,26 @@ class ImageBotScreen extends StatefulWidget {
 }
 
 class _ImageBotScreenState extends State<ImageBotScreen> {
+  // Controller für das Eingabefeld und die Scroll-Position der Liste
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // Startnachricht angepasst für den reinen Bild-Modus
+  // Liste zur Speicherung des Chatverlaufs.
+  // 'type' unterscheidet zwischen Textnachrichten ('text') und generierten Bildern ('image').
   final List<Map<String, String>> _messages = [
     {
       'role': 'ai',
       'text': 'Hallo! Ich bin dein KI Image Bot.\nSchreibe einfach, was ich erstellen soll und ich erstelle das Bild für dich!',
-      'type': 'text' // Die Begrüßung bleibt Text
+      'type': 'text' 
     }
   ];
 
-  bool _isLoading = false;
+  bool _isLoading = false; // Status für den Ladeindikator
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    _loadTheme(); // Lädt das gespeicherte App-Theme beim Start
   }
 
   void _loadTheme() async {
@@ -36,16 +38,18 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
-  // --- LOGIK: BILD URL ERSTELLEN (Pollinations.ai) ---
+  // Erstellt die URL für die Pollinations.ai API
   String _generateImageUrl(String prompt) {
-    // Encode den Prompt für die URL, damit Leerzeichen etc. funktionieren
+    // Kodiert den Eingabetext URL-konform
     final encodedPrompt = Uri.encodeComponent(prompt);
 
+    // Baut die URL zusammen:
+    // model=flux: Verwendet das Flux-Modell für die Generierung.
+    // seed=...: Fügt einen Zeitstempel hinzu, um Caching zu verhindern und neue Bilder zu erzwingen.
     return "https://pollinations.ai/p/$encodedPrompt?width=800&height=800&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux";
   }
-  // --------------------------------------------------
 
-
+  // Scrollt die Chat-Liste automatisch zur neuesten Nachricht
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -58,26 +62,29 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     });
   }
 
+  // Verarbeitet das Senden einer Nachricht
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     _controller.clear();
 
-    // 1. User Nachricht anzeigen (Das ist der Prompt als Text)
+    // 1. Fügt die Benutzernachricht zur Liste hinzu und aktualisiert die UI
     setState(() {
       _messages.add({'role': 'user', 'text': text, 'type': 'text'});
       _isLoading = true;
     });
     _scrollToBottom();
     
-    // Kurze künstliche Pause, damit es sich "arbeitend" anfühlt
+    // Simuliert eine kurze Verzögerung für besseres Feedback
     await Future.delayed(const Duration(seconds: 1));
     
+    // Generiert die Bild-URL basierend auf dem Text
     final imageUrl = _generateImageUrl(text);
 
     if (mounted) {
       setState(() {
+        // Fügt die Antwort der KI als Bild-Typ hinzu
         _messages.add({'role': 'ai', 'text': imageUrl, 'type': 'image'});
         _isLoading = false;
       });
@@ -91,8 +98,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
 
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
+      
       appBar: AppBar(
-        backgroundColor: Colors.pink[800], // Andere Farbe für den Bild-Bot (Pink/Magenta)
+        backgroundColor: Colors.pink[800], 
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -107,7 +115,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.palette_rounded, // Maler-Palette Icon statt Roboter
+                Icons.palette_rounded,
                 color: Colors.pink,    
                 size: 24,
               ),
@@ -120,8 +128,10 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
           ],
         ),
       ),
+      
       body: Column(
         children: [
+          // Chat-Verlauf
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -130,47 +140,50 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isMe = msg['role'] == 'user';
-                // Prüfen, ob die Nachricht ein Bild sein soll
-                final isImage = msg['type'] == 'image'; 
+                final isImage = msg['type'] == 'image'; // Prüft den Nachrichtentyp
 
                 return Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
+                      // Absender-Label
                       Text(
                         isMe ? "Dein Motiv" : "Generiertes Bild",
                         style: TextStyle(fontSize: 12, color: Colors.pink[800]),
                       ),
                       const SizedBox(height: 2),
+                      
+                      // Nachrichten-Bubble
                       Material(
                         elevation: 5,
                         borderRadius: BorderRadius.circular(30),
                         color: isMe ? ChatTheme.myBubbleColor : Colors.white,
                         
-                        // --- INHALT DER BUBBLE ---
                         child: Padding(
                           padding: isImage 
-                              ? const EdgeInsets.all(5) // Weniger Padding bei Bildern
+                              ? const EdgeInsets.all(5) 
                               : const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                          
                           child: isImage
-                              // A) BILD ANZEIGEN (Wenn Typ 'image')
+                              // Bild-Anzeige: Lädt das Bild asynchron über die URL
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(25),
                                   child: Image.network(
-                                    msg['text']!, // Hier steht die URL drin
-                                    // Größere Darstellung für Bilder
+                                    msg['text']!, // URL des Bildes
                                     width: 280,
                                     height: 280,
                                     fit: BoxFit.cover,
+                                    
+                                    // Zeigt einen Ladeindikator während des Downloads
                                     loadingBuilder: (ctx, child, loadingProgress) {
                                       if (loadingProgress == null) return child;
-                                      // Lade-Kringel während das Bild aus dem Netz kommt
                                       return SizedBox(
                                         width: 280, height: 280,
                                         child: Center(child: CircularProgressIndicator(color: Colors.pink)),
                                       );
                                     },
+                                    // Fehlerbehandlung beim Laden
                                     errorBuilder: (ctx, err, stack) => Container(
                                        width: 280, height: 280,
                                        color: Colors.grey[300],
@@ -178,13 +191,13 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                                          mainAxisAlignment: MainAxisAlignment.center,
                                          children: [
                                            Icon(Icons.broken_image, color: Colors.grey, size: 50),
-                                           Text("Bild konnte nicht geladen werden", style: TextStyle(fontSize: 12)),
+                                           Text("Fehler beim Laden", style: TextStyle(fontSize: 12)),
                                          ],
                                        ),
                                     ),
                                   ),
                                 )
-                              // B) TEXT ANZEIGEN (Nur für User-Nachrichten & Begrüßung)
+                              // Text-Anzeige
                               : Text(
                                   msg['text'] ?? "",
                                   style: TextStyle(
@@ -200,6 +213,8 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
               },
             ),
           ),
+
+          // Ladeindikator (nur sichtbar während der Generierung)
           if (_isLoading)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -216,12 +231,14 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                     children: [
                       SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink)),
                       const SizedBox(width: 10),
-                      const Text("Malt gerade...", style: TextStyle(color: Colors.black54)),
+                      const Text("Generiere Bild...", style: TextStyle(color: Colors.black54)),
                     ],
                   ),
                 ),
               ),
             ),
+
+          // Eingabebereich
           Container(
             color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
             child: SafeArea(
@@ -241,7 +258,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                         maxLines: null,
                         style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                         decoration: InputDecoration(
-                          hintText: "Schreib hier was ich für ein Bild generieren soll",
+                          hintText: "Beschreibe ein Bild...",
                           hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                           filled: true,
                           fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),

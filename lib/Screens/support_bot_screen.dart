@@ -14,21 +14,26 @@ class SupportBotScreen extends StatefulWidget {
 }
 
 class _SupportBotScreenState extends State<SupportBotScreen> {
+  // Controller für das Textfeld und das automatische Scrollen
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController(); 
 
+  // Liste der Chat-Nachrichten. Hier wird der Verlauf gespeichert.
   final List<Map<String, String>> _messages = [
     {'role': 'ai', 'text': 'Hallo! Ich bin dein Support Bot. Wie kann ich helfen?'}
   ];
   
-  bool _isLoading = false;
+  bool _isLoading = false; // Zeigt an, ob die KI gerade "denkt"
 
+  // --- API KONFIGURATION ---
+  // Hier werden die Schlüssel und die URL für Gemini definiert
   static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
   static const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
   static const String geminiApiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
 
   // --- THEME LOGIK ---
+  // Lädt beim Start die gespeicherten Farben aus dem Speicher
   @override
   void initState() {
     super.initState();
@@ -41,9 +46,11 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
   }
   // -------------------------------
 
-  // --- GEMINI LOGIK ---
+  // --- GEMINI KI LOGIK ---
+  // Diese Funktion sendet den Chatverlauf an Google und holt die Antwort
   Future<String> _fetchAiResponse() async {
     try {
+      // 1. Verlauf für die API formatieren (User & Model Rollen)
       List<Map<String, dynamic>> apiHistory = _messages.map((msg) {
         return {
           'role': msg['role'] == 'user' ? 'user' : 'model',
@@ -53,6 +60,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
         };
       }).toList();
 
+      // 2. Datenpaket schnüren (Verlauf + Systemanweisung)
       final payload = {
         'contents': apiHistory,
         'systemInstruction': {
@@ -60,14 +68,17 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
         },
       };
 
+      // 3. Anfrage an den Google Server senden
       final response = await http.post(
         Uri.parse(geminiApiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
 
+      // 4. Antwort auswerten
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
+        // Den Text aus der verschachtelten JSON-Antwort herausfischen
         return result['candidates']?[0]['content']?['parts']?[0]['text'] ?? "Keine Antwort.";
       }
       return "Fehler: ${response.statusCode}";
@@ -76,6 +87,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     }
   }
 
+  // Scrollt die Liste automatisch ganz nach unten
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -88,10 +100,12 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     });
   }
 
+  // Wird ausgeführt, wenn der Senden-Button gedrückt wird
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    // 1. Eigene Nachricht anzeigen & Ladezustand aktivieren
     setState(() {
       _messages.add({'role': 'user', 'text': text});
       _isLoading = true;
@@ -99,8 +113,10 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     _controller.clear();
     _scrollToBottom();
 
+    // 2. Auf Antwort der KI warten
     final response = await _fetchAiResponse();
 
+    // 3. Antwort anzeigen & Ladezustand beenden
     if (mounted) {
       setState(() {
         _messages.add({'role': 'ai', 'text': response});
@@ -115,34 +131,34 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // HIER: Hintergrundfarbe aus Theme laden
+      // Hintergrundfarbe wird aus den Chat-Einstellungen geladen
       backgroundColor: ChatTheme.backgroundColor,
       
-      // 1. DESIGN: AppBar wie im ChatScreen (Gelb/Orange)
+      // --- APP BAR ---
+      // Spezielles Design für den Support Bot (Orange/Gelb)
       appBar: AppBar(
         backgroundColor: Colors.yellow[900],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        titleSpacing: 0, // Weniger Platz links, damit Logo näher am Pfeil ist
+        titleSpacing: 0,
         title: Row(
           children: [
-            // --- NEUES ROBOTER LOGO ---
+            // Das Roboter-Logo im Kreis
             Container(
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
-                color: Colors.white, // Weißer Hintergrund für Kontrast auf Orange
+                color: Colors.white,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.smart_toy_rounded, // Roboter Icon
-                color: Colors.purple,    // Lila Farbe (Corporate Identity des Bots)
+                Icons.smart_toy_rounded,
+                color: Colors.purple,
                 size: 24,
               ),
             ),
             const SizedBox(width: 10),
-            // --- TITEL ---
             const Text(
               "Support Bot",
               style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
@@ -150,17 +166,17 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
           ],
         ),
         actions: [
-          // Close Button wie im ChatScreen
           IconButton(
             icon: const Icon(Icons.close, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
-      // Body ist jetzt in einer Column ohne SafeArea unten für den Input, damit keine Lücke entsteht
+      
+      // --- HAUPTINHALT ---
       body: Column(
         children: [
-          // CHAT LISTE
+          // 1. Die Liste der Nachrichten
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -170,10 +186,11 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                 final msg = _messages[index];
                 final isMe = msg['role'] == 'user';
                 
-                // 2. DESIGN: Bubbles genau wie MessageBubble im ChatScreen
+                // Bubble Design
                 return Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(
+                    // Nachricht rechts (User) oder links (Bot) ausrichten
                     crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -183,6 +200,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                       const SizedBox(height: 2),
                       Material(
                         elevation: 5,
+                        // Runde Ecken anpassen je nach Sender
                         borderRadius: isMe
                             ? const BorderRadius.only(
                                 topLeft: Radius.circular(30),
@@ -194,7 +212,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                                 bottomLeft: Radius.circular(30),
                                 bottomRight: Radius.circular(30),
                               ),
-                        // Bubble Farbe aus Theme laden
+                        // Farbe aus Theme laden
                         color: isMe ? ChatTheme.myBubbleColor : Colors.white,
                         
                         child: Padding(
@@ -203,7 +221,6 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                             msg['text'] ?? "",
                             style: TextStyle(
                               fontSize: 15,
-                              // Textfarbe anpassen (Weiß bei Farbe, Schwarz bei Weiß)
                               color: isMe ? Colors.white : Colors.black54,
                             ),
                           ),
@@ -216,7 +233,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             ),
           ),
 
-          // Ladeindikator
+          // 2. Lade-Indikator ("Schreibt...")
           if (_isLoading)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -233,12 +250,12 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
               ),
             ),
 
-          // 3. DESIGN: Input Feld
-          // Hintergrund reagiert auf Dark Mode gegen Lücke unten
+          // 3. Eingabefeld unten
           Container(
+            // Passt Hintergrundfarbe an Dark Mode an
             color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white, 
             child: SafeArea(
-              top: false, // Nur unten Safearea beachten
+              top: false,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: const BoxDecoration(
@@ -248,6 +265,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                 ),
                 child: Row(
                   children: [
+                    // Das Textfeld
                     Expanded(
                       child: TextField(
                         controller: _controller,
@@ -268,10 +286,10 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Senden Button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _sendMessage,
                       style: ElevatedButton.styleFrom(
-                        // Senden Button auch in Theme Farbe
                         backgroundColor: ChatTheme.myBubbleColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
