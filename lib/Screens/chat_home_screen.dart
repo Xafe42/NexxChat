@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
 import 'chat_screen.dart';
+import 'image_bot_screen.dart'; // <--- NEUER IMPORT (Dateinamen ggf. anpassen)
 import 'settings_screen.dart';
 import 'support_bot_screen.dart';
 import 'welcome_screens.dart'; 
@@ -43,6 +44,18 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.purple,
     },
+    // --- NEUER CHAT PARTNER ---
+    {
+      "name": "AI Image Generator",
+      "message": "Ich bin bereit dir Bilder zu generieren!",
+      "time": "Neu",
+      "avatar": null,
+      "icon": Icons.palette_rounded, 
+      "isGroup": false,
+      "unread": 0,
+      "color": Colors.pink,
+    },
+    // --------------------------
   ];
 
   String _formatTimestamp(Timestamp? timestamp) {
@@ -63,8 +76,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     final List<Widget> pages = [
       Column(
         children: [
-           _buildHeader(textColor, isDarkMode),
-           Expanded(child: _buildChatList(textColor, subTextColor)), 
+            _buildHeader(textColor, isDarkMode),
+            Expanded(child: _buildChatList(textColor, subTextColor)), 
         ],
       ),
       const PeopleScreen(),
@@ -226,6 +239,11 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
              Navigator.push(
                context, 
                MaterialPageRoute(builder: (context) => SupportBotScreen())
+             );
+          } else if (chat['name'] == "AI Image Generator") { // --- NEUE NAVIGATION ---
+             Navigator.push(
+               context, 
+               MaterialPageRoute(builder: (context) => ImageBotScreen())
              );
           } else if (isLive) { 
              Navigator.pushNamed(context, ChatScreen.screenRoute);
