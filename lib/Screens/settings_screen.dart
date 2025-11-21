@@ -4,122 +4,154 @@ import '../core/chat_theme.dart';
 import 'welcome_screens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ============================================================================
-//                               SETTINGS SCREEN
-// ============================================================================
-
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final auth = FirebaseAuth.instance;
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (context, currentMode, child) {
-        final isDark = currentMode == ThemeMode.dark;
+      builder: (context, mode, _) {
+        final bool isDark = mode == ThemeMode.dark;
+        final Color textColor = isDark ? Colors.white : Colors.black;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text("Settings"),
-            centerTitle: true,
-          ),
-
-          body: ListView(
-            padding: const EdgeInsets.all(16),
+          body: Column(
             children: [
-              const SizedBox(height: 10),
+              // =============================
+              //           HEADER
+              // =============================
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Row(
+                  children: [
+                    Text(
+                      "Settings",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
 
-              // ------------------- Appearance -------------------
-              _sectionTitle("Appearance"),
+                    const Spacer(),
 
-              // Dark Mode Tile
-              _tile(
-                context,
-                icon: Icons.dark_mode,
-                title: "Dark Mode",
-                subtitle: "Switch between light & dark theme",
-                trailing: Switch(
-                  value: isDark,
-                  onChanged: (val) {
-                    themeNotifier.value =
-                        val ? ThemeMode.dark : ThemeMode.light;
-                  },
+                    _circleButton(
+                      icon: Icons.search,
+                      iconColor: textColor,
+                      isDark: isDark,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Search coming soon…")),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
 
-              // Personalization
-              _tile(
-                context,
-                icon: Icons.color_lens,
-                title: "Personalization",
-                subtitle: "Theme colors & chat bubbles",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ChatDesignScreen(),
-                    ),
-                  );
-                },
-              ),
+              // =============================
+              //         SETTINGS ITEMS
+              // =============================
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // -------- Appearance --------
+                    _sectionTitle("Appearance"),
 
-              const SizedBox(height: 20),
-
-              // ------------------- Security -------------------
-              _sectionTitle("Security"),
-
-              _tile(
-                context,
-                icon: Icons.lock,
-                title: "Privacy & Security",
-                subtitle: "Password, activity & permissions",
-                onTap: () {},
-              ),
-
-              const SizedBox(height: 20),
-
-              // ------------------- Notifications -------------------
-              _sectionTitle("Notifications"),
-
-              _tile(
-                context,
-                icon: Icons.notifications,
-                title: "Notification Settings",
-                subtitle: "Manage chat & system alerts",
-                onTap: () {},
-              ),
-
-              const SizedBox(height: 20),
-
-              // ------------------- About -------------------
-              _sectionTitle("About"),
-
-              _tile(
-                context,
-                icon: Icons.info,
-                title: "About NexChat",
-                subtitle: "Version 1.0.0 – All rights reserved",
-                onTap: () {},
-              ),
-
-              const SizedBox(height: 30),
-
-              // ------------------- LOGOUT -------------------
-              Center(
-                child: TextButton.icon(
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text(
-                    "Log Out",
-                    style: TextStyle(color: Colors.red, fontSize: 18),
-                  ),
-                  onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
-                    Navigator.pushNamedAndRemoveUntil(
+                    _tile(
                       context,
-                      WelcomeScreen.screenRoute,
-                      (_) => false,
-                    );
-                  },
+                      icon: Icons.dark_mode,
+                      title: "Dark Mode",
+                      subtitle: "Switch between light & dark theme",
+                      trailing: Switch(
+                        value: isDark,
+                        onChanged: (val) {
+                          themeNotifier.value =
+                              val ? ThemeMode.dark : ThemeMode.light;
+                        },
+                      ),
+                    ),
+
+                    _tile(
+                      context,
+                      icon: Icons.color_lens,
+                      title: "Personalization",
+                      subtitle: "Theme colors & chat bubbles",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ChatDesignScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // -------- Security --------
+                    _sectionTitle("Security"),
+
+                    _tile(
+                      context,
+                      icon: Icons.lock,
+                      title: "Privacy & Security",
+                      subtitle: "Password, activity & permissions",
+                      onTap: () {},
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // -------- Notifications --------
+                    _sectionTitle("Notifications"),
+
+                    _tile(
+                      context,
+                      icon: Icons.notifications,
+                      title: "Notification Settings",
+                      subtitle: "Manage chat & system alerts",
+                      onTap: () {},
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // -------- About --------
+                    _sectionTitle("About"),
+
+                    _tile(
+                      context,
+                      icon: Icons.info,
+                      title: "About NexChat",
+                      subtitle: "Version 1.0.0 – All rights reserved",
+                      onTap: () {},
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // -------- Logout button --------
+                    Center(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.logout, color: Colors.red),
+                        label: const Text(
+                          "Log Out",
+                          style:
+                              TextStyle(color: Colors.red, fontSize: 18),
+                        ),
+                        onPressed: () async {
+                          await auth.signOut();
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            WelcomeScreen.screenRoute,
+                            (_) => false,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -129,8 +161,30 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- UI HELPERS ----------------
+  // ----------------------------------
+  // REUSABLE HEADER BUTTON
+  // ----------------------------------
+  Widget _circleButton({
+    required IconData icon,
+    required Color iconColor,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[850] : Colors.grey[200],
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: iconColor),
+        onPressed: onTap,
+      ),
+    );
+  }
 
+  // ----------------------------------
+  // SECTION TITLE
+  // ----------------------------------
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
@@ -145,6 +199,9 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // ----------------------------------
+  // TILE BUILDER
+  // ----------------------------------
   Widget _tile(
     BuildContext context, {
     required IconData icon,
@@ -174,7 +231,7 @@ class SettingsScreen extends StatelessWidget {
 }
 
 // ============================================================================
-//                         CHAT DESIGN CUSTOMIZER SCREEN
+// CHAT DESIGN SCREEN (كما هو)
 // ============================================================================
 
 class ChatDesignScreen extends StatefulWidget {
@@ -250,7 +307,6 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
             ),
             child: Column(
               children: [
-                // Other message
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
@@ -259,12 +315,12 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: const Text("How do you like the new design?"),
+                    child:
+                        const Text("How do you like the new design?"),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Your message
                 Align(
                   alignment: Alignment.centerRight,
                   child: Container(
@@ -285,7 +341,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
 
           const SizedBox(height: 30),
 
-          // COLOR PICKER BUBBLES
+          // BUBBLE COLORS
           const Text("Message Bubble Color",
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
@@ -322,7 +378,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
 
           const SizedBox(height: 30),
 
-          // BACKGROUND PICKER
+          // BACKGROUND COLORS
           const Text("Chat Background",
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
