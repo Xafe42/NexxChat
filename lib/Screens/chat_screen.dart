@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
+import '../core/chat_theme.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../widgets/ai_preview.dart';
@@ -69,6 +70,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     final user = _auth.currentUser;
     if (user != null) angemeldeterUser = user;
+    _loadTheme();
+  }
+
+  void _loadTheme() async {
+    await ChatTheme.loadTheme();
+    if (mounted) setState(() {});
   }
 
   void _openAiPreview() {
@@ -190,7 +197,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.yellow[900],
         // Zurück-Button hinzugefügt
@@ -202,14 +212,24 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         title: Row(
           children: [
-            Image.asset('images/nexxchat.png', height: 25),
+            Container(
+               padding: const EdgeInsets.all(6),
+               decoration: const BoxDecoration(
+                 color: Colors.white,
+                 shape: BoxShape.circle,
+               ),
+               child: Image.asset('images/nexxchat.png', height: 25),
+            ),
             const SizedBox(width: 10),
-            const Text("NexxChat"),
+            const Text(
+                "NexxChat",
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: Colors.black),
             onPressed: () {
               _auth.signOut();
               Navigator.pop(context);
@@ -217,8 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Stack(
+      body: Stack(
           children: [
             Column(
               children: [
@@ -230,52 +249,60 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // INPUT
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Colors.orange, width: 2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _ctrl,
-                          onChanged: _onChanged,
-                          maxLines: null,
-                          decoration: const InputDecoration(
-                            hintText: "Schreibe deine Nachricht",
-                            filled: true,
-                            fillColor: Color(0xFFF0F0F0),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
-                              borderSide: BorderSide.none,
+                  color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                  child: SafeArea(
+                    top: false,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.orange, width: 2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _ctrl,
+                              onChanged: _onChanged,
+                              maxLines: null,
+                              style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                              decoration: InputDecoration(
+                                hintText: "Nachricht",
+                                hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
+                                filled: true,
+                                fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isSlashToolbarVisible
-                              ? Icons.remove_circle_outline
-                              : Icons.add_circle_outline,
-                          size: 28,
-                          color: Colors.orange,
-                        ),
-                        onPressed: _toggleSlashToolbar,
-                      ),
-                      ElevatedButton(
-                        onPressed: _senden,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[800],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                          IconButton(
+                            icon: Icon(
+                              _isSlashToolbarVisible
+                                  ? Icons.remove_circle_outline
+                                  : Icons.add_circle_outline,
+                              size: 28,
+                              color: Colors.orange,
+                            ),
+                            onPressed: _toggleSlashToolbar,
                           ),
-                        ),
-                        child: const Text("Senden",
-                            style: TextStyle(color: Colors.white)),
+                          ElevatedButton(
+                            onPressed: _senden,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ChatTheme.myBubbleColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text("Senden",
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -352,22 +379,23 @@ class _ChatScreenState extends State<ChatScreen> {
             if (_isSlashToolbarVisible) _slashToolbar(),
           ],
         ),
-      ),
     );
   }
-
-  // SLASH MENU
+// SLASH MENU
   Widget _slashToolbar() {
-    // ... (Toolbar Code bleibt gleich) ...
+    // Prüfen, ob Dark Mode aktiv ist
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
     return Positioned(
       left: 0,
       right: 0,
-      bottom: 70,
+      bottom: 80, 
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 18),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor, // Passt sich jetzt an
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -434,6 +462,13 @@ class _ChatScreenState extends State<ChatScreen> {
     required String description,
     required VoidCallback onTap,
   }) {
+    // Farben basierend auf Dark Mode definieren
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
+    final titleColor = isDarkMode ? Colors.white : Colors.black;
+    final descColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -441,8 +476,8 @@ class _ChatScreenState extends State<ChatScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
-          color: Colors.white,
+          border: Border.all(color: borderColor),
+          color: cardColor, 
         ),
         child: Row(
           children: [
@@ -451,17 +486,25 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600)),
-                Text(description,
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade700)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17, 
+                    fontWeight: FontWeight.w600,
+                    color: titleColor, // Farbe angepasst
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: descColor, // Farbe angepasst
+                  ),
+                ),
               ],
             ),
           ],
         ),
       ),
     );
-  }
-}
+  }}
