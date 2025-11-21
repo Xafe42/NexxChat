@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/message.dart';
 
 class ChatService {
@@ -9,7 +8,6 @@ class ChatService {
     required String currentUid,
     required String otherUid,
   }) async {
-    
     final query = await _db
         .collection('conversations')
         .where('isGroup', isEqualTo: false)
@@ -24,21 +22,19 @@ class ChatService {
       }
     }
 
-    
     final docRef = await _db.collection('conversations').add({
       'isGroup': false,
       'members': [currentUid, otherUid],
-      'name': null,
+      'typingUsers': [],
       'lastMessage': '',
       'lastMessageTime': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'createdBy': currentUid,
+      'typingUsers': [],
     });
 
     return docRef.id;
   }
-
-  // ---------------- MESSAGES STREAM ----------------
 
   Stream<QuerySnapshot<Map<String, dynamic>>> messagesStream(
       String conversationId) {
@@ -46,90 +42,161 @@ class ChatService {
         .collection('conversations')
         .doc(conversationId)
         .collection('messages')
-        .orderBy('timestamp', descending: true) 
+        .orderBy('timestamp', descending: true)
         .snapshots();
   }
-// ---------------- SEND IMAGE ----------------
-Future<void> sendImageMessage({
-  required String conversationId,
-  required String url,
-  required String senderUid,
-}) async {
-  final convRef = _db.collection('conversations').doc(conversationId);
 
-  // Récupérer les membres pour déterminer le receiverId
-  final convSnap = await convRef.get();
-  final members = List<String>.from(convSnap.data()?['members'] ?? []);
+  Future<void> sendImageMessage({
+    required String conversationId,
+    required String url,
+    required String senderUid,
+  }) async {
+    await _sendGeneric(
+      conversationId: conversationId,
+      content: url,
+      senderUid: senderUid,
+      type: 'image',
+      lastMessagePreview: '[Photo]',
+    );
+  }
 
-  final String receiverId = members.firstWhere(
-    (m) => m != senderUid,
-    orElse: () => senderUid,
-  );
+  Future<void> sendAudioMessage({
+    required String conversationId,
+    required String url,
+    required String senderUid,
+    required int duration,
+  }) async {
+    await _sendGeneric(
+      conversationId: conversationId,
+      content: url,
+      senderUid: senderUid,
+      type: 'audio',
+      extra: {'duration': duration},
+      lastMessagePreview: '[Audio]',
+    );
+  }
 
-  // ID unique du message
-  final msgRef = convRef.collection('messages').doc();
+  Future<void> sendVideoMessage({
+    required String conversationId,
+    required String url,
+    required String senderUid,
+  }) async {
+    await _sendGeneric(
+      conversationId: conversationId,
+      content: url,
+      senderUid: senderUid,
+      type: 'video',
+      lastMessagePreview: '[Video]',
+    );
+  }
 
-  await msgRef.set({
-    'id': msgRef.id,
-    'content': url,
-    'senderId': senderUid,
-    'receiverId': receiverId,
-    'timestamp': FieldValue.serverTimestamp(),
-    'type': 'image',
-  });
-
-  // Mise à jour de la conversation
-  await convRef.update({
-    'lastMessage': '[Photo]',
-    'lastMessageTime': FieldValue.serverTimestamp(),
-  });
-}
-  // ---------------- SEND MESSAGE ----------------
+  Future<void> sendFileMessage({
+    required String conversationId,
+    required String url,
+    required String senderUid,
+    required String fileName,
+  }) async {
+    await _sendGeneric(
+      conversationId: conversationId,
+      content: url,
+      senderUid: senderUid,
+      type: 'file',
+      extra: {'fileName': fileName},
+      lastMessagePreview: '[File]',
+    );
+  }
 
   Future<void> sendTextMessage({
     required String conversationId,
     required String text,
     required String senderUid,
-    required String senderEmail, 
+    required String senderEmail,
   }) async {
-    
-    final convSnap =
-        await _db.collection('conversations').doc(conversationId).get();
-
-    final members = List<String>.from(convSnap.data()?['members'] ?? []);
-    final String receiverId = members.firstWhere(
-      (m) => m != senderUid,
-      orElse: () => senderUid,
+    await _sendGeneric(
+      conversationId: conversationId,
+      content: text,
+      senderUid: senderUid,
+      type: 'text',
+      extra: {'senderEmail': senderEmail},
+      lastMessagePreview: text,
     );
+  }
 
-    final messagesRef = _db
+  Future<void> deleteMessage({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    await _db
         .collection('conversations')
         .doc(conversationId)
-        .collection('messages');
+        .collection('messages')
+        .doc(messageId)
+        .delete();
+  }
 
-    
-    final newDoc = messagesRef.doc();
+  Future<void> updateMessageSeen({
+    required String conversationId,
+    required String messageId,
+    required String userId,
+  }) async {
+    await _db
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .update({'seenBy': FieldValue.arrayUnion([userId])});
+  }
 
-    final message = ChatMessage(
-      id: newDoc.id,
-      content: text,
-      senderId: senderUid,
-      receiverId: receiverId,
-      timestamp: Timestamp.now(), 
-      status: MessageStatus.sent,
-    );
-
-    
-    await newDoc.set({
-      ...message.toMap(),
-      'senderEmail': senderEmail,
-      'timestamp': FieldValue.serverTimestamp(), 
-      'type': 'text',
-    });
-
-    
+  Future<void> startTyping({
+    required String conversationId,
+    required String userId,
+  }) async {
     await _db.collection('conversations').doc(conversationId).update({
-      'lastMessage': text,
+      'typingUsers': FieldValue.arrayUnion([userId]),
+    });
+  }
+
+  Future<void> stopTyping({
+    required String conversationId,
+    required String userId,
+  }) async {
+    await _db.collection('conversations').doc(conversationId).update({
+      'typingUsers': FieldValue.arrayRemove([userId]),
+    });
+  }
+
+  Future<void> _sendGeneric({
+    required String conversationId,
+    required String content,
+    required String senderUid,
+    required String type,
+    required String lastMessagePreview,
+    Map<String, dynamic>? extra,
+  }) async {
+    final convRef = _db.collection('conversations').doc(conversationId);
+    final snap = await convRef.get();
+    final members = List<String>.from(snap.data()?['members'] ?? []);
+
+    final receiverId =
+        members.firstWhere((m) => m != senderUid, orElse: () => senderUid);
+
+    final msgRef = convRef.collection('messages').doc();
+
+    final data = {
+      'id': msgRef.id,
+      'content': content,
+      'senderId': senderUid,
+      'receiverId': receiverId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'type': type,
+      'seenBy': [],
+      ...?extra,
+    };
+
+    await msgRef.set(data);
+
+    await convRef.update({
+      'lastMessage': lastMessagePreview,
       'lastMessageTime': FieldValue.serverTimestamp(),
     });
   }
