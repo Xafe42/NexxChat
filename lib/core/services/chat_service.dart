@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/message.dart';
+
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -7,6 +9,7 @@ class ChatService {
     required String currentUid,
     required String otherUid,
   }) async {
+    // نلقاو conversation موجودة بين الزوز
     final query = await _db
         .collection('conversations')
         .where('isGroup', isEqualTo: false)
@@ -21,6 +24,7 @@ class ChatService {
       }
     }
 
+    // ما فماش → نخلق واحدة جديدة
     final docRef = await _db.collection('conversations').add({
       'isGroup': false,
       'members': [currentUid, otherUid],
@@ -34,35 +38,62 @@ class ChatService {
     return docRef.id;
   }
 
+  // ---------------- MESSAGES STREAM ----------------
+
   Stream<QuerySnapshot<Map<String, dynamic>>> messagesStream(
       String conversationId) {
     return _db
         .collection('conversations')
         .doc(conversationId)
         .collection('messages')
-        .orderBy('time', descending: true)
+        .orderBy('timestamp', descending: true) // ⚠️ نستعمل timestamp
         .snapshots();
   }
+
+  // ---------------- SEND MESSAGE ----------------
 
   Future<void> sendTextMessage({
     required String conversationId,
     required String text,
     required String senderUid,
-    required String senderEmail,
+    required String senderEmail, // نخلّيه تالوقت لو تحتاجو
   }) async {
-    final msgRef = _db
+    // نجيب الـ members باش نعرف الـ receiverId
+    final convSnap =
+        await _db.collection('conversations').doc(conversationId).get();
+
+    final members = List<String>.from(convSnap.data()?['members'] ?? []);
+    final String receiverId = members.firstWhere(
+      (m) => m != senderUid,
+      orElse: () => senderUid,
+    );
+
+    final messagesRef = _db
         .collection('conversations')
         .doc(conversationId)
         .collection('messages');
 
-    await msgRef.add({
-      'text': text,
-      'type': 'text',
-      'senderId': senderUid,
+    // نعمل doc ID قبل ما نبعث (كيف WhatsApp clone)
+    final newDoc = messagesRef.doc();
+
+    final message = ChatMessage(
+      id: newDoc.id,
+      content: text,
+      senderId: senderUid,
+      receiverId: receiverId,
+      timestamp: Timestamp.now(), // local, أما في DB باش نحط serverTimestamp
+      status: MessageStatus.sent,
+    );
+
+    // نبعث الميساج
+    await newDoc.set({
+      ...message.toMap(),
       'senderEmail': senderEmail,
-      'time': FieldValue.serverTimestamp(),
+      'timestamp': FieldValue
+          .serverTimestamp(), // في DB: serverTimestamp (باش نرتبو به)
     });
 
+    // نحدّث conversation (آخر ميساج)
     await _db.collection('conversations').doc(conversationId).update({
       'lastMessage': text,
       'lastMessageTime': FieldValue.serverTimestamp(),

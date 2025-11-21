@@ -123,52 +123,37 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
   Widget _buildHeader(Color textColor, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            "Chats",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+    child: Row(
+      children: [
+        // CHATS TITLE
+        Text(
+          "Chats",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: textColor,
           ),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[800] : Colors.grey[200], 
-                  shape: BoxShape.circle
-                ),
-                child: IconButton(
-                  icon: Icon(Icons.search, color: textColor),
-                  onPressed: () {},
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[800] : Colors.grey[200], 
-                  shape: BoxShape.circle
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.redAccent),
-                  onPressed: () {
-                    _auth.signOut();
-                    Navigator.pushNamedAndRemoveUntil(
-                        context, WelcomeScreen.screenRoute, (route) => false);
-                  },
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
+        ),
+
+        const Spacer(),
+
+        // SEARCH BUTTON (rounded)
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[850] : Colors.grey[200],
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: Icon(Icons.search, color: textColor),
+            onPressed: () {},
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   // 3. Die Chat Liste
   Widget _buildChatList(Color textColor, Color? subTextColor) {

@@ -1,190 +1,208 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import '../theme_notifier.dart';
 import '../core/services/chat_service.dart';
 import 'private_chat_screen.dart';
-import 'welcome_screens.dart';
 
-class PeopleScreen extends StatelessWidget {
+class PeopleScreen extends StatefulWidget {
   const PeopleScreen({super.key});
 
   @override
+  State<PeopleScreen> createState() => _PeopleScreenState();
+}
+
+class _PeopleScreenState extends State<PeopleScreen> {
+  final _auth = FirebaseAuth.instance;
+  final _searchCtrl = TextEditingController();
+  String _search = '';
+
+  @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final String currentEmail = user!.email!;
-    final String currentUid = user.uid;
+    final currentUid = _auth.currentUser!.uid;
 
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, mode, _) {
-        final bool isDark = mode == ThemeMode.dark;
-        final Color textColor = isDark ? Colors.white : Colors.black;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
 
-        return Scaffold(
-
-          // ============================
-          //   FLOATING ACTION BUTTON
-          // ============================
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              // Add Action 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Coming soon…")),
-              );
-            },
-            backgroundColor: isDark ? Colors.grey[800] : Colors.black,
-            child: const Icon(Icons.add, color: Colors.white),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            child: Row(
+              children: [
+                Text(
+                  "Chats",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.search, color: textColor),
+                    onPressed: () {},
+                  ),
+                ),
+              ],
+            ),
           ),
 
-          body: Column(
-            children: [
-
-              // ============================
-              //            HEADER
-              // ============================
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Row(
-                  children: [
-                    Text(
-                      "People",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    Row(
-                      children: [
-                        _circleButton(
-                          icon: Icons.search,
-                          iconColor: textColor,
-                          isDark: isDark,
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                  ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[900] : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() {
+                  _search = v.trim().toLowerCase();
+                }),
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: "Search…",
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  border: InputBorder.none,
                 ),
               ),
+            ),
+          ),
 
-              // ============================
-              //         USERS LIST
-              // ============================
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("users")
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+          const SizedBox(height: 5),
 
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          "No users found",
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      );
-                    }
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('conversations')
+                  .orderBy('lastMessageTime', descending: true)
+                  .snapshots(),
+              builder: (context, convSnap) {
+                if (!convSnap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                    final users = snapshot.data!.docs.where((doc) {
-                      return doc["email"] != currentEmail;
-                    }).toList();
+                final convs = convSnap.data!.docs.where((c) {
+                  final members = List<String>.from(c["members"]);
+                  return members.contains(currentUid);
+                }).toList();
 
-                    if (users.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          "No other users available",
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      );
-                    }
+                if (convs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "No chats yet",
+                      style: TextStyle(fontSize: 17, color: textColor),
+                    ),
+                  );
+                }
 
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: users.length,
-                      itemBuilder: (context, index) {
-                        final data = users[index];
-                        final name = data["fullName"] ?? "Unknown";
-                        final email = data["email"];
-                        final pic = data["profilePic"] ?? "";
-                        final otherUid = data["uid"];
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: convs.length,
+                  itemBuilder: (context, i) {
+                    final conv = convs[i];
+                    final members = List<String>.from(conv['members']);
+                    final otherUid = members.firstWhere((m) => m != currentUid);
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(otherUid)
+                          .get(),
+                      builder: (context, userSnap) {
+                        if (!userSnap.hasData) return const SizedBox();
+
+                        final user = userSnap.data!;
+                        final fullName = user['fullName'];
+                        final profilePic = user['profilePic'];
+                        final lastMsg = conv['lastMessage'] ?? '';
+                        final lastTime = conv['lastMessageTime'];
+
+                        if (_search.isNotEmpty &&
+                            !fullName.toLowerCase().contains(_search)) {
+                          return const SizedBox();
+                        }
 
                         return InkWell(
-                          onTap: () async {
-                            final chat = ChatService();
-
-                            final convId = await chat.createOrGetDirectChat(
-                              currentUid: currentUid,
-                              otherUid: otherUid,
-                            );
-
-                            if (!context.mounted) return;
-
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => PrivateChatScreen(
-                                  conversationId: convId,
-                                  title: name,
+                                  conversationId: conv.id,
+                                  title: fullName,
                                 ),
                               ),
                             );
                           },
-                          borderRadius: BorderRadius.circular(16),
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 20),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  radius: 28,
-                                  backgroundColor:
-                                      Colors.orange.withOpacity(0.2),
+                                  radius: 25,
                                   backgroundImage:
-                                      pic.isNotEmpty ? NetworkImage(pic) : null,
-                                  child: pic.isEmpty
+                                      profilePic != '' ? NetworkImage(profilePic) : null,
+                                  child: profilePic == ''
                                       ? Text(
-                                          name[0].toUpperCase(),
+                                          fullName[0].toUpperCase(),
                                           style: const TextStyle(
                                             fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.orange,
+                                            color: Colors.white,
                                           ),
                                         )
                                       : null,
+                                  backgroundColor: Colors.teal,
                                 ),
-                                const SizedBox(width: 15),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.bold,
-                                        color: textColor,
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        fullName,
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      email,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: isDark
-                                            ? Colors.grey[400]
-                                            : Colors.grey[700],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lastMsg,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.grey[400]
+                                              : Colors.grey[700],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                                if (lastTime != null)
+                                  Text(
+                                    _formatTime(lastTime),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.grey[500]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -192,31 +210,17 @@ class PeopleScreen extends StatelessWidget {
                       },
                     );
                   },
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  /// SMALL CIRCLE BUTTON
-  Widget _circleButton({
-    required IconData icon,
-    required Color iconColor,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[850] : Colors.grey[200],
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: iconColor),
-        onPressed: onTap,
-      ),
-    );
+  String _formatTime(Timestamp ts) {
+    final dt = ts.toDate();
+    return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
   }
 }

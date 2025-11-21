@@ -20,9 +20,9 @@ class SettingsScreen extends StatelessWidget {
         return Scaffold(
           body: Column(
             children: [
-              // =============================
-              //           HEADER
-              // =============================
+              
+              // HEADER
+              
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: Row(
@@ -52,9 +52,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
 
-              // =============================
+              
               //         SETTINGS ITEMS
-              // =============================
+              
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.all(16),
@@ -230,9 +230,9 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// CHAT DESIGN SCREEN (كما هو)
-// ============================================================================
+
+// CHAT DESIGN SCREEN 
+
 
 class ChatDesignScreen extends StatefulWidget {
   const ChatDesignScreen({super.key});
