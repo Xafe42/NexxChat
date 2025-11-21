@@ -49,7 +49,41 @@ class ChatService {
         .orderBy('timestamp', descending: true) 
         .snapshots();
   }
+// ---------------- SEND IMAGE ----------------
+Future<void> sendImageMessage({
+  required String conversationId,
+  required String url,
+  required String senderUid,
+}) async {
+  final convRef = _db.collection('conversations').doc(conversationId);
 
+  // Récupérer les membres pour déterminer le receiverId
+  final convSnap = await convRef.get();
+  final members = List<String>.from(convSnap.data()?['members'] ?? []);
+
+  final String receiverId = members.firstWhere(
+    (m) => m != senderUid,
+    orElse: () => senderUid,
+  );
+
+  // ID unique du message
+  final msgRef = convRef.collection('messages').doc();
+
+  await msgRef.set({
+    'id': msgRef.id,
+    'content': url,
+    'senderId': senderUid,
+    'receiverId': receiverId,
+    'timestamp': FieldValue.serverTimestamp(),
+    'type': 'image',
+  });
+
+  // Mise à jour de la conversation
+  await convRef.update({
+    'lastMessage': '[Photo]',
+    'lastMessageTime': FieldValue.serverTimestamp(),
+  });
+}
   // ---------------- SEND MESSAGE ----------------
 
   Future<void> sendTextMessage({
@@ -89,8 +123,8 @@ class ChatService {
     await newDoc.set({
       ...message.toMap(),
       'senderEmail': senderEmail,
-      'timestamp': FieldValue
-          .serverTimestamp(), 
+      'timestamp': FieldValue.serverTimestamp(), 
+      'type': 'text',
     });
 
     
