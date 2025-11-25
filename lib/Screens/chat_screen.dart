@@ -10,9 +10,9 @@ import 'package:image_picker/image_picker.dart';
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
-import '../core/services/chat_theme.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
+import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/hello_preview.dart';
@@ -27,7 +27,7 @@ Future<XFile?> bildAuswaehlen() async {
   return await picker.pickImage(source: ImageSource.gallery);
 }
 
-// Bild hochladen als Base64
+// Bild hochladen als Base64 (Ändern das die Bilder im Storage gespeichert werden)
 Future<String?> bildHochladen(XFile file) async {
   try {
     final bytes = await file.readAsBytes();
