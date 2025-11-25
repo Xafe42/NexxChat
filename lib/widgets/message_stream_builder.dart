@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../apps/hello_app.dart';
-import '../core/chat_theme.dart';
+import '../core/services/chat_theme.dart';
 import '../widgets/event_card.dart'; 
 
 final _firestore = FirebaseFirestore.instance;

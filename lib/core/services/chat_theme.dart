@@ -9,7 +9,9 @@ class ChatTheme {
   // Speichern
   static Future<void> saveTheme(Color bubble, Color bg) async {
     final prefs = await SharedPreferences.getInstance();
+    // ignore: deprecated_member_use
     await prefs.setInt('bubble_color', bubble.value);
+    // ignore: deprecated_member_use
     await prefs.setInt('bg_color', bg.value);
     
     // Werte lokal update, damit wir nicht neu laden müssen

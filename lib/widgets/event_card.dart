@@ -88,6 +88,7 @@ class _EventCardState extends State<EventCard> {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.1),
             blurRadius: 14,
             offset: const Offset(0, 5),
@@ -214,6 +215,7 @@ class _EventCardState extends State<EventCard> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
+            // ignore: deprecated_member_use
             backgroundColor: selected ? color : color.withOpacity(0.4),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

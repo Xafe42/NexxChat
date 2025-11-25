@@ -10,6 +10,7 @@ class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _RegistrationScreenState createState() => _RegistrationScreenState(); // Erstellt den State
 }
 
@@ -36,7 +37,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             crossAxisAlignment:
                 CrossAxisAlignment.stretch, // Widgets füllen die Breite
             children: [
-              Container(
+              SizedBox(
                 height: 180.0,
                 child: Image.asset('images/nexxchat.png'), // Logo anzeigen
               ),
@@ -120,6 +121,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     });
 
                     Navigator.pushNamedAndRemoveUntil(
+                      // ignore: use_build_context_synchronously
                       context,
                       ChatHomeScreen.screenRoute, // Weiterleitung zur Übersicht
                       (route) => false,
@@ -128,7 +130,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       showSpinner = false;
                     }); // Spinner ausblenden
                   } catch (e) {
-                    print(e); // Fehlerausgabe
+                    // Fehlerausgabe
                     setState(() {
                       showSpinner = false;
                     }); // Spinner ausblenden

@@ -83,6 +83,7 @@ class MobileControls extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.2),
               blurRadius: 6,
               offset: const Offset(0, 3),

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/message.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -15,14 +14,13 @@ class ChatService {
         .get();
 
     for (final doc in query.docs) {
-      final data = doc.data();
-      final members = List<String>.from(data['members'] ?? []);
+      final members = List<String>.from(doc['members']);
       if (members.length == 2 && members.contains(otherUid)) {
         return doc.id;
       }
     }
 
-    final docRef = await _db.collection('conversations').add({
+    final newDoc = await _db.collection('conversations').add({
       'isGroup': false,
       'members': [currentUid, otherUid],
       'typingUsers': [],
@@ -30,10 +28,9 @@ class ChatService {
       'lastMessageTime': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'createdBy': currentUid,
-      'typingUsers': [],
     });
 
-    return docRef.id;
+    return newDoc.id;
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> messagesStream(
@@ -46,157 +43,76 @@ class ChatService {
         .snapshots();
   }
 
-  Future<void> sendImageMessage({
-    required String conversationId,
-    required String url,
-    required String senderUid,
-  }) async {
-    await _sendGeneric(
-      conversationId: conversationId,
-      content: url,
-      senderUid: senderUid,
-      type: 'image',
-      lastMessagePreview: '[Photo]',
-    );
-  }
-
-  Future<void> sendAudioMessage({
-    required String conversationId,
-    required String url,
-    required String senderUid,
-    required int duration,
-  }) async {
-    await _sendGeneric(
-      conversationId: conversationId,
-      content: url,
-      senderUid: senderUid,
-      type: 'audio',
-      extra: {'duration': duration},
-      lastMessagePreview: '[Audio]',
-    );
-  }
-
-  Future<void> sendVideoMessage({
-    required String conversationId,
-    required String url,
-    required String senderUid,
-  }) async {
-    await _sendGeneric(
-      conversationId: conversationId,
-      content: url,
-      senderUid: senderUid,
-      type: 'video',
-      lastMessagePreview: '[Video]',
-    );
-  }
-
-  Future<void> sendFileMessage({
-    required String conversationId,
-    required String url,
-    required String senderUid,
-    required String fileName,
-  }) async {
-    await _sendGeneric(
-      conversationId: conversationId,
-      content: url,
-      senderUid: senderUid,
-      type: 'file',
-      extra: {'fileName': fileName},
-      lastMessagePreview: '[File]',
-    );
-  }
-
   Future<void> sendTextMessage({
     required String conversationId,
     required String text,
     required String senderUid,
     required String senderEmail,
   }) async {
-    await _sendGeneric(
-      conversationId: conversationId,
-      content: text,
-      senderUid: senderUid,
-      type: 'text',
-      extra: {'senderEmail': senderEmail},
-      lastMessagePreview: text,
-    );
-  }
+    final conv = _db.collection('conversations').doc(conversationId);
+    final snap = await conv.get();
+    final members = List<String>.from(snap['members']);
+    final receiverUid =
+        members.firstWhere((m) => m != senderUid, orElse: () => '');
 
-  Future<void> deleteMessage({
-    required String conversationId,
-    required String messageId,
-  }) async {
-    await _db
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .doc(messageId)
-        .delete();
-  }
+    final doc = conv.collection('messages').doc();
 
-  Future<void> updateMessageSeen({
-    required String conversationId,
-    required String messageId,
-    required String userId,
-  }) async {
-    await _db
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .doc(messageId)
-        .update({'seenBy': FieldValue.arrayUnion([userId])});
-  }
-
-  Future<void> startTyping({
-    required String conversationId,
-    required String userId,
-  }) async {
-    await _db.collection('conversations').doc(conversationId).update({
-      'typingUsers': FieldValue.arrayUnion([userId]),
-    });
-  }
-
-  Future<void> stopTyping({
-    required String conversationId,
-    required String userId,
-  }) async {
-    await _db.collection('conversations').doc(conversationId).update({
-      'typingUsers': FieldValue.arrayRemove([userId]),
-    });
-  }
-
-  Future<void> _sendGeneric({
-    required String conversationId,
-    required String content,
-    required String senderUid,
-    required String type,
-    required String lastMessagePreview,
-    Map<String, dynamic>? extra,
-  }) async {
-    final convRef = _db.collection('conversations').doc(conversationId);
-    final snap = await convRef.get();
-    final members = List<String>.from(snap.data()?['members'] ?? []);
-
-    final receiverId =
-        members.firstWhere((m) => m != senderUid, orElse: () => senderUid);
-
-    final msgRef = convRef.collection('messages').doc();
-
-    final data = {
-      'id': msgRef.id,
-      'content': content,
+    await doc.set({
+      'id': doc.id,
+      'content': text,
       'senderId': senderUid,
-      'receiverId': receiverId,
+      'receiverId': receiverUid,
       'timestamp': FieldValue.serverTimestamp(),
-      'type': type,
-      'seenBy': [],
-      ...?extra,
+      'status': "SENT",
+      'type': "text",
+      'attachment': null,
+    });
+
+    await conv.update({
+      'lastMessage': text,
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> sendImageMessage({
+    required String conversationId,
+    required String url,
+    required String senderUid,
+  }) async {
+    final conv = _db.collection('conversations').doc(conversationId);
+    final snap = await conv.get();
+    final members = List<String>.from(snap['members']);
+    final receiverUid =
+        members.firstWhere((m) => m != senderUid, orElse: () => '');
+
+    final doc = conv.collection('messages').doc();
+
+    final attachment = {
+      "url": url,
+      "fileName": "",
+      "fileSize": 0,
+      "fileExtension": "",
+      "type": "IMAGE",
+      "uploadStatus": "UPLOADED",
+      "autoDownload": false,
+      "width": null,
+      "height": null,
+      "samples": null,
     };
 
-    await msgRef.set(data);
+    await doc.set({
+      'id': doc.id,
+      'content': url,
+      'senderId': senderUid,
+      'receiverId': receiverUid,
+      'timestamp': FieldValue.serverTimestamp(),
+      'status': "SENT",
+      'type': "image",
+      'attachment': attachment,
+    });
 
-    await convRef.update({
-      'lastMessage': lastMessagePreview,
+    await conv.update({
+      'lastMessage': "[Image]",
       'lastMessageTime': FieldValue.serverTimestamp(),
     });
   }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/chat_theme.dart'; 
+import '../core/services/chat_theme.dart'; 
 
 class SupportBotScreen extends StatefulWidget {
   static const String screenRoute = "support_bot_screen";

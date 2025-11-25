@@ -55,7 +55,6 @@ Future<String> fetchAi(String prompt) async {
         body: jsonEncode(payload),
       );
 
-      print('Gemini API Response Status: ${response.statusCode}');
 
       // Erfolg: 200 OK
       if (response.statusCode == 200) {
@@ -75,7 +74,6 @@ Future<String> fetchAi(String prompt) async {
 
         // Rate-Limit Fehler: 429 → Retry mit wachsender Verzögerung
         if (response.statusCode == 429 && attempt < maxRetries - 1) {
-          print('Rate limit hit (429). Retrying in ${retryDelayMs / 1000}s...');
           await Future.delayed(Duration(milliseconds: retryDelayMs));
           retryDelayMs *= 2;
           continue;
@@ -91,7 +89,6 @@ Future<String> fetchAi(String prompt) async {
     } catch (e) {
       // Netzwerkfehler → Retry
       if (attempt < maxRetries - 1) {
-        print('Network error: $e. Retrying in ${retryDelayMs / 1000}s...');
         await Future.delayed(Duration(milliseconds: retryDelayMs));
         retryDelayMs *= 2;
         continue;
@@ -160,20 +157,6 @@ class _AiPreviewState extends State<AiPreview> {
   }
 
   // Funktion, um alle User/KI-Paare an Firestore zu senden
-  Future<void> _sendToFirestore() async {
-    for (var msg in _messages.where((m) => m['role'] == 'user')) {
-      final prompt = msg['text']!;
-      final response = _messages.firstWhere(
-        (m) => m['role'] == 'ai' && !_messages.contains(m),
-        orElse: () => {'text': ''},
-      )['text']!;
-      await widget.onSend(prompt, response);
-    }
-    // Verlauf leeren
-    setState(() {
-      _messages.clear();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +167,7 @@ class _AiPreviewState extends State<AiPreview> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
+          // ignore: deprecated_member_use
           BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 4),
         ],
       ),

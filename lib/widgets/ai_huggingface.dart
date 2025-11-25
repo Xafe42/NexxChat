@@ -33,7 +33,6 @@ Future<String> fetchAi(String prompt) async {
     );
 
     // 👉 Debug-Ausgabe
-    print('Response: ${response.body}');
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
@@ -122,6 +121,7 @@ class _AiPreviewState extends State<AiPreview> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.2),
             spreadRadius: 2,
             blurRadius: 4,
@@ -137,7 +137,7 @@ class _AiPreviewState extends State<AiPreview> {
               const Icon(Icons.smart_toy, color: Colors.blueAccent),
               const SizedBox(width: 8),
               // Zeigt an, welches Modell verwendet wird
-              Text('AI Preview (${model})', style: const TextStyle(fontWeight: FontWeight.bold)), 
+              Text('AI Preview ($model)', style: const TextStyle(fontWeight: FontWeight.bold)), 
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),

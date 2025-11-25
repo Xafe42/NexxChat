@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../theme_notifier.dart';
-import '../core/services/chat_service.dart';
 import 'private_chat_screen.dart';
 import '../Screens/SearchUsersScreen.dart';
 
@@ -178,6 +176,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                   backgroundImage: profilePic != ''
                                       ? NetworkImage(profilePic)
                                       : null,
+                                  backgroundColor: Colors.teal,
                                   child: profilePic == ''
                                       ? Text(
                                           fullName[0].toUpperCase(),
@@ -187,7 +186,6 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                           ),
                                         )
                                       : null,
-                                  backgroundColor: Colors.teal,
                                 ),
 
                                 const SizedBox(width: 14),

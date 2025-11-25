@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart'; // WICHTIG: Firestore Import
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
@@ -18,7 +17,6 @@ class ChatHomeScreen extends StatefulWidget {
 }
 
 class _ChatHomeScreenState extends State<ChatHomeScreen> {
-  final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance; // Firestore Instanz
   int _selectedIndex = 0; 
 
@@ -93,6 +91,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
+            // ignore: deprecated_member_use
             BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)
           ],
         ),
@@ -245,6 +244,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
+                // ignore: deprecated_member_use
                 color: (chat['color'] as Color).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
@@ -272,6 +272,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       color: (chat['unread'] as int) > 0 
+                          // ignore: deprecated_member_use
                           ? textColor.withOpacity(0.8) 
                           : subTextColor,
                       fontWeight: (chat['unread'] as int) > 0 ? FontWeight.w600 : FontWeight.normal,

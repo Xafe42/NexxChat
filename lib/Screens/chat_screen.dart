@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
-import '../core/chat_theme.dart';
+import '../core/services/chat_theme.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../widgets/ai_preview.dart';
@@ -42,7 +42,6 @@ Future<String?> bildHochladen(XFile file) async {
     final resizedBytes = Uint8List.fromList(img.encodeJpg(image, quality: 85));
     return base64Encode(resizedBytes);
   } catch (e) {
-    print('Upload Fehler: $e');
     return null;
   }
 }
@@ -399,6 +398,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.18),
               blurRadius: 20,
               offset: const Offset(0, 8),

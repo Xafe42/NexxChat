@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme_notifier.dart';
-import '../core/chat_theme.dart';
+import '../core/services/chat_theme.dart';
 import 'welcome_screens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -144,6 +144,7 @@ class SettingsScreen extends StatelessWidget {
                         onPressed: () async {
                           await auth.signOut();
                           Navigator.pushNamedAndRemoveUntil(
+                            // ignore: use_build_context_synchronously
                             context,
                             WelcomeScreen.screenRoute,
                             (_) => false,

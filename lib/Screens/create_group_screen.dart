@@ -104,6 +104,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       "lastMessageTime": DateTime.now(),
     });
 
+    // ignore: use_build_context_synchronously
     Navigator.pop(context);
   }
 }

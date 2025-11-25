@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../gamer/gamer.dart';
 import '../material/briks.dart';
 import '../material/material.dart';
+// ignore: depend_on_referenced_packages
 import 'package:vector_math/vector_math_64.dart' as v;
 
 import 'player_panel.dart';

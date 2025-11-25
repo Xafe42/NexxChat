@@ -32,9 +32,9 @@ class Game extends StatefulWidget {
   static GameControl of(BuildContext context) {
     final state = context.findAncestorStateOfType<GameControl>();
      if (state == null) {
-    print("ERROR: Game.of(context) found NO GameControl");
+    
   } else {
-    print(" Game.of(context) RETURNED GameControl");
+    
   }
   return state!;
   }
@@ -58,17 +58,15 @@ const speed = <Duration>[
 class GameControl extends State<Game> with RouteAware {
   GameControl();
 
-  BuildContext? _currentContext;
 
   void refreshContext(BuildContext context) {
-    _currentContext = context;
   }
 
 @override
 void initState() {
   super.initState();
 
-  print("GameControl:initState() STARTED");
+  
 
   for (int i = 0; i < gamePadMatrixH; i++) {
     _data.add(List.filled(gamePadMatrixW, 0));
@@ -76,7 +74,7 @@ void initState() {
   }
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    print(" GameControl calling _startGame()");
+    
     _startGame();
   });
 }

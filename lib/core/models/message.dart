@@ -1,5 +1,5 @@
-// lib/core/models/message.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/attachment.dart';
 
 enum MessageStatus {
   pending('PENDING'),
@@ -7,55 +7,136 @@ enum MessageStatus {
   delivered('DELIVERED'),
   seen('SEEN');
 
-  final String value;
   const MessageStatus(this.value);
+  final String value;
 
   factory MessageStatus.fromValue(String value) {
-    return MessageStatus.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => MessageStatus.sent,
+    final res = MessageStatus.values.where(
+      (element) => element.value == value,
     );
+
+    if (res.isEmpty) {
+      throw 'ValueError: $value is not a valid status code';
+    }
+
+    return res.first;
   }
 }
 
-class ChatMessage {
+class Message {
   final String id;
   final String content;
   final String senderId;
   final String receiverId;
-  final Timestamp? timestamp;
-  final MessageStatus status;
+  final Timestamp timestamp;
+  final Attachment? attachment;
+  MessageStatus status;
 
-  ChatMessage({
+  Message({
     required this.id,
     required this.content,
     required this.senderId,
     required this.receiverId,
     required this.timestamp,
     required this.status,
+    this.attachment,
   });
 
-  factory ChatMessage.fromMap(Map<String, dynamic> data) {
-    return ChatMessage(
-      id: data['id'] ?? '',
-      content: data['content'] ?? '',
-      senderId: data['senderId'] ?? '',
-      receiverId: data['receiverId'] ?? '',
-      timestamp: data['timestamp'] as Timestamp?,
-      status: data['status'] != null
-          ? MessageStatus.fromValue(data['status'])
-          : MessageStatus.sent,
+  factory Message.fromMap(Map<String, dynamic> msgData) {
+    return Message(
+      id: msgData['id'],
+      content: msgData['content'],
+      status: MessageStatus.fromValue(msgData['status']),
+      senderId: msgData['senderId'],
+      receiverId: msgData['receiverId'],
+      timestamp: msgData['timestamp'],
+      attachment: msgData["attachment"] != null
+          ? Attachment.fromMap(msgData["attachment"])
+          : null,
     );
+  }
+
+  Message copyWith({
+    String? id,
+    String? content,
+    String? senderId,
+    String? receiverId,
+    Timestamp? timestamp,
+    MessageStatus? status,
+    Attachment? attachment,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      timestamp: timestamp ?? this.timestamp,
+      status: status ?? this.status,
+      attachment: attachment ?? this.attachment,
+    );
+  }
+
+  @override
+  String toString() {
+    return content;
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'content': content,
+      'status': status.value,
       'senderId': senderId,
       'receiverId': receiverId,
       'timestamp': timestamp,
-      'status': status.value,
+      "attachment": attachment?.toMap(),
+    };
+  }
+}
+
+enum MessageAction {
+  statusUpdate('STATUS_UPDATE');
+
+  const MessageAction(this.value);
+  final String value;
+
+  factory MessageAction.fromValue(String value) {
+    final res = MessageAction.values.where(
+      (element) => element.value == value,
+    );
+
+    if (res.isEmpty) {
+      throw 'ValueError: $value is not a valid action';
+    }
+
+    return res.first;
+  }
+}
+
+class SystemMessage {
+  final String targetId;
+  final MessageAction action;
+  final String update;
+
+  SystemMessage({
+    required this.targetId,
+    required this.action,
+    required this.update,
+  });
+
+  factory SystemMessage.fromMap(Map<String, dynamic> msgData) {
+    return SystemMessage(
+      targetId: msgData['targetId'],
+      action: MessageAction.fromValue(msgData['action']),
+      update: msgData['update'],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'targetId': targetId,
+      'action': action.value,
+      'update': update,
     };
   }
 }

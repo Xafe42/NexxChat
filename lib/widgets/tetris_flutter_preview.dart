@@ -19,6 +19,7 @@ class TetrisFlutterPreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.1),
             blurRadius: 18,
             offset: const Offset(0, 6),
