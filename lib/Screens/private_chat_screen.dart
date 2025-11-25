@@ -1,12 +1,12 @@
-import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img; // Prefix 'img'
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
 // Imports (Pfade ggf. anpassen)
 import '../Screens/TetrisFullScreenPage.dart';
@@ -14,6 +14,7 @@ import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
+import '../core/services/chat_service.dart';
 import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_card.dart';
@@ -37,6 +38,7 @@ class PrivateChatScreen extends StatefulWidget {
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  final _chatService = ChatService();
   final _ctrl = TextEditingController();
   final _picker = ImagePicker();
   
@@ -102,6 +104,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       MaterialPageRoute(
         builder: (_) => TetrisFullScreenPage(
           onFinish: (score) {
+            // WICHTIG: Hier _sendMessage benutzen, damit es in den privaten Chat geht
             _sendMessage(type: 'app', payload: {
                 'app': 'tetris',
                 'data': {'score': score}
@@ -113,8 +116,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  // --- SENDEN ---
-
+  // --- SENDEN (Privat) ---
+  
+  // Diese Methode schreibt direkt in die Sub-Collection 'messages' der Conversation
   Future<void> _sendMessage({required String type, required Map<String, dynamic> payload}) async {
     if (_user == null) return;
     
@@ -144,42 +148,63 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Future<void> _sendText() async {
     final txt = _raw.trim();
-    if (txt.isEmpty) return;
+    if (txt.isEmpty || _user == null) return;
 
     if (_aktiveCmd != null) {
       final cmd = _aktiveCmd!;
+      
+      // 1. HELLO Command
       if (cmd.type == "hello") {
         final payload = HelloApp.buildPayload(cmd.data);
         await _sendMessage(type: 'app', payload: payload['payload']);
       }
+      
+      // 2. EVENT Command (Falls manuell getippt, meist über UI)
+      // Die Logik für Events ist unten im EventPreview Widget
     } else {
-      await _sendMessage(type: 'text', payload: {'text': txt});
+      // Normale Textnachrichten über ChatService (standardisiert)
+      await _chatService.sendTextMessage(
+        conversationId: widget.conversationId,
+        text: txt,
+        senderUid: _user!.uid,
+        senderEmail: _user!.email ?? '',
+      );
     }
     _resetInput();
   }
 
   Future<void> _sendImage() async {
-    // KORREKTUR: Variable umbenannt zu pickedFile, damit sie nicht mit img (Library) kollidiert
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile == null) return;
+    if (pickedFile == null || _user == null) return;
     
-    final bytes = await pickedFile.readAsBytes();
-    
-    // KORREKTUR: Nutzung des img Prefix für decodeImage
-    img.Image? image = img.decodeImage(bytes);
-    if (image == null) return;
+    final file = File(pickedFile.path);
 
-    if (image.width > 1024 || image.height > 1024) {
-      // KORREKTUR: Nutzung des img Prefix für copyResize
-      image = img.copyResize(image, width: 1024, height: 1024);
+    final filename = "${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}";
+    
+    // Speichert direkt im Hauptordner chat_images (ohne Unterordner)
+    final ref = FirebaseStorage.instance.ref().child("chat_images/$filename");
+
+    try {
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+
+      // URL wird an ChatService übergeben
+      await _chatService.sendImageMessage(
+        conversationId: widget.conversationId,
+        url: url,
+        senderUid: _user!.uid,
+      );
+      
+    } on FirebaseException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Fehler beim Hochladen des Bildes."))
+        );
+      }
     }
     
-    // KORREKTUR: Nutzung des img Prefix für encodeJpg
-    final resizedBytes = Uint8List.fromList(img.encodeJpg(image, quality: 85));
-    final base64String = base64Encode(resizedBytes);
-
-    await _sendMessage(type: 'image', payload: {'base64': base64String});
     setState(() => _isSlashToolbarVisible = false);
+    _resetInput();
   }
 
   void _resetInput() {
@@ -225,13 +250,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           Column(
             children: [
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore
-                      .collection('conversations')
-                      .doc(widget.conversationId)
-                      .collection('messages')
-                      .orderBy('time', descending: true)
-                      .snapshots(),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  // Stream aus dem ChatService (Private Nachrichten)
+                  stream: _chatService.messagesStream(widget.conversationId),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                     
@@ -242,7 +263,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
-                        final data = docs[index].data() as Map<String, dynamic>;
+                        final data = docs[index].data();
                         return _buildMessageItem(data);
                       },
                     );
@@ -252,6 +273,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               _buildInputArea(isDarkMode),
             ],
           ),
+
+          // --- PREVIEW LAYERS ---
 
           if (_aktiveCmd?.type == "hello")
             Positioned(
@@ -279,16 +302,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ),
 
           if (_aktiveCmd?.type == "event")
-             Positioned(
+            Positioned(
               bottom: 70, left: 0, right: 0,
               child: EventPreview(
                 onCancel: _resetInput,
                 onSend: (form) async {
                   final eventPayload = EventApp.buildPayload(form);
+                  // Event selbst wird global gespeichert (optional, je nach Architektur)
                   final doc = await _firestore.collection("events").add({
                       ...eventPayload,
                       "creator": _user!.email,
                   });
+                  // Referenz wird in den PRIVATEN Chat gesendet
                   await _sendMessage(type: 'event_ref', payload: {'eventId': doc.id});
                   _resetInput();
                 },
@@ -301,73 +326,114 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
+  // --- MESSAGE ITEM BUILDER (Hier ist die Logik für Tetris/Events) ---
   Widget _buildMessageItem(Map<String, dynamic> data) {
     final senderEmail = data['sender'] ?? '';
     final isMe = _user?.email == senderEmail;
     final type = data['type'] ?? 'text';
-    final payload = data['payload'];
+    final payload = data['payload']; // Hier liegen die Tetris/App Daten
 
     Widget content;
 
+    // 1. BILD (URL aus Storage)
     if (type == 'image') {
-      final base64Str = payload?['base64'] ?? '';
-      if (base64Str.isNotEmpty) {
-        final bytes = base64Decode(base64Str);
+      final imageUrl = (data['content'] ?? data['payload']?['url'] ?? '').toString(); 
+      if (imageUrl.isNotEmpty) {
         content = ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.memory(bytes, width: 200, fit: BoxFit.cover),
+          child: Image.network(
+            imageUrl, 
+            width: 200, 
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return SizedBox(
+                width: 200, height: 200, 
+                child: const Center(child: CircularProgressIndicator())
+              );
+            },
+          ),
         );
       } else {
         content = const Text("Bild Fehler");
       }
-    } else if (type == 'app' && payload?['app'] == 'hello') {
-       content = HelloApp.buildCard(payload?['data']?['who'] ?? 'World');
-    } else if (type == 'app' && payload?['app'] == 'tetris') {
-       content = Container(
-         padding: const EdgeInsets.all(12),
-         decoration: BoxDecoration(color: Colors.deepPurple[50], borderRadius: BorderRadius.circular(10)),
-         child: Row(
-           children: [
-             const Icon(Icons.videogame_asset, color: Colors.deepPurple),
-             const SizedBox(width: 8),
-             Text("Tetris Score: ${payload?['data']?['score']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-           ],
-         ),
-       );
-    } else if (type == 'ai') {
-       content = Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           Text("Q: ${payload?['prompt']}", style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12, color: isMe ? Colors.white70 : Colors.black54)),
-           const Divider(),
-           Text("${payload?['response']}", style: TextStyle(color: isMe ? Colors.white : Colors.black)),
-         ],
-       );
-    } else if (type == 'event_ref') {
-       // Falls eventId im payload oder direkt im doc ist, hier anpassen:
-       final eventId = payload?['eventId'] ?? data['eventId'];
-       return StreamBuilder<DocumentSnapshot>(
-         stream: _firestore.collection('events').doc(eventId).snapshots(),
-         builder: (context, snap) {
-           if (!snap.hasData) return const Text("Lade Event...");
-           if (!snap.data!.exists) return const Text("Event gelöscht");
-           final eventData = snap.data!.data() as Map<String, dynamic>;
-           final ePayload = eventData['payload']['data'] ?? {};
-           
-           return EventCard(
-             title: ePayload['title'] ?? '',
-             datetime: DateTime.tryParse(ePayload['datetime'] ?? ''),
-             location: ePayload['location'] ?? '',
-             description: ePayload['description'] ?? '',
-             votes: ePayload['votes'] ?? {},
-             messageId: eventId, 
-             currentUser: _user!.email!,
-           );
-         }
-       );
-    } else {
+    } 
+    // 2. HELLO WIDGET
+    else if (type == 'app' && payload?['app'] == 'hello') {
+        final who = payload?['data']?['who'] ?? 'World';
+        content = HelloApp.buildCard(who.toString());
+    } 
+    // 3. TETRIS WIDGET (Fix)
+    else if (type == 'app' && payload?['app'] == 'tetris') {
+        final score = payload?['data']?['score'] ?? 0;
+        content = Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.deepPurple.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.videogame_asset, size: 30, color: Colors.deepPurple),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Tetris Score",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  Text(
+                    "Score: $score",
+                    style: const TextStyle(fontSize: 15, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+    } 
+    // 4. AI WIDGET
+    else if (type == 'ai') {
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Q: ${payload?['prompt']}", style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12, color: isMe ? Colors.white70 : Colors.black54)),
+            const Divider(),
+            Text("${payload?['response']}", style: TextStyle(color: isMe ? Colors.white : Colors.black)),
+          ],
+        );
+    } 
+    // 5. EVENT WIDGET (Fix)
+    else if (type == 'event_ref') {
+        final eventId = payload?['eventId'] ?? data['eventId'];
+        return StreamBuilder<DocumentSnapshot>(
+          stream: _firestore.collection('events').doc(eventId).snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Text("Lade Event...");
+            if (!snap.data!.exists) return const Text("Event gelöscht");
+            
+            final eventData = snap.data!.data() as Map<String, dynamic>;
+            final ePayload = eventData['payload']['data'] ?? {};
+            final votes = ePayload['votes'] ?? {'yes': [], 'maybe': [], 'no': []};
+            
+            return EventCard(
+              title: ePayload['title'] ?? '',
+              datetime: DateTime.tryParse(ePayload['datetime'] ?? ''),
+              location: ePayload['location'] ?? '',
+              description: ePayload['description'] ?? '',
+              votes: votes,
+              messageId: eventId, 
+              currentUser: _user!.email!,
+            );
+          }
+        );
+    } 
+    // 6. TEXT
+    else {
+      final text = data['content'] ?? payload?['text'] ?? '';
       content = Text(
-        payload?['text'] ?? "",
+        text.toString(),
         style: TextStyle(fontSize: 16, color: isMe ? Colors.white : Colors.black),
       );
     }
@@ -421,41 +487,41 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             border: Border(top: BorderSide(color: Colors.orange, width: 2)),
           ),
           child: Row(
-             children: [
-                Expanded(
-                  child: TextField(
-                    controller: _ctrl,
-                    onChanged: _onChanged,
-                    maxLines: null,
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                    decoration: InputDecoration(
-                      hintText: "Nachricht",
-                      hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
-                      filled: true,
-                      fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide.none,
-                      ),
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  onChanged: _onChanged,
+                  maxLines: null,
+                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  decoration: InputDecoration(
+                    hintText: "Nachricht",
+                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
+                    filled: true,
+                    fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    _isSlashToolbarVisible ? Icons.remove_circle_outline : Icons.add_circle_outline,
-                    size: 28, color: Colors.orange
-                  ),
-                  onPressed: _toggleSlashToolbar,
+              ),
+              IconButton(
+                icon: Icon(
+                  _isSlashToolbarVisible ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                  size: 28, color: Colors.orange
                 ),
-                ElevatedButton(
-                  onPressed: _sendText,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ChatTheme.myBubbleColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: const Text("Senden", style: TextStyle(color: Colors.white)),
+                onPressed: _toggleSlashToolbar,
+              ),
+              ElevatedButton(
+                onPressed: _sendText,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChatTheme.myBubbleColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
-             ],
+                child: const Text("Senden", style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
         ),
       ),
@@ -480,14 +546,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _commandCard(icon: "👋", title: "Hello", description: "Sende eine freundliche Nachricht", onTap: () {
-               _ctrl.text = "/hello "; _onChanged("/hello "); setState(() => _isSlashToolbarVisible = false);
+              _ctrl.text = "/hello "; _onChanged("/hello "); setState(() => _isSlashToolbarVisible = false);
             }),
             _commandCard(icon: "🖼️", title: "Bild senden", description: "Galerie", onTap: _sendImage),
             _commandCard(icon: "🎮", title: "Tetris", description: "Mini-Game", onTap: () {
-               _ctrl.text = "/tetris"; _onChanged("/tetris"); setState(() => _isSlashToolbarVisible = false);
+              _ctrl.text = "/tetris"; _onChanged("/tetris"); setState(() => _isSlashToolbarVisible = false);
             }),
             _commandCard(icon: "📅", title: "Event", description: "Gruppen-Event", onTap: () {
-               _ctrl.text = "/event"; _onChanged("/event"); setState(() => _isSlashToolbarVisible = false);
+              _ctrl.text = "/event"; _onChanged("/event"); setState(() => _isSlashToolbarVisible = false);
             }),
             _commandCard(icon: "🤖", title: "AI", description: "Chatte mit AI", onTap: _openAiPreview),
           ],
@@ -496,7 +562,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  Widget _commandCard({required String icon, required String title, required String description, required VoidCallback onTap}) {
+  Widget _commandCard({required String icon, required String title, required String description, required VoidCallback onTap}) { 
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -98,50 +96,62 @@ class MessageStreamBuilder extends StatelessWidget {
               },
             );
           }
-          // 4. IMAGE MESSAGE
+          // 4. IMAGE MESSAGE (ANGEPASST FÜR URL)
           else if (type == 'image') {
-            final base64Str = data['payload']?['base64'] ?? '';
-            if (base64Str.isNotEmpty) {
-              final bytes = base64Decode(base64Str);
-              content = Image.memory(
-                bytes,
-                width: 200,
-                height: 200,
-                fit: BoxFit.cover,
+            // Liest die URL aus 'content' (ChatService speichert dort) oder 'payload?['url']'
+            final imageUrl = (data['content'] ?? data['payload']?['url'] ?? '').toString(); 
+            
+            if (imageUrl.isNotEmpty) {
+              content = ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  imageUrl, 
+                  width: 200,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                ),
               );
             } else {
-              content = const SizedBox();
+              content = const Text("Bild Fehler");
             }
           }
           // 5. AI MESSAGE
           else if (type == 'ai') {
-             final prompt = data['payload']?['prompt'] ?? '';
-             final response = data['payload']?['response'] ?? '';
-             content = Column(
-               crossAxisAlignment: CrossAxisAlignment.start,
-               children: [
-                 Text(
-                   "Q: $prompt", 
-                   style: TextStyle(
-                     fontStyle: FontStyle.italic, 
-                     fontSize: 12, 
-                     color: isMe ? Colors.white70 : Colors.black54
-                   )
-                 ),
-                 const Divider(color: Colors.grey),
-                 Text(
-                   response.toString(),
-                   style: TextStyle(
-                     fontSize: 15,
-                     color: isMe ? Colors.white : Colors.black87,
-                   ),
-                 ),
-               ],
-             );
+              final prompt = data['payload']?['prompt'] ?? '';
+              final response = data['payload']?['response'] ?? '';
+              content = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Q: $prompt", 
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic, 
+                      fontSize: 12, 
+                      color: isMe ? Colors.white70 : Colors.black54
+                    )
+                  ),
+                  const Divider(color: Colors.grey),
+                  Text(
+                    response.toString(),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isMe ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              );
           }
           // 6. DEFAULT TEXT MESSAGE
           else {
-            final text = data['payload']?['text'] ?? '';
+            // Nutzt 'content' (ChatService) oder 'payload?['text']' (andere Logik)
+            final text = data['content'] ?? data['payload']?['text'] ?? '';
             content = Text(
               text.toString(),
               style: TextStyle(
