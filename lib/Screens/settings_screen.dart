@@ -16,29 +16,29 @@ class SettingsScreen extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, mode, _) {
         final bool isDark = mode == ThemeMode.dark;
-        final Color textColor = isDark ? Colors.white : Colors.black;
+        final textColor = isDark ? Colors.white : Colors.black;
+        final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
         return Scaffold(
-          body: Column(
+          backgroundColor: bgColor,
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
             children: [
-              
               // HEADER
-              
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                padding: const EdgeInsets.only(bottom: 25),
                 child: Row(
                   children: [
                     Text(
                       "Settings",
                       style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
                         color: textColor,
+                        letterSpacing: -0.5,
                       ),
                     ),
-
                     const Spacer(),
-
                     _circleButton(
                       icon: Icons.search,
                       iconColor: textColor,
@@ -53,107 +53,95 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
 
-              
-              //         SETTINGS ITEMS
-              
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // -------- Appearance --------
-                    _sectionTitle("Appearance"),
-
-                    _tile(
-                      context,
-                      icon: Icons.dark_mode,
-                      title: "Dark Mode",
-                      subtitle: "Switch between light & dark theme",
-                      trailing: Switch(
-                        value: isDark,
-                        onChanged: (val) {
-                          themeNotifier.value =
-                              val ? ThemeMode.dark : ThemeMode.light;
-                        },
-                      ),
-                    ),
-
-                    _tile(
-                      context,
-                      icon: Icons.color_lens,
-                      title: "Personalization",
-                      subtitle: "Theme colors & chat bubbles",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ChatDesignScreen(),
-                          ),
-                        );
+              // -------- Appearance Section --------
+              _sectionTitle("APPEARANCE"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.dark_mode_outlined,
+                    title: "Dark Mode",
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      activeColor: Colors.deepPurpleAccent,
+                      onChanged: (val) {
+                        themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
                       },
                     ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.color_lens_outlined,
+                    title: "Personalization",
+                    subtitle: "Theme colors & wallpapers",
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatDesignScreen()));
+                    },
+                  ),
+                ],
+              ),
 
-                    const SizedBox(height: 20),
+              const SizedBox(height: 30),
 
-                    // -------- Security --------
-                    _sectionTitle("Security"),
+              // -------- Security Section --------
+              _sectionTitle("PRIVACY & SECURITY"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.lock_outline,
+                    title: "Security",
+                    subtitle: "Password, FaceID & 2FA",
+                    onTap: () {},
+                  ),
+                  _SettingsTile(
+                    icon: Icons.notifications_outlined,
+                    title: "Notifications",
+                    onTap: () {},
+                  ),
+                ],
+              ),
 
-                    _tile(
-                      context,
-                      icon: Icons.lock,
-                      title: "Privacy & Security",
-                      subtitle: "Password, activity & permissions",
-                      onTap: () {},
-                    ),
+              const SizedBox(height: 30),
 
-                    const SizedBox(height: 20),
+              // -------- Support Section --------
+              _sectionTitle("SUPPORT"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.info_outline,
+                    title: "About NexxChat",
+                    subtitle: "Version 1.0.0",
+                    onTap: () {},
+                  ),
+                ],
+              ),
 
-                    // -------- Notifications --------
-                    _sectionTitle("Notifications"),
+              const SizedBox(height: 40),
 
-                    _tile(
-                      context,
-                      icon: Icons.notifications,
-                      title: "Notification Settings",
-                      subtitle: "Manage chat & system alerts",
-                      onTap: () {},
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // -------- About --------
-                    _sectionTitle("About"),
-
-                    _tile(
-                      context,
-                      icon: Icons.info,
-                      title: "About NexChat",
-                      subtitle: "Version 1.0.0 – All rights reserved",
-                      onTap: () {},
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // -------- Logout button --------
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.logout, color: Colors.red),
-                        label: const Text(
-                          "Log Out",
-                          style:
-                              TextStyle(color: Colors.red, fontSize: 18),
-                        ),
-                        onPressed: () async {
-                          await auth.signOut();
-                          Navigator.pushNamedAndRemoveUntil(
-                            // ignore: use_build_context_synchronously
-                            context,
-                            WelcomeScreen.screenRoute,
-                            (_) => false,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+              // -------- Logout --------
+              Center(
+                child: TextButton(
+                  onPressed: () async {
+                    await auth.signOut();
+                    if(context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(context, WelcomeScreen.screenRoute, (_) => false);
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                    backgroundColor: Colors.red.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.logout, size: 20),
+                      SizedBox(width: 8),
+                      Text("Log Out", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -163,78 +151,86 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ----------------------------------
-  // REUSABLE HEADER BUTTON
-  // ----------------------------------
-  Widget _circleButton({
-    required IconData icon,
-    required Color iconColor,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
+  Widget _circleButton({required IconData icon, required Color iconColor, required bool isDark, required VoidCallback onTap}) {
     return Container(
+      width: 45, height: 45,
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[850] : Colors.grey[200],
+        color: isDark ? Colors.grey[800] : Colors.grey[200],
         shape: BoxShape.circle,
       ),
-      child: IconButton(
-        icon: Icon(icon, color: iconColor),
-        onPressed: onTap,
-      ),
+      child: IconButton(icon: Icon(icon, color: iconColor, size: 24), onPressed: onTap),
     );
   }
 
-  // ----------------------------------
-  // SECTION TITLE
-  // ----------------------------------
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 4),
+      padding: const EdgeInsets.only(bottom: 10, left: 10),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
-        ),
-      ),
-    );
-  }
-
-  // ----------------------------------
-  // TILE BUILDER
-  // ----------------------------------
-  Widget _tile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    Widget? trailing,
-    Function()? onTap,
-  }) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.orange),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: trailing ??
-            const Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey),
-        onTap: onTap,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.2),
       ),
     );
   }
 }
 
+// --- Hilfs-Widgets für das Grouped-Design ---
 
-// CHAT DESIGN SCREEN 
+class _SettingsGroup extends StatelessWidget {
+  final bool isDark;
+  final List<Widget> children;
 
+  const _SettingsGroup({required this.isDark, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 5))
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _SettingsTile({required this.icon, required this.title, this.subtitle, this.trailing, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: isDark ? Colors.white : Colors.black, size: 22),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      subtitle: subtitle != null ? Text(subtitle!, style: TextStyle(color: Colors.grey[600], fontSize: 13)) : null,
+      trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+    );
+  }
+}
+
+
+// ----------------------------------------------------------------
+// CHAT DESIGN SCREEN (Modernisiert)
+// ----------------------------------------------------------------
 
 class ChatDesignScreen extends StatefulWidget {
   const ChatDesignScreen({super.key});
@@ -245,25 +241,13 @@ class ChatDesignScreen extends StatefulWidget {
 
 class _ChatDesignScreenState extends State<ChatDesignScreen> {
   final List<Color> bubbleColors = [
-    Colors.blue[800]!,
-    Colors.purple,
-    Colors.orange[800]!,
-    Colors.green[700]!,
-    Colors.redAccent,
-    Colors.black87,
-    Colors.teal,
-    Colors.pink,
+    Colors.blue[800]!, Colors.purple, Colors.orange[800]!, Colors.green[700]!,
+    Colors.redAccent, const Color(0xFF2D3436), Colors.teal, const Color(0xFFE84393),
   ];
 
-final List<Color> bgColors = [
-    const Color(0xFFEEEEEE), // 1. Etwas dunkleres Grau (statt F5F5F5)
-    const Color(0xFFE3F2FD), // Hellblau
-    const Color(0xFFF3E5F5), // Helllila
-    const Color(0xFFFFF3E0), // Creme/Orange
-    const Color(0xFFE8F5E9), // Hellgrün
-    const Color(0xFFECEFF1), // 2. NEU: Cooles Blau-Grau (statt Weiß)
-    const Color(0xFF212121), // Dunkelgrau
-    Colors.black,            // Schwarz
+  final List<Color> bgColors = [
+    const Color(0xFFEEEEEE), const Color(0xFFE3F2FD), const Color(0xFFF3E5F5), const Color(0xFFFFF3E0),
+    const Color(0xFFE8F5E9), const Color(0xFFECEFF1), const Color(0xFF212121), Colors.black,
   ];
 
   @override
@@ -281,135 +265,129 @@ final List<Color> bgColors = [
     ChatTheme.saveTheme(bubble, bg);
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Design saved!"),
-        duration: Duration(milliseconds: 600),
-      ),
+      const SnackBar(content: Text("Design saved!"), behavior: SnackBarBehavior.floating, duration: Duration(milliseconds: 800)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
+      backgroundColor: isDark ? Colors.black : const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text("Chat Design"),
+        title: Text("Chat Design", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
         centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
       ),
 
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // PREVIEW
+          // PREVIEW BOX (Handy Mockup)
           Container(
+            height: 300,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: ChatTheme.backgroundColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.grey.withOpacity(0.2), width: 4),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))],
             ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
+                      color: isDark ? Colors.grey[800] : Colors.white,
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20), bottomRight: Radius.circular(20)),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
                     ),
-                    child:
-                        const Text("How do you like the new design?"),
+                    child: Text("How do you like the new design?", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                   ),
                 ),
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 15),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: ChatTheme.myBubbleColor,
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20), bottomLeft: Radius.circular(20)),
+                      boxShadow: [BoxShadow(color: ChatTheme.myBubbleColor.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
                     ),
-                    child: const Text(
-                      "Looks great!",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child: const Text("Looks great! 🚀", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
 
           // BUBBLE COLORS
-          const Text("Message Bubble Color",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-
+          Text("ACCENT COLOR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.5)),
+          const SizedBox(height: 15),
           SizedBox(
-            height: 50,
+            height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: bubbleColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, __) => const SizedBox(width: 15),
               itemBuilder: (_, i) {
                 final c = bubbleColors[i];
                 final selected = ChatTheme.myBubbleColor == c;
-
                 return GestureDetector(
                   onTap: () => _save(c, ChatTheme.backgroundColor),
-                  child: Container(
-                    width: 50,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: selected ? 55 : 45,
+                    height: selected ? 55 : 45,
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: selected
-                          ? Border.all(color: Colors.black, width: 3)
-                          : null,
+                      border: selected ? Border.all(color: textColor, width: 3) : null,
+                      boxShadow: [BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
                     ),
-                    child: selected
-                        ? const Icon(Icons.check, color: Colors.white)
-                        : null,
+                    child: selected ? const Icon(Icons.check, color: Colors.white) : null,
                   ),
                 );
               },
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
 
           // BACKGROUND COLORS
-          const Text("Chat Background",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-
+          Text("BACKGROUND COLOR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.5)),
+          const SizedBox(height: 15),
           SizedBox(
-            height: 50,
+            height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: bgColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, __) => const SizedBox(width: 15),
               itemBuilder: (_, i) {
                 final c = bgColors[i];
                 final selected = ChatTheme.backgroundColor == c;
-
                 return GestureDetector(
                   onTap: () => _save(ChatTheme.myBubbleColor, c),
-                  child: Container(
-                    width: 50,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: selected ? 55 : 45,
+                    height: selected ? 55 : 45,
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: selected ? Colors.blueAccent : Colors.grey.shade300, width: selected ? 3 : 1),
                     ),
-                    child: selected
-                        ? Icon(Icons.check,
-                            color: c.computeLuminance() < 0.5
-                                ? Colors.white
-                                : Colors.black)
-                        : null,
+                    child: selected ? Icon(Icons.check, color: c.computeLuminance() < 0.5 ? Colors.white : Colors.black) : null,
                   ),
                 );
               },
