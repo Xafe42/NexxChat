@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/services/chat_theme.dart'; 
+import '../core/services/chat_theme.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";
@@ -20,8 +20,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   final List<Map<String, String>> _messages = [
     {
       'role': 'ai',
-      'text': 'Hallo! Ich bin dein KI Image Bot.\nSchreibe einfach, was ich erstellen soll und ich erstelle das Bild für dich!',
-      'type': 'text' 
+      'text':
+          'Hallo! Ich bin dein KI Image Bot.\nSchreibe einfach, was ich erstellen soll und ich erstelle das Bild für dich!',
+      'type': 'text'
     }
   ];
 
@@ -74,6 +75,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
       _messages.add({'role': 'user', 'text': text, 'type': 'text'});
       _isLoading = true;
     });
+
     _scrollToBottom();
     
     // Simuliert eine kurze Verzögerung für besseres Feedback
@@ -92,6 +94,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   }
 
+  // -------------------------------
+  // UI
+  // -------------------------------
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -100,10 +105,10 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
       backgroundColor: ChatTheme.backgroundColor,
       
       appBar: AppBar(
-        backgroundColor: Colors.pink[800], 
+        backgroundColor: Colors.pink[800],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, null),
         ),
         titleSpacing: 0,
         title: Row(
@@ -143,9 +148,10 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                 final isImage = msg['type'] == 'image'; // Prüft den Nachrichtentyp
 
                 return Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
                       // Absender-Label
                       Text(
@@ -240,7 +246,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
 
           // Eingabebereich
           Container(
-            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             child: SafeArea(
               top: false,
               child: Container(
