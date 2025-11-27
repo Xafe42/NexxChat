@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
-import '../theme_notifier.dart';
-import '../core/services/chat_theme.dart';
-import 'welcome_screens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../core/services/chat_theme.dart';
+import '../theme_notifier.dart';
+import 'welcome_screens.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -254,15 +255,15 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
     Colors.pink,
   ];
 
-  final List<Color> bgColors = [
-    Colors.white,
-    const Color(0xFFF5F5F5),
-    const Color(0xFFE3F2FD),
-    const Color(0xFFF3E5F5),
-    const Color(0xFFFFF3E0),
-    const Color(0xFFE8F5E9),
-    const Color(0xFF212121),
-    Colors.black,
+final List<Color> bgColors = [
+    const Color(0xFFEEEEEE), // 1. Etwas dunkleres Grau (statt F5F5F5)
+    const Color(0xFFE3F2FD), // Hellblau
+    const Color(0xFFF3E5F5), // Helllila
+    const Color(0xFFFFF3E0), // Creme/Orange
+    const Color(0xFFE8F5E9), // Hellgrün
+    const Color(0xFFECEFF1), // 2. NEU: Cooles Blau-Grau (statt Weiß)
+    const Color(0xFF212121), // Dunkelgrau
+    Colors.black,            // Schwarz
   ];
 
   @override
