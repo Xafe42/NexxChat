@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/services/chat_theme.dart'; 
+import '../core/services/chat_theme.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";
@@ -18,25 +19,26 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-
-  final String _apiKey = "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"; 
-  
-  final String _apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0";
+  // HuggingFace API
+  final String _apiKey = "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";
+  final String _apiUrl =
+      "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0";
 
   final List<Map<String, dynamic>> _messages = [
     {
       'role': 'ai',
-      'text': 'Hallo! Ich bin dein KI Image Bot.\nSchreibe einfach, was ich erstellen soll und ich erstelle das Bild für dich!',
-      'type': 'text' 
+      'text':
+          'Hallo! Ich bin dein KI Image Bot.\nSchreibe einfach, was ich erstellen soll und ich erstelle das Bild für dich!',
+      'type': 'text'
     }
   ];
 
-  bool _isLoading = false; 
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme(); 
+    _loadTheme();
   }
 
   void _loadTheme() async {
@@ -44,9 +46,32 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
+  // -------------------------------
+  // 🔥 رفع الصورة إلى Firebase
+  // -------------------------------
+  Future<String?> _uploadToFirebase(Uint8List bytes) async {
+    try {
+      final fileName = "ai_${DateTime.now().millisecondsSinceEpoch}.png";
+      final ref =
+          FirebaseStorage.instance.ref().child("chat_images/$fileName");
+
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/png'),
+      );
+
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Upload error: $e");
+      return null;
+    }
+  }
+
+  // -------------------------------
+  // 🔥 توليد صورة من HuggingFace
+  // -------------------------------
   Future<Uint8List?> _generateImage(String prompt) async {
     try {
-      print("Sende Anfrage an Hugging Face Router (SDXL Base)...");
       final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {
@@ -57,14 +82,13 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
       );
 
       if (response.statusCode == 200) {
-        print("Bild erfolgreich geladen!");
         return response.bodyBytes;
       } else {
-        print("Fehler API: ${response.statusCode} - ${response.body}");
+        print("API error: ${response.statusCode}");
         return null;
       }
     } catch (e) {
-      print("Fehler Netzwerk: $e");
+      print("API network error: $e");
       return null;
     }
   }
@@ -81,6 +105,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     });
   }
 
+  // -------------------------------
+  // 🔥 إرسال رسالة طلب صورة
+  // -------------------------------
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -91,20 +118,26 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
       _messages.add({'role': 'user', 'text': text, 'type': 'text'});
       _isLoading = true;
     });
+
     _scrollToBottom();
-    
+
     final imageBytes = await _generateImage(text);
 
     if (mounted) {
       setState(() {
         _isLoading = false;
         if (imageBytes != null) {
-          _messages.add({'role': 'ai', 'data': imageBytes, 'type': 'image'});
-        } else {
-          // Fehlerbehandlung für den User sichtbar machen
           _messages.add({
-            'role': 'ai', 
-            'text': 'Fehler beim Laden. Wenn du "Model is loading" in der Konsole siehst, warte bitte 30 Sekunden und versuche es erneut.', 
+            'role': 'ai',
+            'data': imageBytes,
+            'type': 'image',
+            'prompt': text,
+          });
+        } else {
+          _messages.add({
+            'role': 'ai',
+            'text':
+                "Fehler beim Laden. Falls 'Model is loading' erscheint, warte 30 Sekunden.",
             'type': 'text'
           });
         }
@@ -113,6 +146,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   }
 
+  // -------------------------------
+  // UI
+  // -------------------------------
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -120,19 +156,20 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.pink[800], 
+        backgroundColor: Colors.pink[800],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, null),
         ),
-        titleSpacing: 0,
         title: const Text(
           "AI Image Generator",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
       body: Column(
         children: [
+          // MESSAGES LIST
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -141,120 +178,143 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isMe = msg['role'] == 'user';
-                final isImage = msg['type'] == 'image'; 
+                final isImage = msg['type'] == 'image';
 
                 return Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isMe ? "Dein Motiv" : "Generiertes Bild",
-                        style: TextStyle(fontSize: 12, color: Colors.pink[800]),
+                        isMe ? "Dein Prompt" : "Generiertes Bild",
+                        style: TextStyle(
+                            color: Colors.pink[800],
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 2),
-                      Material(
-                        elevation: 5,
-                        borderRadius: BorderRadius.circular(30),
-                        color: isMe ? ChatTheme.myBubbleColor : Colors.white,
-                        child: Padding(
-                          padding: isImage 
-                              ? const EdgeInsets.all(5) 
-                              : const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                          child: isImage
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(25),
-                                  child: Image.memory(
-                                    msg['data'] as Uint8List,
-                                    width: 280,
-                                    height: 280,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 280, height: 280,
-                                        color: Colors.grey[300],
-                                        child: const Center(child: Icon(Icons.error)),
-                                      );
-                                    },
-                                  ),
-                                )
-                              : Text(
-                                  msg['text'] ?? "",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: isMe ? Colors.white : Colors.black87,
-                                  ),
+                      const SizedBox(height: 4),
+
+                      //
+                      // IMAGE
+                      //
+                      if (isImage)
+                        Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.memory(
+                                msg['data'],
+                                width: 300,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // 🔥 زر Send to Chat
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final url =
+                                    await _uploadToFirebase(msg['data']);
+
+                                if (url != null) {
+                                  Navigator.pop(context, url);
+                                }
+                              },
+                              icon: const Icon(Icons.send),
+                              label: const Text("Send to Chat"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink[700],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 30, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
+                              ),
+                            ),
+                          ],
+                        )
+                      //
+                      // TEXT
+                      //
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isMe
+                                ? ChatTheme.myBubbleColor
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            msg['text'] ?? "",
+                            style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black87,
+                                fontSize: 16),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 );
               },
             ),
           ),
+
+          // LOADING INDICATOR
           if (_isLoading)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink)),
-                      const SizedBox(width: 10),
-                      const Text("KI denkt nach...", style: TextStyle(color: Colors.black54)),
-                    ],
-                  ),
-                ),
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.pink)),
+                  const SizedBox(width: 10),
+                  Text(
+                    "KI denkt nach...",
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  )
+                ],
               ),
             ),
+
+          // INPUT
           Container(
-            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             child: SafeArea(
-              top: false,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.pink.shade200, width: 1)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                        decoration: InputDecoration(
-                          hintText: "Beschreibe ein Bild...",
-                          hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
-                          filled: true,
-                          fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
-                          border: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(25)),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: "Beschreibe ein Bild...",
+                        filled: true,
+                        fillColor:
+                            isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
                         ),
-                        onSubmitted: (_) => _sendMessage(),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    FloatingActionButton(
-                      onPressed: _isLoading ? null : _sendMessage,
-                      backgroundColor: ChatTheme.myBubbleColor,
-                      child: const Icon(Icons.brush_rounded, color: Colors.white),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  FloatingActionButton(
+                    onPressed: _isLoading ? null : _sendMessage,
+                    backgroundColor: Colors.pink[700],
+                    child: const Icon(Icons.brush_rounded, color: Colors.white),
+                  ),
+                ],
               ),
             ),
-          ),
+          )
         ],
       ),
     );
