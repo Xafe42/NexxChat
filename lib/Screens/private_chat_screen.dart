@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:path/path.dart' as path;
-
+import '../widgets/reaction_picker.dart';
 // Mini-apps & previews
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
@@ -424,6 +424,50 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
     _setTyping(false);
   }
+
+
+  void _openReactionPicker(String messageId) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (_) {
+      return ReactionPicker(
+        onSelect: (emoji) {
+          _toggleReaction(messageId, emoji);
+        },
+      );
+    },
+  );
+}
+
+  // ---------- Reactions  ----------
+
+
+Future<void> _toggleReaction(String messageId, String emoji) async {
+  if (_user == null) return;
+
+  final msgRef = _db
+      .collection('conversations')
+      .doc(widget.conversationId)
+      .collection('messages')
+      .doc(messageId);
+
+  final snap = await msgRef.get();
+  if (!snap.exists) return;
+
+  final data = snap.data() as Map<String, dynamic>;
+  
+  final currentReaction = data['reaction'];
+
+  if (currentReaction == emoji) {
+    await msgRef.update({'reaction': FieldValue.delete()});
+  } else {
+    // خلاف ذلك → نبدلو
+    await msgRef.update({'reaction': emoji});
+  }
+}
+
+
 
   // ---------- Images (gallery / camera) ----------
 
@@ -917,271 +961,204 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // ---------- Build one message bubble (text + image + mini-apps) ----------
+Widget _buildMessageBubble({
+  required Map<String, dynamic> msg,
+  required bool isMe,
+  required String type,
+  required String time,
+  required Color bubbleMe,
+  required Color bubbleOther,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Widget _buildMessageBubble({
-    required Map<String, dynamic> msg,
-    required bool isMe,
-    required String type,
-    required String time,
-    required Color bubbleMe,
-    required Color bubbleOther,
-  }) {
-    // 🔥 FIX: Lesbarkeit im Dark Mode verbessert
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    final bubbleColor = isMe ? bubbleMe : bubbleOther;
-    
-    // Wenn es meine Nachricht ist: Weiß
-    // Wenn andere Person & DarkMode: Weiß (damit man es auf dunkelgrau lesen kann)
-    // Wenn andere Person & LightMode: Schwarz
-    final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
+  final bubbleColor = isMe ? bubbleMe : bubbleOther;
+  final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
+  final payload = msg['payload'] as Map<String, dynamic>?;
+  final senderEmail = msg['sender'] ?? '';
 
-    final payload = msg['payload'] as Map<String, dynamic>?;
-    final senderEmail = msg['sender'] ?? '';
+  // ---------- REACTION (ONE PER MESSAGE) ----------
+  final String? reaction = msg['reaction'];
 
-    // IMAGE
-    if (type == 'image') {
-      final imageUrl =
-          (msg['content'] ?? payload?['url'] ?? '').toString();
-      return _ImageBubble(
-        imageUrl: imageUrl,
-        time: time,
-        isMe: isMe,
-      );
-    }
+  // ---------- IMAGE ----------
+  if (type == 'image') {
+    final url = (msg['content'] ?? payload?['url'] ?? '').toString();
 
-    // APP: TETRIS / HELLO / others
-    if (type == 'app') {
-      final appName = (payload?['app'] ?? '').toString();
-      Widget child;
+    return Column(
+      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onLongPress: () => _openReactionPicker(msg['id']),
+          child: _ImageBubble(
+            imageUrl: url,
+            time: time,
+            isMe: isMe,
+          ),
+        ),
 
-      if (appName == 'tetris') {
-        final score = payload?['data']?['score'] ?? 0;
-        child = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.videogame_asset,
-                size: 26, color: Colors.white),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Tetris Score",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  "Score: $score",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      } else if (appName == 'hello') {
-        final who = payload?['data']?['who'] ?? 'there';
-        child = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("👋", style: TextStyle(fontSize: 22)),
-            const SizedBox(width: 8),
-            Text(
-              "Hello $who!",
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        );
-      } else {
-        child = Text(
-          "App message",
-          style: TextStyle(color: textColor),
-        );
-      }
+        if (reaction != null)
+          _reactionChip(isMe, reaction),
+      ],
+    );
+  }
 
-      return _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        child: child,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
-      );
-    }
-    if (type == 'ai_image') {
-      return _ImageBubble(
-        imageUrl: msg['content'] ?? '',
-        time: time,
-        isMe: isMe,
-      );
-    } 
+  // ---------- MINI APP ----------
+  Widget bubbleWidget;
 
-    // AI
-    if (type == 'ai') {
-      final prompt = payload?['prompt'] ?? '';
-      final response = payload?['response'] ?? '';
-      final child = Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+  if (type == 'app') {
+    final appName = (payload?['app'] ?? '').toString();
+    Widget child;
+
+    if (appName == "tetris") {
+      final score = payload?['data']?['score'] ?? 0;
+      child = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (prompt.toString().isNotEmpty)
-            Text(
-              "Q: $prompt",
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: isMe ? Colors.white70 : Colors.black54,
-              ),
-            ),
-          if (prompt.toString().isNotEmpty) const SizedBox(height: 4),
-          Text(
-            response.toString(),
-            style: TextStyle(color: textColor, fontSize: 15),
+          const Icon(Icons.videogame_asset, size: 26, color: Colors.white),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Tetris Score",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text("Score: $score", style: const TextStyle(fontSize: 14, color: Colors.white70)),
+            ],
           ),
         ],
       );
-
-      return _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        child: child,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
+    } else if (appName == "hello") {
+      final who = payload?['data']?['who'] ?? 'there';
+      child = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("👋", style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 6),
+          Text("Hello $who!",
+              style: TextStyle(fontSize: 16, color: textColor, fontWeight: FontWeight.w600)),
+        ],
       );
+    } else {
+      child = Text("App message", style: TextStyle(color: textColor));
     }
 
-    // EVENT REF
-    if (type == 'event_ref') {
-      final eventId = msg['eventId']?.toString();
-      if (eventId == null) {
-        return _Bubble(
-          isMe: isMe,
-          bubbleColor: bubbleColor,
-          child: const Text("Event not found"),
-          time: time,
-          textColor: textColor,
-          senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
-        );
-      }
-
-      return Align(
-        alignment:
-            isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-          child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              if (!isMe)
-                Text(
-                  (senderEmail as String).split('@').first,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              Container(
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(isMe ? 12 : 0),
-                    topRight: Radius.circular(isMe ? 0 : 12),
-                    bottomLeft: const Radius.circular(12),
-                    bottomRight: const Radius.circular(12),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: StreamBuilder<DocumentSnapshot>(
-                    stream: _db
-                        .collection('events')
-                        .doc(eventId)
-                        .snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text(
-                            "Loading event...",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }
-
-                      if (!snap.data!.exists) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text(
-                            "Event deleted",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }
-
-                      final eventData =
-                          snap.data!.data() as Map<String, dynamic>;
-                      final ePayload =
-                          eventData['payload']['data'] ?? {};
-                      final votes =
-                          ePayload['votes'] ??
-                              {'yes': [], 'maybe': [], 'no': []};
-
-                      return EventCard(
-                        title: ePayload['title'] ?? '',
-                        datetime: DateTime.tryParse(
-                            ePayload['datetime'] ?? ''),
-                        location: ePayload['location'] ?? '',
-                        description: ePayload['description'] ?? '',
-                        votes: votes,
-                        messageId: eventId,
-                        currentUser: _user?.email ?? '',
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                time,
-                style: TextStyle(
-                  color: isMe ? Colors.white70 : Colors.black54,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // TEXT (default)
-    final text =
-        msg['content'] ?? payload?['text'] ?? '';
-
-    return _Bubble(
+    bubbleWidget = _Bubble(
       isMe: isMe,
       bubbleColor: bubbleColor,
-      child: Text(
-        text.toString(),
-        style: TextStyle(color: textColor, fontSize: 17),
-      ),
+      child: child,
       time: time,
       textColor: textColor,
-      senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
+      senderName: isMe ? null : senderEmail.toString().split("@").first,
+      onLongPress: () => _openReactionPicker(msg["id"]),
     );
   }
+
+  // ---------- AI IMAGE ----------
+  else if (type == "ai_image") {
+    final url = msg['content'] ?? "";
+
+    return Column(
+      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onLongPress: () => _openReactionPicker(msg['id']),
+          child: _ImageBubble(
+            imageUrl: url,
+            time: time,
+            isMe: isMe,
+          ),
+        ),
+        if (reaction != null) _reactionChip(isMe, reaction),
+      ],
+    );
+  }
+
+  // ---------- AI TEXT ----------
+  else if (type == "ai") {
+    final prompt = payload?['prompt'] ?? '';
+    final response = payload?['response'] ?? '';
+
+    bubbleWidget = GestureDetector(
+      onLongPress: () => _openReactionPicker(msg['id']),
+      child: _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (prompt.toString().isNotEmpty)
+              Text("Q: $prompt",
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: isMe ? Colors.white70 : Colors.black54)),
+            if (prompt.toString().isNotEmpty) const SizedBox(height: 4),
+            Text(response.toString(), style: TextStyle(fontSize: 15, color: textColor)),
+          ],
+        ),
+        time: time,
+        textColor: textColor,
+        senderName: isMe ? null : senderEmail.toString().split("@").first,
+        onLongPress: () => _openReactionPicker(msg['id']),
+      ),
+    );
+  }
+
+  // ---------- EVENT REF ----------
+  else if (type == 'event_ref') {
+    final eventId = msg['eventId']?.toString();
+
+    bubbleWidget = _Bubble(
+      isMe: isMe,
+      bubbleColor: bubbleColor,
+      child: Text("📅 Event"),
+      time: time,
+      textColor: textColor,
+      senderName: isMe ? null : senderEmail.toString().split("@").first,
+      onLongPress: () => _openReactionPicker(msg["id"]),
+    );
+  }
+
+  // ---------- TEXT ----------
+  else {
+    final text = msg['content'] ?? payload?['text'] ?? '';
+    bubbleWidget = _Bubble(
+      isMe: isMe,
+      bubbleColor: bubbleColor,
+      child: Text(text.toString(), style: TextStyle(fontSize: 17, color: textColor)),
+      time: time,
+      textColor: textColor,
+      senderName: isMe ? null : senderEmail.toString().split("@").first,
+      onLongPress: () => _openReactionPicker(msg["id"]),
+    );
+  }
+
+  // ---------- FINAL RETURN (with reaction chip) ----------
+  return Column(
+    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    children: [
+      GestureDetector(
+        onLongPress: () => _openReactionPicker(msg['id']),
+        child: bubbleWidget,
+      ),
+
+      if (reaction != null) _reactionChip(isMe, reaction),
+    ],
+  );
+}
+
+Widget _reactionChip(bool isMe, String emoji) {
+  return Container(
+    margin: const EdgeInsets.only(top: 4, left: 8, right: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: isMe ? Colors.teal[100] : Colors.grey[300],
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      emoji,
+      style: const TextStyle(fontSize: 16),
+    ),
+  );
+}
 
   // ---------- Input row ----------
 
@@ -1504,7 +1481,6 @@ class _ImageBubble extends StatelessWidget {
     );
   }
 }
-
 class _Bubble extends StatelessWidget {
   final Widget child;
   final String time;
@@ -1512,6 +1488,7 @@ class _Bubble extends StatelessWidget {
   final Color bubbleColor;
   final Color textColor;
   final String? senderName;
+  final VoidCallback onLongPress;
 
   const _Bubble({
     required this.child,
@@ -1520,59 +1497,58 @@ class _Bubble extends StatelessWidget {
     required this.bubbleColor,
     required this.textColor,
     this.senderName,
+    required this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment:
-          isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin:
-            const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            if (!isMe && senderName != null)
-              Text(
-                senderName!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
-              ),
-            Container(
-              padding:
-                  const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(isMe ? 12 : 0),
-                  topRight: Radius.circular(isMe ? 0 : 12),
-                  bottomLeft: const Radius.circular(12),
-                  bottomRight: const Radius.circular(12),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: isMe
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  child,
-                  const SizedBox(height: 3),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: textColor.withOpacity(0.7),
-                      fontSize: 11,
-                    ),
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          child: Column(
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (!isMe && senderName != null)
+                Text(
+                  senderName!,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
                   ),
-                ],
+                ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                decoration: BoxDecoration(
+                  color: bubbleColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isMe ? 12 : 0),
+                    topRight: Radius.circular(isMe ? 0 : 12),
+                    bottomLeft: const Radius.circular(12),
+                    bottomRight: const Radius.circular(12),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    child,
+                    const SizedBox(height: 3),
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: textColor.withOpacity(0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
