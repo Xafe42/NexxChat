@@ -26,6 +26,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   // Mock-Daten für die statischen Chats (außer Global Chat)
   final List<Map<String, dynamic>> _staticChats = [
     // Index 0: Event Planung (Beispiel) oder du entfernst es, wenn nicht gewollt
+    /*
     {
       "name": "Event Planung",
       "message": "Wann geht es los?",
@@ -36,6 +37,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.blue,
     },
+    */
     // Index 1: Support Bot
     {
       "name": "Support Bot",
@@ -47,6 +49,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.purple,
     },
+    /*
     // Index 2: AI Image Generator
     {
       "name": "AI Image Generator",
@@ -58,7 +61,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.pink,
     },
+  ];    */
   ];
+  
 
   @override
   void initState() {

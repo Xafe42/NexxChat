@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../core/services/chat_theme.dart';
 
@@ -11,13 +15,11 @@ class ImageBotScreen extends StatefulWidget {
 }
 
 class _ImageBotScreenState extends State<ImageBotScreen> {
-  // Controller für das Eingabefeld und die Scroll-Position der Liste
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // Liste zur Speicherung des Chatverlaufs.
-  // 'type' unterscheidet zwischen Textnachrichten ('text') und generierten Bildern ('image').
-  final List<Map<String, String>> _messages = [
+
+  final List<Map<String, dynamic>> _messages = [
     {
       'role': 'ai',
       'text':
@@ -26,12 +28,12 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   ];
 
-  bool _isLoading = false; // Status für den Ladeindikator
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme(); // Lädt das gespeicherte App-Theme beim Start
+    _loadTheme();
   }
 
   void _loadTheme() async {
@@ -39,18 +41,55 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
-  // Erstellt die URL für die Pollinations.ai API
-  String _generateImageUrl(String prompt) {
-    // Kodiert den Eingabetext URL-konform
-    final encodedPrompt = Uri.encodeComponent(prompt);
+  // -------------------------------
+  // 🔥 Upload Bild zu Firebase
+  // -------------------------------
+  Future<String?> _uploadToFirebase(Uint8List bytes) async {
+    try {
+      final fileName = "ai_${DateTime.now().millisecondsSinceEpoch}.png";
+      final ref =
+          FirebaseStorage.instance.ref().child("chat_images/$fileName");
 
-    // Baut die URL zusammen:
-    // model=flux: Verwendet das Flux-Modell für die Generierung.
-    // seed=...: Fügt einen Zeitstempel hinzu, um Caching zu verhindern und neue Bilder zu erzwingen.
-    return "https://pollinations.ai/p/$encodedPrompt?width=800&height=800&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux";
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/png'),
+      );
+
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Upload error: $e");
+      return null;
+    }
   }
 
-  // Scrollt die Chat-Liste automatisch zur neuesten Nachricht
+  // -------------------------------
+  // 🔥 Generiere Bild mit Pollinations
+  // -------------------------------
+  Future<Uint8List?> _generateImage(String prompt) async {
+    try {
+      // 1. URL erstellen (wie im alten Code)
+      final encodedPrompt = Uri.encodeComponent(prompt);
+      // Wir nutzen model=flux für bessere Qualität und einen Seed gegen Caching
+      final String url = "https://pollinations.ai/p/$encodedPrompt?width=800&height=800&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux";
+
+      print("Lade Bild von: $url");
+
+      // 2. Bild herunterladen, um die Bytes zu bekommen
+      // Dies ist notwendig, damit wir es danach zu Firebase hochladen können.
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        print("Pollinations API error: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("Network error: $e");
+      return null;
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -63,39 +102,49 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     });
   }
 
-  // Verarbeitet das Senden einer Nachricht
+  // -------------------------------
+  // 🔥 Nachricht senden
+  // -------------------------------
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     _controller.clear();
 
-    // 1. Fügt die Benutzernachricht zur Liste hinzu und aktualisiert die UI
     setState(() {
       _messages.add({'role': 'user', 'text': text, 'type': 'text'});
       _isLoading = true;
     });
 
     _scrollToBottom();
-    
-    // Simuliert eine kurze Verzögerung für besseres Feedback
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // Generiert die Bild-URL basierend auf dem Text
-    final imageUrl = _generateImageUrl(text);
+
+    // Generierung aufrufen
+    final imageBytes = await _generateImage(text);
 
     if (mounted) {
       setState(() {
-        // Fügt die Antwort der KI als Bild-Typ hinzu
-        _messages.add({'role': 'ai', 'text': imageUrl, 'type': 'image'});
         _isLoading = false;
+        if (imageBytes != null) {
+          _messages.add({
+            'role': 'ai',
+            'data': imageBytes, // Speichert die Bytes
+            'type': 'image',
+            'prompt': text,
+          });
+        } else {
+          _messages.add({
+            'role': 'ai',
+            'text': "Fehler beim Laden des Bildes von Pollinations.",
+            'type': 'text'
+          });
+        }
       });
       _scrollToBottom();
     }
   }
 
   // -------------------------------
-  // UI
+  // UI (Unverändert übernommen)
   // -------------------------------
   @override
   Widget build(BuildContext context) {
@@ -103,40 +152,21 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
 
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
-      
       appBar: AppBar(
         backgroundColor: Colors.pink[800],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context, null),
         ),
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.palette_rounded,
-                color: Colors.pink,    
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              "AI Image Generator",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ],
+        title: const Text(
+          "AI Image Generator",
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
-      
       body: Column(
         children: [
-          // Chat-Verlauf
+          // MESSAGES LIST
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -145,7 +175,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isMe = msg['role'] == 'user';
-                final isImage = msg['type'] == 'image'; // Prüft den Nachrichtentyp
+                final isImage = msg['type'] == 'image';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -153,66 +183,74 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                     crossAxisAlignment:
                         isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
-                      // Absender-Label
                       Text(
-                        isMe ? "Dein Motiv" : "Generiertes Bild",
-                        style: TextStyle(fontSize: 12, color: Colors.pink[800]),
+                        isMe ? "Dein Prompt" : "Generiertes Bild",
+                        style: TextStyle(
+                            color: Colors.pink[800],
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 2),
-                      
-                      // Nachrichten-Bubble
-                      Material(
-                        elevation: 5,
-                        borderRadius: BorderRadius.circular(30),
-                        color: isMe ? ChatTheme.myBubbleColor : Colors.white,
-                        
-                        child: Padding(
-                          padding: isImage 
-                              ? const EdgeInsets.all(5) 
-                              : const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                          
-                          child: isImage
-                              // Bild-Anzeige: Lädt das Bild asynchron über die URL
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(25),
-                                  child: Image.network(
-                                    msg['text']!, // URL des Bildes
-                                    width: 280,
-                                    height: 280,
-                                    fit: BoxFit.cover,
-                                    
-                                    // Zeigt einen Ladeindikator während des Downloads
-                                    loadingBuilder: (ctx, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return SizedBox(
-                                        width: 280, height: 280,
-                                        child: Center(child: CircularProgressIndicator(color: Colors.pink)),
-                                      );
-                                    },
-                                    // Fehlerbehandlung beim Laden
-                                    errorBuilder: (ctx, err, stack) => Container(
-                                       width: 280, height: 280,
-                                       color: Colors.grey[300],
-                                       child: const Column(
-                                         mainAxisAlignment: MainAxisAlignment.center,
-                                         children: [
-                                           Icon(Icons.broken_image, color: Colors.grey, size: 50),
-                                           Text("Fehler beim Laden", style: TextStyle(fontSize: 12)),
-                                         ],
-                                       ),
-                                    ),
-                                  ),
-                                )
-                              // Text-Anzeige
-                              : Text(
-                                  msg['text'] ?? "",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: isMe ? Colors.white : Colors.black87,
-                                  ),
+                      const SizedBox(height: 4),
+
+                      //
+                      // IMAGE
+                      //
+                      if (isImage)
+                        Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.memory(
+                                msg['data'],
+                                width: 300,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // 🔥 Send to Chat Button
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final url =
+                                    await _uploadToFirebase(msg['data']);
+
+                                if (url != null) {
+                                  Navigator.pop(context, url);
+                                }
+                              },
+                              icon: const Icon(Icons.send),
+                              label: const Text("Send to Chat"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink[700],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 30, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
+                              ),
+                            ),
+                          ],
+                        )
+                      //
+                      // TEXT
+                      //
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isMe
+                                ? ChatTheme.myBubbleColor
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            msg['text'] ?? "",
+                            style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black87,
+                                fontSize: 16),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 );
@@ -220,75 +258,60 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
             ),
           ),
 
-          // Ladeindikator (nur sichtbar während der Generierung)
+          // LOADING INDICATOR
           if (_isLoading)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pink)),
-                      const SizedBox(width: 10),
-                      const Text("Generiere Bild...", style: TextStyle(color: Colors.black54)),
-                    ],
-                  ),
-                ),
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.pink)),
+                  const SizedBox(width: 10),
+                  Text(
+                    "Bild wird generiert...",
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  )
+                ],
               ),
             ),
 
-          // Eingabebereich
+          // INPUT
           Container(
             color: isDarkMode ? Colors.grey[900] : Colors.white,
             child: SafeArea(
-              top: false,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.pink.shade200, width: 1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: null,
-                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                        decoration: InputDecoration(
-                          hintText: "Beschreibe ein Bild...",
-                          hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
-                          filled: true,
-                          fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
-                          border: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(25)),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: "Beschreibe ein Bild...",
+                        filled: true,
+                        fillColor:
+                            isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
                         ),
-                        onSubmitted: (_) => _sendMessage(),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    FloatingActionButton(
-                      onPressed: _isLoading ? null : _sendMessage,
-                      backgroundColor: ChatTheme.myBubbleColor,
-                      elevation: 2,
-                      child: const Icon(Icons.brush_rounded, color: Colors.white),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  FloatingActionButton(
+                    onPressed: _isLoading ? null : _sendMessage,
+                    backgroundColor: Colors.pink[700],
+                    child: const Icon(Icons.brush_rounded, color: Colors.white),
+                  ),
+                ],
               ),
             ),
-          ),
+          )
         ],
       ),
     );
