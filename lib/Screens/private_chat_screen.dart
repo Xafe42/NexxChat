@@ -16,6 +16,7 @@ import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
+import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_card.dart';
 import '../widgets/event_preview.dart';
@@ -58,6 +59,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void initState() {
     super.initState();
     _user = _auth.currentUser;
+    _loadTheme();
 
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
@@ -69,12 +71,95 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
+  void _loadTheme() async {
+    await ChatTheme.loadTheme();
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _setTyping(false);
     _ctrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  // Funktion für Gruppen Einstellungen
+  void _showGroupSettings(BuildContext context, Map<String, dynamic> convData) {
+    final currentUid = _auth.currentUser?.uid;
+    final adminUid = convData['admin'];
+    final isGroup = convData['isGroup'] == true;
+
+    // Nur bei Gruppen anzeigen
+    if (!isGroup) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        final nameCtrl = TextEditingController(text: convData['name']);
+        
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20, 
+            right: 20, 
+            top: 20
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Gruppen Einstellungen", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              
+              // Name ändern
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: "Gruppenname"),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () async {
+                  if (nameCtrl.text.trim().isNotEmpty) {
+                    await _db.collection('conversations').doc(widget.conversationId).update({
+                      'name': nameCtrl.text.trim()
+                    });
+                    if(mounted) Navigator.pop(context);
+                  }
+                },
+                child: const Text("Speichern"),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Löschen (Nur wenn Admin)
+              if (currentUid == adminUid)
+                TextButton.icon(
+                  onPressed: () async {
+                    // Sicherheitsabfrage
+                    showDialog(context: context, builder: (c) => AlertDialog(
+                      title: const Text("Gruppe löschen?"),
+                      content: const Text("Dies kann nicht rückgängig gemacht werden."),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c), child: const Text("Abbrechen")),
+                        TextButton(onPressed: () async {
+                           Navigator.pop(c); // Dialog zu
+                           Navigator.pop(context); // BottomSheet zu
+                           Navigator.pop(context); // Screen zu
+                           await _db.collection('conversations').doc(widget.conversationId).delete();
+                        }, child: const Text("Löschen", style: TextStyle(color: Colors.red))),
+                      ],
+                    ));
+                  }, 
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  label: const Text("Gruppe löschen", style: TextStyle(color: Colors.red)),
+                ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      }
+    );
   }
 
   // ---------- Typing indicator ----------
@@ -108,7 +193,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         _isSlashToolbarVisible = false;
       }
 
-      // Auto-open Tetris when user types /tetris
       if (_aktiveCmd?.type == "tetris") {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _openTetris();
@@ -123,24 +207,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending || _user == null) return;
 
-    // If command active (e.g. /hello), handle it specially
     if (_aktiveCmd != null) {
       final cmd = _aktiveCmd!;
 
-      // HELLO mini-app → send as app message
       if (cmd.type == "hello") {
         await _sendHelloCommand(cmd);
         _resetInput();
         return;
       }
-
-      // EVENT command handled via EventPreview (not here)
-      // Tetris command opens directly (already handled in _onTextChanged)
-
-      // Fallback: if unknown command → just send as text
     }
 
-    // Normal text message via ChatService (keeps lastMessage updated)
     setState(() => _sending = true);
     try {
       await _chatService.sendTextMessage(
@@ -179,7 +255,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final receiverUid =
         members.firstWhere((m) => m != _user!.uid, orElse: () => '');
 
-    final helloPayload = HelloApp.buildPayload(cmd.data); // { type, payload, time, ... }
+    final helloPayload = HelloApp.buildPayload(cmd.data);
 
     final msgRef = convRef.collection('messages').doc();
 
@@ -202,42 +278,42 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _sendAiImage(String url) async {
-  if (_user == null) return;
+    if (_user == null) return;
 
-  final convRef =
-      _db.collection('conversations').doc(widget.conversationId);
+    final convRef =
+        _db.collection('conversations').doc(widget.conversationId);
 
-  final snap = await convRef.get();
-  final members = List<String>.from(snap['members']);
-  final receiverUid =
-      members.firstWhere((m) => m != _user!.uid, orElse: () => '');
+    final snap = await convRef.get();
+    final members = List<String>.from(snap['members']);
+    final receiverUid =
+        members.firstWhere((m) => m != _user!.uid, orElse: () => '');
 
-  final msgRef = convRef.collection('messages').doc();
+    final msgRef = convRef.collection('messages').doc();
 
-  await msgRef.set({
-    'id': msgRef.id,
-    'senderId': _user!.uid,
-    'receiverId': receiverUid,
-    'sender': _user!.email,
-    'timestamp': FieldValue.serverTimestamp(),
-    'status': "SENT",
-    'type': 'ai_image',
-    'content': url,
-  });
+    await msgRef.set({
+      'id': msgRef.id,
+      'senderId': _user!.uid,
+      'receiverId': receiverUid,
+      'sender': _user!.email,
+      'timestamp': FieldValue.serverTimestamp(),
+      'status': "SENT",
+      'type': 'ai_image',
+      'content': url,
+    });
 
-  await convRef.update({
-    'lastMessage': '🤖🖼️ KI Image',
-    'lastMessageTime': FieldValue.serverTimestamp(),
-  });
+    await convRef.update({
+      'lastMessage': '🤖🖼️ KI Image',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    });
 
-  if (_scrollCtrl.hasClients) {
-    _scrollCtrl.animateTo(
-      0,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-    );
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
-}
 
   Future<void> _sendTetrisScore(int score) async {
     if (_user == null) return;
@@ -501,299 +577,342 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bubbleMe = isDark ? Colors.teal[600]! : const Color(0xFF075E54);
+    
+    final bubbleMe = ChatTheme.myBubbleColor; 
     final bubbleOther = isDark ? const Color(0xFF262D31) : Colors.white;
 
-    return Scaffold(
-      backgroundColor: isDark ? Colors.black : const Color(0xFFECE5DD),
-      appBar: AppBar(
-        backgroundColor: isDark ? Colors.grey[900] : const Color(0xFF075E54),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-            ),
-            CircleAvatar(
-              backgroundColor: Colors.teal,
-              child: Text(
-                widget.title.isNotEmpty
-                    ? widget.title[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                widget.title,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // -------- Messages list --------
-              Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _chatService.messagesStream(widget.conversationId),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+    // 🔥 Stream für live updates (Titeländerung)
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _db.collection('conversations').doc(widget.conversationId).snapshots(),
+      builder: (context, snapshot) {
+        
+        String displayTitle = widget.title;
+        Map<String, dynamic>? convData;
+        bool isGroup = false;
 
-                    final docs = snap.data!.docs;
+        if (snapshot.hasData && snapshot.data!.data() != null) {
+          convData = snapshot.data!.data() as Map<String, dynamic>;
+          isGroup = convData['isGroup'] == true;
+          if (isGroup) {
+            displayTitle = convData['name'] ?? widget.title;
+          }
+        }
 
-                    if (docs.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text(
-                            'Say hi 👋',
-                            style: TextStyle(fontSize: 16),
-                          ),
+        return Scaffold(
+          backgroundColor: ChatTheme.backgroundColor, 
+          appBar: AppBar(
+            backgroundColor: isDark ? Colors.grey[900] : const Color(0xFF075E54),
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            title: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+                CircleAvatar(
+                  backgroundColor: Colors.teal,
+                  child: isGroup
+                    ? const Icon(Icons.groups, color: Colors.white, size: 20)
+                    : Text(
+                        displayTitle.isNotEmpty
+                            ? displayTitle[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    // Klick auf den Titel öffnet Einstellungen bei Gruppen
+                    onTap: (isGroup && convData != null) 
+                        ? () => _showGroupSettings(context, convData!) 
+                        : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayTitle,
+                          style: const TextStyle(color: Colors.white, fontSize: 18),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    }
+                        if (isGroup) 
+                          const Text("Tippen für Infos", style: TextStyle(color: Colors.white70, fontSize: 12))
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              // Einstellungen Icon (nur bei Gruppen)
+              if (isGroup && convData != null)
+                IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onPressed: () => _showGroupSettings(context, convData!),
+                )
+            ],
+          ),
+          body: Stack(
+            children: [
+              Column(
+                children: [
+                  // -------- Messages list --------
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _chatService.messagesStream(widget.conversationId),
+                      builder: (context, snap) {
+                        if (!snap.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                    return ListView.builder(
-                      reverse: true,
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                      itemCount: docs.length + 2,
-                      itemBuilder: (_, index) {
-                        // Top encryption banner
-                        if (index == docs.length + 1) {
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              top: 8,
-                              bottom: 4,
-                              left: 24,
-                              right: 24,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: isDark
-                                    ? const Color.fromARGB(200, 24, 34, 40)
-                                    : const Color.fromARGB(148, 248, 236, 130),
-                              ),
+                        final docs = snap.data!.docs;
+
+                        if (docs.isEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
                               child: Text(
-                                '🔒 Messages are end-to-end encrypted. No one outside this chat can read them.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark
-                                      ? Colors.yellow[200]
-                                      : Colors.black87,
-                                ),
-                                textAlign: TextAlign.center,
+                                'Say hi 👋',
+                                style: TextStyle(fontSize: 16),
                               ),
                             ),
                           );
                         }
 
-                        // First date chip (oldest message)
-                        if (index == docs.length) {
-                          final msgData = docs.last.data();
-                          final ts = (msgData['timestamp'] ??
-                                  msgData['time']) as Timestamp?;
-                          final dt = ts?.toDate() ?? DateTime.now();
-                          return _DateChip(label: _formatDateLabel(dt));
-                        }
+                        return ListView.builder(
+                          reverse: true,
+                          controller: _scrollCtrl,
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                          itemCount: docs.length + 2,
+                          itemBuilder: (_, index) {
+                            // Top encryption banner
+                            if (index == docs.length + 1) {
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 4,
+                                  left: 24,
+                                  right: 24,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: isDark
+                                        ? const Color.fromARGB(200, 24, 34, 40)
+                                        : const Color.fromARGB(148, 248, 236, 130),
+                                  ),
+                                  child: Text(
+                                    '🔒 Messages are end-to-end encrypted. No one outside this chat can read them.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.yellow[200]
+                                          : Colors.black87,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              );
+                            }
 
-                        final msgIndex = index;
-                        final msg = docs[msgIndex].data();
-                        final senderEmail = msg['sender'] ?? '';
-                        final isMe = msg['senderId'] == _user?.uid ||
-                            senderEmail == _user?.email;
+                            // First date chip (oldest message)
+                            if (index == docs.length) {
+                              final msgData = docs.last.data();
+                              final ts = (msgData['timestamp'] ??
+                                      msgData['time']) as Timestamp?;
+                              final dt = ts?.toDate() ?? DateTime.now();
+                              return _DateChip(label: _formatDateLabel(dt));
+                            }
 
-                        final type = msg['type'] ?? 'text';
-                        final ts = (msg['timestamp'] ?? msg['time'])
-                            as Timestamp?;
-                        final dt = ts?.toDate() ?? DateTime.now();
-                        final time = _formatTime(ts);
+                            final msgIndex = index;
+                            final msg = docs[msgIndex].data();
+                            final senderEmail = msg['sender'] ?? '';
+                            final isMe = msg['senderId'] == _user?.uid ||
+                                senderEmail == _user?.email;
 
-                        // Need date chip before this message?
-                        bool showDateChip = false;
-                        if (msgIndex < docs.length - 1) {
-                          final nextMsg = docs[msgIndex + 1].data();
-                          final nextTs = (nextMsg['timestamp'] ??
-                                  nextMsg['time']) as Timestamp?;
-                          final nextDt =
-                              nextTs?.toDate() ?? DateTime.now();
+                            final type = msg['type'] ?? 'text';
+                            final ts = (msg['timestamp'] ?? msg['time'])
+                                as Timestamp?;
+                            final dt = ts?.toDate() ?? DateTime.now();
+                            final time = _formatTime(ts);
 
-                          final d1 = DateTime(dt.year, dt.month, dt.day);
-                          final d2 = DateTime(
-                              nextDt.year, nextDt.month, nextDt.day);
-                          if (d1.difference(d2).inDays != 0) {
-                            showDateChip = true;
-                          }
-                        }
+                            // Need date chip before this message?
+                            bool showDateChip = false;
+                            if (msgIndex < docs.length - 1) {
+                              final nextMsg = docs[msgIndex + 1].data();
+                              final nextTs = (nextMsg['timestamp'] ??
+                                      nextMsg['time']) as Timestamp?;
+                              final nextDt =
+                                  nextTs?.toDate() ?? DateTime.now();
 
-                        final bubble = _buildMessageBubble(
-                          msg: msg,
-                          isMe: isMe,
-                          type: type,
-                          time: time,
-                          bubbleMe: bubbleMe,
-                          bubbleOther: bubbleOther,
-                        );
+                              final d1 = DateTime(dt.year, dt.month, dt.day);
+                              final d2 = DateTime(
+                                  nextDt.year, nextDt.month, nextDt.day);
+                              if (d1.difference(d2).inDays != 0) {
+                                showDateChip = true;
+                              }
+                            }
 
-                        if (!showDateChip) return bubble;
+                            final bubble = _buildMessageBubble(
+                              msg: msg,
+                              isMe: isMe,
+                              type: type,
+                              time: time,
+                              bubbleMe: bubbleMe,
+                              bubbleOther: bubbleOther,
+                            );
 
-                        return Column(
-                          children: [
-                            _DateChip(label: _formatDateLabel(dt)),
-                            bubble,
-                          ],
+                            if (!showDateChip) return bubble;
+
+                            return Column(
+                              children: [
+                                _DateChip(label: _formatDateLabel(dt)),
+                                bubble,
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
-              ),
-
-              // -------- Typing indicator --------
-              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: _db
-                    .collection("conversations")
-                    .doc(widget.conversationId)
-                    .snapshots(),
-                builder: (context, snap) {
-                  if (!snap.hasData || snap.data!.data() == null) {
-                    return const SizedBox(height: 0);
-                  }
-
-                  final data = snap.data!.data()!;
-                  final typingUsers =
-                      List<String>.from(data["typingUsers"] ?? []);
-                  final members = List<String>.from(data["members"] ?? []);
-
-                  final me = _user?.uid;
-                  final otherUid =
-                      members.firstWhere((m) => m != me, orElse: () => "");
-
-                  final isTyping =
-                      otherUid.isNotEmpty && typingUsers.contains(otherUid);
-
-                  if (!isTyping) return const SizedBox(height: 0);
-
-                  return Padding(
-                    padding: const EdgeInsets.only(
-                      left: 18,
-                      bottom: 4,
-                      top: 2,
                     ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 4),
-                        Text(
-                          "typing…",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                            fontSize: 13,
-                          ),
+                  ),
+
+                  // -------- Typing indicator --------
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: _db
+                        .collection("conversations")
+                        .doc(widget.conversationId)
+                        .snapshots(),
+                    builder: (context, snap) {
+                      if (!snap.hasData || snap.data!.data() == null) {
+                        return const SizedBox(height: 0);
+                      }
+
+                      final data = snap.data!.data()!;
+                      final typingUsers =
+                          List<String>.from(data["typingUsers"] ?? []);
+                      final members = List<String>.from(data["members"] ?? []);
+
+                      final me = _user?.uid;
+                      final otherUid =
+                          members.firstWhere((m) => m != me, orElse: () => "");
+
+                      final isTyping =
+                          otherUid.isNotEmpty && typingUsers.contains(otherUid);
+
+                      if (!isTyping) return const SizedBox(height: 0);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(
+                          left: 18,
+                          bottom: 4,
+                          top: 2,
                         ),
-                      ],
-                    ),
-                  );
-                },
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 4),
+                            Text(
+                              "typing…",
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  // -------- Input row (attach + ⚡ mini-apps + text + send) --------
+                  _buildInput(isDark),
+                ],
               ),
 
-              // -------- Input row (attach + ⚡ mini-apps + text + send) --------
-              _buildInput(isDark),
+              // Scroll to bottom FAB
+              if (_showScrollBtn)
+                Positioned(
+                  right: 12,
+                  bottom: 90,
+                  child: FloatingActionButton(
+                    mini: true,
+                    backgroundColor:
+                        isDark ? Colors.grey[800] : const Color(0xFF075E54),
+                    onPressed: () {
+                      if (_scrollCtrl.hasClients) {
+                        _scrollCtrl.animateTo(
+                          0,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                        );
+                      }
+                    },
+                    child: const Icon(Icons.arrow_downward, size: 20),
+                  ),
+                ),
+
+              // -------- Mini-apps overlays --------
+
+              // Hello preview
+              if (_aktiveCmd?.type == "hello")
+                Positioned(
+                  bottom: 70,
+                  left: 0,
+                  right: 0,
+                  child: HelloPreview(
+                    text: _aktiveCmd!.previewText!,
+                    onCancel: _resetInput,
+                    onSend: _send,
+                  ),
+                ),
+
+              // AI preview
+              if (_isAiPreviewVisible)
+                Positioned(
+                  bottom: 70,
+                  left: 0,
+                  right: 0,
+                  child: AiPreview(
+                    onCancel: () =>
+                        setState(() => _isAiPreviewVisible = false),
+                    onSend: (prompt, response) async {
+                      await _sendAiMessage(prompt: prompt, response: response);
+                      setState(() => _isAiPreviewVisible = false);
+                    },
+                  ),
+                ),
+
+              // Event preview
+              if (_aktiveCmd?.type == "event")
+                Positioned(
+                  bottom: 70,
+                  left: 0,
+                  right: 0,
+                  child: EventPreview(
+                    onCancel: _resetInput,
+                    onSend: (form) async {
+                      final eventPayload = EventApp.buildPayload(form);
+                      final doc =
+                          await _db.collection("events").add({
+                        ...eventPayload,
+                        "creator": _user!.email,
+                      });
+
+                      await _sendEventRef(doc.id);
+                      _resetInput();
+                    },
+                  ),
+                ),
+
+              // Slash mini-apps toolbar
+              if (_isSlashToolbarVisible) _slashToolbar(),
             ],
           ),
-
-          // Scroll to bottom FAB
-          if (_showScrollBtn)
-            Positioned(
-              right: 12,
-              bottom: 90,
-              child: FloatingActionButton(
-                mini: true,
-                backgroundColor:
-                    isDark ? Colors.grey[800] : const Color(0xFF075E54),
-                onPressed: () {
-                  if (_scrollCtrl.hasClients) {
-                    _scrollCtrl.animateTo(
-                      0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                    );
-                  }
-                },
-                child: const Icon(Icons.arrow_downward, size: 20),
-              ),
-            ),
-
-          // -------- Mini-apps overlays --------
-
-          // Hello preview
-          if (_aktiveCmd?.type == "hello")
-            Positioned(
-              bottom: 70,
-              left: 0,
-              right: 0,
-              child: HelloPreview(
-                text: _aktiveCmd!.previewText!,
-                onCancel: _resetInput,
-                onSend: _send,
-              ),
-            ),
-
-          // AI preview
-          if (_isAiPreviewVisible)
-            Positioned(
-              bottom: 70,
-              left: 0,
-              right: 0,
-              child: AiPreview(
-                onCancel: () =>
-                    setState(() => _isAiPreviewVisible = false),
-                onSend: (prompt, response) async {
-                  await _sendAiMessage(prompt: prompt, response: response);
-                  setState(() => _isAiPreviewVisible = false);
-                },
-              ),
-            ),
-
-          // Event preview
-          if (_aktiveCmd?.type == "event")
-            Positioned(
-              bottom: 70,
-              left: 0,
-              right: 0,
-              child: EventPreview(
-                onCancel: _resetInput,
-                onSend: (form) async {
-                  final eventPayload = EventApp.buildPayload(form);
-                  final doc =
-                      await _db.collection("events").add({
-                    ...eventPayload,
-                    "creator": _user!.email,
-                  });
-
-                  await _sendEventRef(doc.id);
-                  _resetInput();
-                },
-              ),
-            ),
-
-          // Slash mini-apps toolbar
-          if (_isSlashToolbarVisible) _slashToolbar(),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -807,8 +926,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required Color bubbleMe,
     required Color bubbleOther,
   }) {
+    // 🔥 FIX: Lesbarkeit im Dark Mode verbessert
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final bubbleColor = isMe ? bubbleMe : bubbleOther;
-    final textColor = isMe ? Colors.white : Colors.black;
+    
+    // Wenn es meine Nachricht ist: Weiß
+    // Wenn andere Person & DarkMode: Weiß (damit man es auf dunkelgrau lesen kann)
+    // Wenn andere Person & LightMode: Schwarz
+    final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
 
     final payload = msg['payload'] as Map<String, dynamic>?;
     final senderEmail = msg['sender'] ?? '';
@@ -893,12 +1019,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
     }
     if (type == 'ai_image') {
-  return _ImageBubble(
-    imageUrl: msg['content'] ?? '',
-    time: time,
-    isMe: isMe,
-  );
-} 
+      return _ImageBubble(
+        imageUrl: msg['content'] ?? '',
+        time: time,
+        isMe: isMe,
+      );
+    } 
 
     // AI
     if (type == 'ai') {
@@ -1060,76 +1186,81 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------- Input row ----------
 
   Widget _buildInput(bool isDark) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
-        child: Row(
-          children: [
-            // Attach
-            IconButton(
-              icon: Icon(
-                Icons.attach_file,
-                color: isDark ? Colors.white70 : Colors.grey[700],
-              ),
-              onPressed: _openAttachmentMenu,
-            ),
-
-            // Mini-apps toggle (⚡)
-            IconButton(
-              icon: Icon(
-                _isSlashToolbarVisible
-                    ? Icons.bolt
-                    : Icons.bolt_outlined,
-                color: Colors.orange,
-              ),
-              onPressed: _toggleSlashToolbar,
-            ),
-
-            // Text field
-            Expanded(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: TextField(
-                  controller: _ctrl,
-                  onChanged: _onTextChanged,
-                  onSubmitted: (_) => _send(),
-                  textInputAction: TextInputAction.send,
-                  minLines: 1,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: "Nachricht senden",
-                    border: InputBorder.none,
+    // 🔥 FIX: Container ist jetzt außen, damit die Farbe bis ganz nach unten reicht
+    return Container(
+      color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
+      child: SafeArea(
+        top: false, // Oben keine Safearea, damit es direkt an die Liste anschließt
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: [
+              // Text field (jetzt links)
+              Expanded(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: TextField(
+                    controller: _ctrl,
+                    onChanged: _onTextChanged,
+                    onSubmitted: (_) => _send(),
+                    textInputAction: TextInputAction.send,
+                    minLines: 1,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: "Nachricht senden",
+                      border: InputBorder.none,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(width: 6),
-
-            // Send button
-            CircleAvatar(
-              backgroundColor: const Color(0xFF075E54),
-              child: IconButton(
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.send, color: Colors.white),
-                onPressed: _sending ? null : _send,
+              // Attach (jetzt rechts)
+              IconButton(
+                icon: Icon(
+                  Icons.attach_file,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+                onPressed: _openAttachmentMenu,
               ),
-            ),
-          ],
+
+              // Mini-apps toggle (jetzt rechts)
+              // 🔥 ICON GEÄNDERT zu Puzzle (Extension)
+              IconButton(
+                icon: Icon(
+                  _isSlashToolbarVisible
+                      ? Icons.extension
+                      : Icons.extension_outlined,
+                  color: Colors.orange,
+                ),
+                onPressed: _toggleSlashToolbar,
+              ),
+
+              const SizedBox(width: 2),
+
+              // Send button (ganz rechts)
+              CircleAvatar(
+                backgroundColor: ChatTheme.myBubbleColor, 
+                child: IconButton(
+                  icon: _sending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.white),
+                  onPressed: _sending ? null : _send,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1180,22 +1311,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               onTap: _pickFromGallery,
             ),
             _commandCard(
-  icon: "🧠",
-  title: "KI Image",
-  description: "Bild mit KI generieren",
-  onTap: () async {
-    setState(() => _isSlashToolbarVisible = false);
+              icon: "🧠",
+              title: "KI Image",
+              description: "Bild mit KI generieren",
+              onTap: () async {
+                setState(() => _isSlashToolbarVisible = false);
 
-    final imageUrl = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ImageBotScreen()),
-    );
+                final imageUrl = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ImageBotScreen()),
+                );
 
-    if (imageUrl != null && imageUrl is String) {
-      await _sendAiImage(imageUrl);
-    }
-  },
-),
+                if (imageUrl != null && imageUrl is String) {
+                  await _sendAiImage(imageUrl);
+                }
+              },
+            ),
             _commandCard(
               icon: "🎮",
               title: "Tetris",

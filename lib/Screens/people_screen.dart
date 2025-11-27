@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/services/chat_service.dart';
+import 'create_group_screen.dart'; // <--- Importieren
 import 'private_chat_screen.dart';
 
 class PeopleScreen extends StatefulWidget {
@@ -76,7 +77,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
           const SizedBox(height: 10),
 
-          // USER LISTE (Kontakte)
+          // USER LISTE (Kontakte) + GRUPPEN BUTTON
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore.collection('users').snapshots(),
@@ -97,41 +98,74 @@ class _PeopleScreenState extends State<PeopleScreen> {
                   return true;
                 }).toList();
 
-                if (users.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "No users found",
-                      style: TextStyle(color: textColor),
-                    ),
-                  );
-                }
-
+                // +1 für den "Neue Gruppe" Button ganz oben
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: users.length,
+                  itemCount: users.length + 1, 
                   itemBuilder: (context, index) {
-                    final userDoc = users[index];
+                    
+                    // --- 1. Eintrag: NEUE GRUPPE BUTTON ---
+                    if (index == 0) {
+                      // Wenn Suche aktiv ist, zeigen wir den Button evtl. nicht an, 
+                      // oder wir lassen ihn da. Hier lassen wir ihn.
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10, top: 5),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(15),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: Colors.teal.withOpacity(0.2),
+                                  child: const Icon(Icons.group_add, color: Colors.teal),
+                                ),
+                                const SizedBox(width: 15),
+                                Text(
+                                  "Neue Gruppe erstellen",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // --- Normale User Liste ---
+                    // Wir müssen den Index um 1 verschieben, da index 0 der Button ist
+                    final userDoc = users[index - 1];
                     final userData = userDoc.data() as Map<String, dynamic>;
                     final fullName = userData['fullName'] ?? "Unknown";
-                    // Hier könnte man auch ein Profilbild laden, falls vorhanden
 
                     return InkWell(
                       onTap: () async {
-                         // Erstelle oder hole Chat ID
-                         final chatService = ChatService();
-                         final convId = await chatService.createOrGetDirectChat(
-                           currentUid: currentUid, 
-                           otherUid: userDoc.id
-                         );
-                         
-                         // Navigiere zum Chat
-                         Navigator.push(
-                           context, 
-                           MaterialPageRoute(builder: (_) => PrivateChatScreen(
-                             conversationId: convId,
-                             title: fullName,
-                           ))
-                         );
+                          // Erstelle oder hole Chat ID (1-zu-1)
+                          final chatService = ChatService();
+                          final convId = await chatService.createOrGetDirectChat(
+                            currentUid: currentUid, 
+                            otherUid: userDoc.id
+                          );
+                          
+                          // Navigiere zum Chat
+                          Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (_) => PrivateChatScreen(
+                              conversationId: convId,
+                              title: fullName,
+                            ))
+                          );
                       },
                       borderRadius: BorderRadius.circular(15),
                       child: Padding(

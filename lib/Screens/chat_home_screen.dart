@@ -25,19 +25,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   // Mock-Daten für die statischen Chats (außer Global Chat)
   final List<Map<String, dynamic>> _staticChats = [
-    // Index 0: Event Planung (Beispiel) oder du entfernst es, wenn nicht gewollt
-    /*
-    {
-      "name": "Event Planung",
-      "message": "Wann geht es los?",
-      "time": "09:41",
-      "avatar": null,
-      "icon": null,
-      "isGroup": true,
-      "unread": 0,
-      "color": Colors.blue,
-    },
-    */
     // Index 1: Support Bot
     {
       "name": "Support Bot",
@@ -49,21 +36,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.purple,
     },
-    /*
-    // Index 2: AI Image Generator
-    {
-      "name": "AI Image Generator",
-      "message": "Ich bin bereit dir Bilder zu generieren!",
-      "time": "Neu",
-      "avatar": null,
-      "icon": Icons.palette_rounded,
-      "isGroup": false,
-      "unread": 0,
-      "color": Colors.pink,
-    },
-  ];    */
   ];
-  
+   
 
   @override
   void initState() {
@@ -243,26 +217,46 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             }
 
             // Ab hier: Dynamische Chats aus Firestore
-            // Wir müssen den Index korrigieren: index - (1 + staticChats.length)
             final convIndex = index - (1 + _staticChats.length);
             final convDoc = conversations[convIndex];
             final convData = convDoc.data() as Map<String, dynamic>;
-            final members = List<String>.from(convData['members']);
-            final otherUid = members.firstWhere((id) => id != currentUser!.uid,
-                orElse: () => "");
+            
+            final isGroup = convData['isGroup'] ?? false;
+            final lastMsg = convData['lastMessage'] ?? "";
+            final ts = convData['lastMessageTime'] as Timestamp?;
+            final timeStr = _formatTimestamp(ts);
 
-            // Daten des Chatpartners laden
-            return FutureBuilder<DocumentSnapshot>(
+            // FALL 1: GRUPPE
+            if (isGroup) {
+               final groupName = convData['name'] ?? "Gruppe";
+               final chatMap = {
+                 "name": groupName,
+                 "message": lastMsg,
+                 "time": timeStr,
+                 "avatar": null,
+                 "icon": Icons.groups, // Gruppen-Icon
+                 "isGroup": true,
+                 "unread": 0,
+                 "color": Color(convData['color'] ?? Colors.blue.value),
+                 "docId": convDoc.id,
+               };
+               return _buildChatTile(chatMap, isLive: false, textColor: textColor, subTextColor: subTextColor);
+            } 
+            
+            // FALL 2: EINZELCHAT
+            else {
+              final members = List<String>.from(convData['members']);
+              final otherUid = members.firstWhere((id) => id != currentUser!.uid,
+                  orElse: () => "");
+
+              // Daten des Chatpartners laden
+              return FutureBuilder<DocumentSnapshot>(
                 future: _firestore.collection('users').doc(otherUid).get(),
                 builder: (context, userSnap) {
                   if (!userSnap.hasData) return const SizedBox();
                   final userData =
                       userSnap.data!.data() as Map<String, dynamic>?;
                   final name = userData?['fullName'] ?? "Unbekannt";
-
-                  final lastMsg = convData['lastMessage'] ?? "";
-                  final ts = convData['lastMessageTime'] as Timestamp?;
-                  final timeStr = _formatTimestamp(ts);
 
                   final chatMap = {
                     "name": name,
@@ -273,13 +267,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     "isGroup": false,
                     "unread": 0,
                     "color": Colors.blue,
-                    "docId": convDoc.id, // WICHTIG für Navigation
+                    "docId": convDoc.id,
                   };
                   return _buildChatTile(chatMap,
                       isLive: false,
                       textColor: textColor,
                       subTextColor: subTextColor);
                 });
+            }
           },
         );
       },
@@ -312,7 +307,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                           title: chat['name'],
                         )));
           } else {
-             // Fallback für statische Chats ohne spezielle Navigation (z.B. "Event Planung")
+             // Fallback für statische Chats ohne spezielle Navigation
              ScaffoldMessenger.of(context).showSnackBar(
                const SnackBar(content: Text("Dieser Chat ist noch nicht verbunden."))
              );
