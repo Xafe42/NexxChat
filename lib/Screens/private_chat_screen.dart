@@ -601,7 +601,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         return Scaffold(
           backgroundColor: ChatTheme.backgroundColor, 
           appBar: AppBar(
-            backgroundColor: isDark ? Colors.grey[900] : const Color(0xFF075E54),
+            backgroundColor: isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
             elevation: 0,
             automaticallyImplyLeading: false,
             titleSpacing: 0,
@@ -840,7 +840,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   child: FloatingActionButton(
                     mini: true,
                     backgroundColor:
-                        isDark ? Colors.grey[800] : const Color(0xFF075E54),
+                        isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
                     onPressed: () {
                       if (_scrollCtrl.hasClients) {
                         _scrollCtrl.animateTo(
@@ -1235,7 +1235,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   _isSlashToolbarVisible
                       ? Icons.extension
                       : Icons.extension_outlined,
-                  color: Colors.orange,
+                  color: ChatTheme.myBubbleColor,
                 ),
                 onPressed: _toggleSlashToolbar,
               ),
