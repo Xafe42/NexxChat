@@ -36,6 +36,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.purpleAccent,
     },
+    /*
     {
       "name": "AI Image Generator",
       "message": "Lass uns Bilder erstellen!",
@@ -46,6 +47,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       "unread": 0,
       "color": Colors.pinkAccent,
     },
+    */
   ];
 
   @override

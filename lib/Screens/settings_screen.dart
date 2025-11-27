@@ -5,8 +5,18 @@ import '../core/services/chat_theme.dart';
 import '../theme_notifier.dart';
 import 'welcome_screens.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  
+  void _refresh() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +28,7 @@ class SettingsScreen extends StatelessWidget {
         final bool isDark = mode == ThemeMode.dark;
         final textColor = isDark ? Colors.white : Colors.black;
         final bgColor = Theme.of(context).scaffoldBackgroundColor;
+        final accentColor = ChatTheme.myBubbleColor;
 
         return Scaffold(
           backgroundColor: bgColor,
@@ -61,9 +72,10 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsTile(
                     icon: Icons.dark_mode_outlined,
                     title: "Dark Mode",
+                    accentColor: accentColor,
                     trailing: Switch.adaptive(
                       value: isDark,
-                      activeColor: Colors.deepPurpleAccent,
+                      activeColor: accentColor,
                       onChanged: (val) {
                         themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
                       },
@@ -73,8 +85,10 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.color_lens_outlined,
                     title: "Personalization",
                     subtitle: "Theme colors & wallpapers",
+                    accentColor: accentColor,
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatDesignScreen()));
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatDesignScreen()))
+                          .then((_) => _refresh());
                     },
                   ),
                 ],
@@ -91,11 +105,13 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.lock_outline,
                     title: "Security",
                     subtitle: "Password, FaceID & 2FA",
+                    accentColor: accentColor,
                     onTap: () {},
                   ),
                   _SettingsTile(
                     icon: Icons.notifications_outlined,
                     title: "Notifications",
+                    accentColor: accentColor,
                     onTap: () {},
                   ),
                 ],
@@ -112,6 +128,7 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.info_outline,
                     title: "About NexxChat",
                     subtitle: "Version 1.0.0",
+                    accentColor: accentColor,
                     onTap: () {},
                   ),
                 ],
@@ -202,13 +219,21 @@ class _SettingsTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final Color accentColor;
 
-  const _SettingsTile({required this.icon, required this.title, this.subtitle, this.trailing, this.onTap});
+  const _SettingsTile({
+    required this.icon, 
+    required this.title, 
+    this.subtitle, 
+    this.trailing, 
+    this.onTap,
+    required this.accentColor
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -218,7 +243,7 @@ class _SettingsTile extends StatelessWidget {
           color: isDark ? Colors.grey[800] : Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: isDark ? Colors.white : Colors.black, size: 22),
+        child: Icon(icon, color: accentColor, size: 22),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       subtitle: subtitle != null ? Text(subtitle!, style: TextStyle(color: Colors.grey[600], fontSize: 13)) : null,
@@ -226,7 +251,6 @@ class _SettingsTile extends StatelessWidget {
     );
   }
 }
-
 
 // ----------------------------------------------------------------
 // CHAT DESIGN SCREEN (Modernisiert)
