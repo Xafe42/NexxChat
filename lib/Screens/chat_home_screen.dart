@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
 import '../core/services/chat_theme.dart'; // WICHTIG: Importieren
+import 'call_screen.dart'; // 🔥 NEU: Import für den Video-Screen
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
@@ -297,6 +298,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // 🔥 NEU: Video Icon nur anzeigen, wenn es ein echter User-Chat ist
+    bool showVideoIcon = !isLive && 
+                         chat['docId'] != null && 
+                         chat['name'] != "Support Bot" && 
+                         chat['isGroup'] == false;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -392,6 +399,21 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     ],
                   ),
                 ),
+                // 🔥 NEU: Der Video-Button
+                if(showVideoIcon) ...[
+                   const SizedBox(width: 8),
+                   IconButton(
+                     icon: const Icon(Icons.videocam_rounded, color: Colors.blueAccent),
+                     onPressed: () {
+                        // Starte den Call mit der Conversation ID
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => CallScreen(
+                          callID: chat['docId'], // Wichtig: Damit beide im selben Raum landen
+                          userID: currentUser!.uid,
+                          userName: currentUser!.displayName ?? "User",
+                        )));
+                     },
+                   )
+                ]
               ],
             ),
           ),
