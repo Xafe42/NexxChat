@@ -55,7 +55,7 @@ Es wird ein Emulator benötigt. Ich habe bisher einen Android-Emulator verwenden
 
 ### TODO lade das Repository runter: 
 
-```git clone -b Firebase --single-branch https://gitlab.bht-berlin.de/anbe3574/nexchat.git```
+```git clone https://gitlab.bht-berlin.de/anbe3574/nexchat.git```
 
 --- 
 
