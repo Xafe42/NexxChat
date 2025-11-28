@@ -15,17 +15,22 @@ class CallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Hier wird deine AppID und AppSign von der ZegoCloud Console eingetragen
-    // Melde dich bei ZegoCloud an, erstelle ein Projekt und kopiere die Daten hier rein.
+    //Anleitung:
+    // JDK Version: 17 installieren und hier installieren C:/Program Files/Java/jdk-17
     // https://console.zegocloud.com/dashboard
     const int yourAppID = 1324862294; // 🔴 DEINE APP ID
     const String yourAppSign = "197bf9ac83625712aa48ab5bd30e6df59dc96abb65f250895d9af4b573f2484b"; // 🔴 DEIN APP SIGN
+
+String safeUserName = userName;
+    if (safeUserName.trim().isEmpty) {
+      safeUserName = "User ${userID.substring(0, 4)}";
+    }
 
     return ZegoUIKitPrebuiltCall(
       appID: yourAppID,
       appSign: yourAppSign,
       userID: userID,
-      userName: userName,
+      userName: safeUserName,
       callID: callID,
       config: ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall(),
     );
