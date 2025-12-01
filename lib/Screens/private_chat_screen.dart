@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:path/path.dart' as path;
 import '../widgets/reaction_picker.dart';
@@ -462,7 +463,6 @@ Future<void> _toggleReaction(String messageId, String emoji) async {
   if (currentReaction == emoji) {
     await msgRef.update({'reaction': FieldValue.delete()});
   } else {
-    // خلاف ذلك → نبدلو
     await msgRef.update({'reaction': emoji});
   }
 }
@@ -689,14 +689,58 @@ Future<void> _toggleReaction(String messageId, String emoji) async {
                 ),
               ],
             ),
-            actions: [
-              // Einstellungen Icon (nur bei Gruppen)
-              if (isGroup && convData != null)
-                IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: () => _showGroupSettings(context, convData!),
-                )
-            ],
+           actions: [
+
+      
+      if (!isGroup && convData != null)
+        IconButton(
+          icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+          onPressed: () {
+            final members = List<String>.from(convData!['members'] ?? []);
+
+            
+            final otherUserId = members.firstWhere(
+              (m) => m != _user!.uid,
+              orElse: () => "",
+            );
+
+            if (otherUserId.isEmpty) return;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CallScreen(
+                  callID: widget.conversationId,   
+                  userID: _user!.uid,              
+                  userName: _user!.email ?? "User",
+                ),
+              ),
+            );
+          },
+        ),
+
+      
+      if (isGroup && convData != null)
+  IconButton(
+    icon: const Icon(Icons.videocam, color: Colors.white),
+    onPressed: () {
+      
+      // Conversation ID = Call Room ID
+      final callID = widget.conversationId;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CallScreen(
+            callID: callID,                
+            userID: _user!.uid,           
+            userName: _user!.email ?? "User",
+          ),
+        ),
+      );
+    },
+  ),
+    ],
           ),
           body: Stack(
             children: [

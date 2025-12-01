@@ -399,21 +399,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     ],
                   ),
                 ),
-                // 🔥 NEU: Der Video-Button
-                if(showVideoIcon) ...[
-                   const SizedBox(width: 8),
-                   IconButton(
-                     icon: const Icon(Icons.videocam_rounded, color: Colors.blueAccent),
-                     onPressed: () {
-                        // Starte den Call mit der Conversation ID
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => CallScreen(
-                          callID: chat['docId'], // Wichtig: Damit beide im selben Raum landen
-                          userID: currentUser!.uid,
-                          userName: currentUser!.displayName ?? "User",
-                        )));
-                     },
-                   )
-                ]
+               
               ],
             ),
           ),
