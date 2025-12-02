@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../core/services/chat_theme.dart';
 import '../theme_notifier.dart';
 import 'welcome_screens.dart';
@@ -134,6 +134,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
 
+            ListTile(
+  leading: Icon(Icons.privacy_tip, color: Colors.green),
+  title: Text("Datenschutzerklärung"),
+  subtitle: Text("Privacy Policy"),
+  onTap: () async {
+    final url = Uri.parse(
+      "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
+    );
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+  },
+),
               const SizedBox(height: 40),
 
               // -------- Logout --------
