@@ -162,6 +162,61 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     );
   }
+    // ---------- Sart Video Call----------
+
+
+Future<void> _startVideoCall(Map<String, dynamic> convData) async {
+  final members = List<String>.from(convData['members'] ?? []);
+
+  final otherUserId = members.firstWhere(
+    (m) => m != _user!.uid,
+    orElse: () => "",
+  );
+
+  if (otherUserId.isEmpty) return;
+
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CallScreen(
+        callID: widget.conversationId,
+        userID: _user!.uid,
+        userName: _user!.email!,
+      ),
+    ),
+  );
+
+  if (result != null) {
+    await _sendCallSummary(result);
+    setState(() {}); 
+  }
+}
+
+  // ---------- Send Call ----------
+
+
+Future<void> _sendCallSummary(Map<String, dynamic> call) async {
+  final convRef = _db.collection('conversations').doc(widget.conversationId);
+  final msgRef = convRef.collection('messages').doc();
+
+  await msgRef.set({
+    'id': msgRef.id,
+    'type': 'call',
+    'senderId': _user!.uid,
+    'timestamp': FieldValue.serverTimestamp(),
+    'callType': call['type'],     // video
+    'status': call['status'],     // ended / missed
+    'duration': call['duration'], // null if missed
+  });
+
+  await convRef.update({
+    'lastMessage': call['status'] == 'missed'
+        ? '📞 Verpasster Videoanruf'
+        : '📞 Videoanruf beendet',
+    'lastMessageTime': FieldValue.serverTimestamp(),
+  });
+}
+
 
   // ---------- Typing indicator ----------
 
@@ -689,58 +744,64 @@ Future<void> _toggleReaction(String messageId, String emoji) async {
                 ),
               ],
             ),
-           actions: [
+    actions: [
 
-      
-      if (!isGroup && convData != null)
-        IconButton(
-          icon: const Icon(Icons.videocam_rounded, color: Colors.white),
-          onPressed: () {
-            final members = List<String>.from(convData!['members'] ?? []);
+  
+  // 🔵 VIDEO CALL - PRIVATE CHAT
+ 
+  if (!isGroup && convData != null)
+    IconButton(
+      icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+      onPressed: () async {
+        final members = List<String>.from(convData!['members'] ?? []);
 
-            
-            final otherUserId = members.firstWhere(
-              (m) => m != _user!.uid,
-              orElse: () => "",
-            );
+        final otherUserId = members.firstWhere(
+          (m) => m != _user!.uid,
+          orElse: () => "",
+        );
 
-            if (otherUserId.isEmpty) return;
+        if (otherUserId.isEmpty) return;
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: widget.conversationId,   
-                  userID: _user!.uid,              
-                  userName: _user!.email ?? "User",
-                ),
-              ),
-            );
-          },
-        ),
-
-      
-      if (isGroup && convData != null)
-  IconButton(
-    icon: const Icon(Icons.videocam, color: Colors.white),
-    onPressed: () {
-      
-      // Conversation ID = Call Room ID
-      final callID = widget.conversationId;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CallScreen(
-            callID: callID,                
-            userID: _user!.uid,           
-            userName: _user!.email ?? "User",
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              callID: widget.conversationId,
+              userID: _user!.uid,
+              userName: _user!.email!,
+            ),
           ),
-        ),
-      );
-    },
-  ),
-    ],
+        );
+
+        if (result != null) {
+          await _sendCallSummary(result);
+          setState(() {});   
+        }
+      },
+    ),
+
+  
+  // 🔵 VIDEO CALL - GROUP
+ 
+  if (isGroup && convData != null)
+    IconButton(
+      icon: const Icon(Icons.videocam, color: Colors.white),
+      onPressed: () {
+        final callID = widget.conversationId;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              callID: callID,
+              userID: _user!.uid,
+              userName: _user!.email ?? "User",
+            ),
+          ),
+        );
+      },
+    ),
+]
           ),
           body: Stack(
             children: [
@@ -1044,6 +1105,34 @@ Widget _buildMessageBubble({
       ],
     );
   }
+    // ---------- CALL ----------
+
+  if (type == 'call') {
+  final status = msg['status'];
+  final duration = msg['duration'];
+  final callType = msg['callType'];
+
+  String text = "";
+
+  if (status == "missed") {
+    text = "📞 Verpasster Videoanruf";
+  } else {
+    final minutes = (duration / 60).floor();
+    final seconds = duration % 60;
+    final durText = "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
+
+    text = "📞 Videoanruf beendet – Dauer: $durText";
+  }
+
+  return _Bubble(
+    isMe: isMe,
+    bubbleColor: bubbleColor,
+    textColor: textColor,
+    time: time,
+    onLongPress: () => _openReactionPicker(msg['id']),
+    child: Text(text, style: TextStyle(color: textColor, fontSize: 16)),
+  );
+}
 
   // ---------- MINI APP ----------
   Widget bubbleWidget;
