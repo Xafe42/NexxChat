@@ -11,7 +11,7 @@
 
 * **A.1 GOOGLE ENTWICKLERKONTO:**
     * * [ x ] Konto eingerichtet und Gebühr bezahlt.
-    * * [ x ] Konto-Inhaber ist: **[Name]**
+    * * [ x ] Konto-Inhaber ist: **[Andrijan Berton]**
 
 * **A.2 DATENSCHUTZERKLÄRUNG (PRIVACY POLICY):**
     * * [ ] Öffentliche, aktive **URL** zur Datenschutzerklärung erstellt.
@@ -25,17 +25,17 @@
     * * [ ] Angabe, dass Daten **verschlüsselt** übertragen werden (Standard bei Firebase/HTTPS).
 
 * **A.4 BERECHTIGUNGEN:**
-    * * [ ] Nur absolut notwendige Berechtigungen (z.B. `INTERNET`, ggf. `CAMERA` für Bilder) angefordert.
+    * * [ x ] Nur absolut notwendige Berechtigungen (z.B. `INTERNET`, ggf. `CAMERA` für Bilder) angefordert.
 
 ---
 
 ## 2. 🛠️ B. TECHNISCHE VORBEREITUNG (FLUTTER & DART)
 
 * **B.1 TARGET API LEVEL:**
-    * * [ ] API Level in `'android/app/build.gradle'` auf das aktuelle Minimum (**z.B. 34**) gesetzt.
+    * * [ x ] API Level in `'android/app/build.gradle'` auf das aktuelle Minimum (**z.B. 34**) gesetzt.
 
 * **B.2 RELEASE BUILD ERSTELLEN:**
-    * * [ ] Build-Nummer (`versionCode`) und Version (`versionName`) in `'pubspec.yaml'` erhöht.
+    * * [ x ] Build-Nummer (`versionCode`) und Version (`versionName`) in `'pubspec.yaml'` erhöht.
     * * [ x  ] **Android App Bundle (`.aab`)** erstellt mit: `flutter build appbundle --release`
 
 * **B.3 SIGNIERUNG:**
@@ -69,6 +69,8 @@
     * * [ ] Korrekte **Kategorie** (z.B. Kommunikation) ausgewählt.
 
 * **C.4 AUSROLLUNG:**
-    * * [ ] App Bundle in die Play Console hochgeladen (z.B. Interner Test).
+    * * [ x ] App Bundle in die Play Console hochgeladen (z.B. Interner Test).
     * * [ ] Ausrollen auf **Produktion** gestartet.
     * * [ ] **Genehmigung** durch Google Play abgewartet.
+
+---
