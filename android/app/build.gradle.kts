@@ -1,18 +1,11 @@
 // <<< START DES HINZUGEFÜGTEN CODES FÜR DIE SIGNIERUNG >>>
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
-}
+import java.util.Properties
 
-// Lade die Passwörter aus der neu erstellten key.properties
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.withReader('UTF-8') { reader ->
-        keystoreProperties.load(reader)
+    keystorePropertiesFile.inputStream().use { 
+        keystoreProperties.load(it)
     }
 }
 // <<< ENDE DES HINZUGEFÜGTEN CODES FÜR DIE SIGNIERUNG >>>
@@ -29,17 +22,17 @@ android {
     namespace = "at.isha.nexxchat_firebase" 
     compileSdk = 36 
 
-    // <<< START DER HINZUGEFÜGTEN SIGNIERUNGSKONFIGURATION >>>
+    // <<< START DER KORRIGIERTEN SIGNIERUNGSKONFIGURATION >>>
     signingConfigs {
-        release {
-            // Nutze die geladenen Werte aus key.properties
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
+        create("release") {
+            // Lese die Werte aus der Properties-Datei
+            storeFile = file(keystoreProperties.getProperty("storeFile"))
+            storePassword = keystoreProperties.getProperty("storePassword")
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
         }
     }
-    // <<< ENDE DER HINZUGEFÜGTEN SIGNIERUNGSKONFIGURATION >>>
+    // <<< ENDE DER KORRIGIERTEN SIGNIERUNGSKONFIGURATION >>>
 
     defaultConfig {
         applicationId = "at.isha.nexxchat_firebase" 
@@ -61,8 +54,6 @@ android {
 
     buildTypes {
         getByName("release") {
-            // ALT: signingConfig = signingConfigs.getByName("debug")
-            
             // NEU: Verwende die neu erstellte 'release' signing config
             signingConfig = signingConfigs.getByName("release") // Wichtig!
             isMinifyEnabled = false
