@@ -11,7 +11,8 @@ class RegistrationScreen extends StatefulWidget {
 
   @override
   // ignore: library_private_types_in_public_api
-  _RegistrationScreenState createState() => _RegistrationScreenState(); // Erstellt den State
+  _RegistrationScreenState createState() =>
+      _RegistrationScreenState(); // Erstellt den State
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
@@ -97,53 +98,50 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               MyButton(
                 color: Colors.blue[800]!, // Buttonfarbe
                 titel: 'Register', // Buttontext
-               onPressed: () async {
-  setState(() => showSpinner = true);
+                onPressed: () async {
+                  setState(() => showSpinner = true);
 
-  try {
-    UserCredential userCred =
-      await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password.trim(),
-      );
+                  try {
+                    UserCredential userCred =
+                        await _auth.createUserWithEmailAndPassword(
+                      email: email.trim(),
+                      password: password.trim(),
+                    );
 
-    await FirebaseFirestore.instance
-        .collection("users")
-        .doc(userCred.user!.uid)
-        .set({
-      "uid": userCred.user!.uid,
-      "email": email.trim(),
-      "fullName": email.split('@')[0],
-      "profilePic": "",
-      "groups": [],
-    });
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(userCred.user!.uid)
+                        .set({
+                      "uid": userCred.user!.uid,
+                      "email": email.trim(),
+                      "fullName": email.split('@')[0],
+                      "profilePic": "",
+                      "groups": [],
+                    });
 
-    if (!mounted) return;
+                    if (!mounted) return;
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      ChatHomeScreen.screenRoute,
-      (route) => false,
-    );
-
-  } on FirebaseAuthException catch (e) {
-
-    if (e.code == "email-already-in-use") {
-      _showError("Diese E-Mail wird bereits verwendet!");
-    } else if (e.code == "invalid-email") {
-      _showError("Ungültige E-Mail-Adresse.");
-    } else if (e.code == "weak-password") {
-      _showError("Passwort ist zu schwach (min. 6 Zeichen).");
-    } else {
-      _showError("Fehler: ${e.message}");
-    }
-
-  } catch (e) {
-    _showError("Unbekannter Fehler beim Registrieren.");
-  } finally {
-    setState(() => showSpinner = false);
-  }
-},
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      ChatHomeScreen.screenRoute,
+                      (route) => false,
+                    );
+                  } on FirebaseAuthException catch (e) {
+                    if (e.code == "email-already-in-use") {
+                      _showError("Diese E-Mail wird bereits verwendet!");
+                    } else if (e.code == "invalid-email") {
+                      _showError("Ungültige E-Mail-Adresse.");
+                    } else if (e.code == "weak-password") {
+                      _showError("Passwort ist zu schwach (min. 6 Zeichen).");
+                    } else {
+                      _showError("Fehler: ${e.message}");
+                    }
+                  } catch (e) {
+                    _showError("Unbekannter Fehler beim Registrieren.");
+                  } finally {
+                    setState(() => showSpinner = false);
+                  }
+                },
               ),
             ],
           ),
@@ -151,19 +149,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
     );
   }
-void _showError(String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.redAccent,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        duration: const Duration(seconds: 2),
       ),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
-
-
+    );
+  }
 }

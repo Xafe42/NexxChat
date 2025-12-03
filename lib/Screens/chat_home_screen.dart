@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
-import '../core/services/chat_theme.dart';
+import '../core/services/chat_theme.dart'; // WICHTIG: Importieren
+import 'call_screen.dart'; // 🔥 NEU: Import für den Video-Screen
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
@@ -23,6 +24,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   final _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
   User? currentUser;
+  List<String> _hiddenChats = [];
+  bool _loadingUserHiddenChats = true;
 
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
   final List<Map<String, dynamic>> _staticChats = [
@@ -55,18 +58,87 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     super.initState();
     currentUser = _auth.currentUser;
     _loadTheme(); // Theme laden
+    _loadHiddenChats();
+  }
+
+  // 🔥 NEW: Hide specific conversation
+  Future<void> _hideChat(String chatId) async {
+    if (currentUser == null) return;
+
+    try {
+      await _firestore.collection("users").doc(currentUser!.uid).update({
+        "hiddenChats": FieldValue.arrayUnion([chatId]),
+      });
+
+      setState(() {
+        _hiddenChats.add(chatId);
+      });
+    } catch (e) {
+      debugPrint("Error hiding chat: $e");
+    }
+  }
+
+// 🔥 NEW: Show options on long press
+  void _showChatOptions(Map<String, dynamic> chat) {
+    if (chat['docId'] == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility_off, color: Colors.red),
+                title: const Text("Konversation ausblenden"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _hideChat(chat['docId']);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _loadHiddenChats() async {
+    if (currentUser == null) {
+      setState(() => _loadingUserHiddenChats = false);
+      return;
+    }
+
+    try {
+      final userDoc =
+          await _firestore.collection("users").doc(currentUser!.uid).get();
+
+      final data = userDoc.data();
+      if (data != null && data["hiddenChats"] != null) {
+        _hiddenChats = List<String>.from(data["hiddenChats"]);
+      }
+    } catch (e) {
+      debugPrint("Error loading hidden chats: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _loadingUserHiddenChats = false);
+      }
+    }
   }
 
   void _loadTheme() async {
     await ChatTheme.loadTheme();
-    if(mounted) setState(() {});
+    if (mounted) setState(() {});
   }
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return "";
     final date = timestamp.toDate();
     final now = DateTime.now();
-    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
       return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
     }
     return "${date.day}.${date.month}.";
@@ -80,7 +152,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
     
     final accentColor = ChatTheme.myBubbleColor;
-
+    if (currentUser == null || _loadingUserHiddenChats) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     final List<Widget> pages = [
       Column(
         children: [
@@ -101,7 +178,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))
+            BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, -5))
           ],
         ),
         child: BottomNavigationBar(
@@ -116,11 +196,17 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded), activeIcon: Icon(Icons.chat_bubble), label: "Chats"),
+                icon: Icon(Icons.chat_bubble_rounded),
+                activeIcon: Icon(Icons.chat_bubble),
+                label: "Chats"),
             BottomNavigationBarItem(
-                icon: Icon(Icons.people_alt_rounded), activeIcon: Icon(Icons.people_alt), label: "People"),
+                icon: Icon(Icons.people_alt_rounded),
+                activeIcon: Icon(Icons.people_alt),
+                label: "People"),
             BottomNavigationBarItem(
-                icon: Icon(Icons.settings_rounded), activeIcon: Icon(Icons.settings), label: "Settings"),
+                icon: Icon(Icons.settings_rounded),
+                activeIcon: Icon(Icons.settings),
+                label: "Settings"),
           ],
         ),
       ),
@@ -147,21 +233,22 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           Text(
             "Chats",
             style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: textColor,
-              letterSpacing: -0.5
-            ),
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+                letterSpacing: -0.5),
           ),
           const Spacer(),
           Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey[800] : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-              ]
-            ),
+                color: isDark ? Colors.grey[800] : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4))
+                ]),
             child: IconButton(
               icon: Icon(Icons.search_rounded, color: textColor),
               onPressed: () {},
@@ -172,7 +259,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     );
   }
 
-  Widget _buildChatList(Color textColor, Color? subTextColor, Color accentColor) {
+  Widget _buildChatList(
+      Color textColor, Color? subTextColor, Color accentColor) {
     if (currentUser == null) {
       return Center(child: CircularProgressIndicator(color: accentColor));
     }
@@ -184,7 +272,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           .orderBy('lastMessageTime', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        
         final globalChatTile = StreamBuilder<QuerySnapshot>(
           stream: _firestore
               .collection('messages')
@@ -195,10 +282,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             String lastMessage = "Lade...";
             String time = "";
             if (msgSnapshot.hasData && msgSnapshot.data!.docs.isNotEmpty) {
-              final data = msgSnapshot.data!.docs.first.data() as Map<String, dynamic>;
-              if (data['type'] == 'image') lastMessage = "📷 Foto";
-              else if (data['type'] == 'app') lastMessage = "✨ App Aktivität";
-              else lastMessage = data['payload']?['text'] ?? "Nachricht";
+              final data =
+                  msgSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+              if (data['type'] == 'image')
+                lastMessage = "📷 Foto";
+              else if (data['type'] == 'app')
+                lastMessage = "✨ App Aktivität";
+              else
+                lastMessage = data['payload']?['text'] ?? "Nachricht";
               time = _formatTimestamp(data['time']);
             } else {
               lastMessage = "Keine Nachrichten";
@@ -212,7 +303,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               "unread": 0,
               "color": accentColor,
             };
-            return _buildChatTile(liveChat, isLive: true, textColor: textColor, subTextColor: subTextColor);
+            return _buildChatTile(liveChat,
+                isLive: true, textColor: textColor, subTextColor: subTextColor);
           },
         );
 
@@ -224,18 +316,23 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
-            
             if (index == 0) return globalChatTile;
 
             if (index <= _staticChats.length) {
               final chat = _staticChats[index - 1];
-              return _buildChatTile(chat, isLive: false, textColor: textColor, subTextColor: subTextColor);
+              return _buildChatTile(chat,
+                  isLive: false,
+                  textColor: textColor,
+                  subTextColor: subTextColor);
             }
 
             final convIndex = index - (1 + _staticChats.length);
             final convDoc = conversations[convIndex];
+            if (_hiddenChats.contains(convDoc.id)) {
+              return const SizedBox.shrink(); // Hide this chat
+            }
             final convData = convDoc.data() as Map<String, dynamic>;
-            
+
             final isGroup = convData['isGroup'] ?? false;
             final lastMsg = convData['lastMessage'] ?? "";
             final ts = convData['lastMessageTime'] as Timestamp?;
@@ -259,14 +356,16 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                return _buildChatTile(chatMap, isLive: false, textColor: textColor, subTextColor: subTextColor);
             } else {
               final members = List<String>.from(convData['members']);
-              final otherUid = members.firstWhere((id) => id != currentUser!.uid, orElse: () => "");
+              final otherUid = members
+                  .firstWhere((id) => id != currentUser!.uid, orElse: () => "");
 
               return FutureBuilder<DocumentSnapshot>(
-                future: _firestore.collection('users').doc(otherUid).get(),
-                builder: (context, userSnap) {
-                  if (!userSnap.hasData) return const SizedBox();
-                  final userData = userSnap.data!.data() as Map<String, dynamic>?;
-                  final name = userData?['fullName'] ?? "Unbekannt";
+                  future: _firestore.collection('users').doc(otherUid).get(),
+                  builder: (context, userSnap) {
+                    if (!userSnap.hasData) return const SizedBox();
+                    final userData =
+                        userSnap.data!.data() as Map<String, dynamic>?;
+                    final name = userData?['fullName'] ?? "Unbekannt";
 
                   final chatMap = {
                     "name": name,
@@ -292,7 +391,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       {required bool isLive,
       required Color textColor,
       required Color? subTextColor}) {
-    
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -313,16 +411,28 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         child: InkWell(
           onTap: () {
             if (chat['name'] == "Support Bot") {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportBotScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SupportBotScreen()));
             } else if (chat['name'] == "AI Image Generator") {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageBotScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ImageBotScreen()));
             } else if (isLive) {
               Navigator.pushNamed(context, ChatScreen.screenRoute);
             } else if (chat['docId'] != null) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => PrivateChatScreen(
-                conversationId: chat['docId'],
-                title: chat['name'],
-              )));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PrivateChatScreen(
+                    conversationId: chat['docId'],
+                    title: chat['name'],
+                  ),
+                ),
+              );
+            }
+          },
+          onLongPress: () {
+            if (chat['docId'] != null) {
+              _showChatOptions(chat);
             }
           },
           borderRadius: BorderRadius.circular(20),
@@ -331,21 +441,23 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 56, height: 56,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient( 
-                      begin: Alignment.topLeft, 
-                      end: Alignment.bottomRight,
-                      colors: [
-                        (chat['color'] as Color).withOpacity(0.8),
-                        (chat['color'] as Color),
-                      ]
-                    ),
-                    boxShadow: [
-                      BoxShadow(color: (chat['color'] as Color).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
-                    ]
-                  ),
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            (chat['color'] as Color).withOpacity(0.8),
+                            (chat['color'] as Color),
+                          ]),
+                      boxShadow: [
+                        BoxShadow(
+                            color: (chat['color'] as Color).withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ]),
                   child: _buildAvatarContent(chat),
                 ),
                 const SizedBox(width: 16),
@@ -360,11 +472,18 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                           Flexible(
                             child: Text(
                               chat['name'],
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(chat['time'], style: TextStyle(fontSize: 12, color: subTextColor, fontWeight: FontWeight.w600)),
+                          Text(chat['time'],
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: subTextColor,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -375,22 +494,31 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                               chat['message'],
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14, color: subTextColor, height: 1.2),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: subTextColor,
+                                  height: 1.2),
                             ),
                           ),
                           if ((chat['unread'] as int) > 0)
                             Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
-                              child: Text(chat['unread'].toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: Text(chat['unread'].toString(),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold)),
                             )
                         ],
                       ),
                     ],
                   ),
                 ),
-               
               ],
             ),
           ),
@@ -407,13 +535,13 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       return ClipOval(child: Image.asset(chat['avatar'], fit: BoxFit.cover));
     }
     return Center(
-      child: Text(
-        (chat['name'] as String).isNotEmpty
-            ? (chat['name'] as String)[0].toUpperCase()
-            : "?",
-        style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 22)));
+        child: Text(
+            (chat['name'] as String).isNotEmpty
+                ? (chat['name'] as String)[0].toUpperCase()
+                : "?",
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 22)));
   }
 }

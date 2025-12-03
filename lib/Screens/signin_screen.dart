@@ -20,38 +20,37 @@ class SignInScreenState extends State<SignInScreen> {
 
   // Methode für Anmeldung
   Future<void> _signIn() async {
-  setState(() => showSpinner = true);
+    setState(() => showSpinner = true);
 
-  try {
-    await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
-      password: password.trim(),
-    );
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      ChatHomeScreen.screenRoute,
-      (route) => false,
-    );
-
-  } on FirebaseAuthException catch (e) {
-    if (e.code == "user-not-found") {
-      _showError("Dieses E-Mail-Konto existiert nicht.");
-    } else if (e.code == "wrong-password") {
-      _showError("Falsches Passwort.");
-    } else if (e.code == "invalid-email") {
-      _showError("Ungültige E-Mail-Adresse.");
-    } else {
-      _showError("Fehler: ${e.message}");
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        ChatHomeScreen.screenRoute,
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == "user-not-found") {
+        _showError("Dieses E-Mail-Konto existiert nicht.");
+      } else if (e.code == "wrong-password") {
+        _showError("Falsches Passwort.");
+      } else if (e.code == "invalid-email") {
+        _showError("Ungültige E-Mail-Adresse.");
+      } else {
+        _showError("Fehler: ${e.message}");
+      }
+    } catch (e) {
+      _showError("Unbekannter Fehler ist aufgetreten.");
+    } finally {
+      if (mounted) setState(() => showSpinner = false);
     }
-  } catch (e) {
-    _showError("Unbekannter Fehler ist aufgetreten.");
-  } finally {
-    if (mounted) setState(() => showSpinner = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -134,18 +133,18 @@ class SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
-void _showError(String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.redAccent,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 }
