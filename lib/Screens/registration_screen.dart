@@ -97,45 +97,53 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               MyButton(
                 color: Colors.blue[800]!, // Buttonfarbe
                 titel: 'Register', // Buttontext
-                onPressed: () async {
-                  setState(() {
-                    showSpinner = true;
-                  }); // Spinner anzeigen
-                  try {
-                    UserCredential userCred =
-                        await _auth.createUserWithEmailAndPassword(
-                      email: email,
-                      password: password,
-                    ); // Registrierungsversuch
+               onPressed: () async {
+  setState(() => showSpinner = true);
 
-                    // USER IN FIRESTORE SPEICHERN
-                    await FirebaseFirestore.instance
-                        .collection("users")
-                        .doc(userCred.user!.uid)
-                        .set({
-                      "uid": userCred.user!.uid,
-                      "email": email,
-                      "fullName": email.split('@')[0],
-                      "profilePic": "",
-                      "groups": [],
-                    });
+  try {
+    UserCredential userCred =
+      await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
 
-                    Navigator.pushNamedAndRemoveUntil(
-                      // ignore: use_build_context_synchronously
-                      context,
-                      ChatHomeScreen.screenRoute, // Weiterleitung zur Übersicht
-                      (route) => false,
-                    );
-                    setState(() {
-                      showSpinner = false;
-                    }); // Spinner ausblenden
-                  } catch (e) {
-                    // Fehlerausgabe
-                    setState(() {
-                      showSpinner = false;
-                    }); // Spinner ausblenden
-                  }
-                },
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(userCred.user!.uid)
+        .set({
+      "uid": userCred.user!.uid,
+      "email": email.trim(),
+      "fullName": email.split('@')[0],
+      "profilePic": "",
+      "groups": [],
+    });
+
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      ChatHomeScreen.screenRoute,
+      (route) => false,
+    );
+
+  } on FirebaseAuthException catch (e) {
+
+    if (e.code == "email-already-in-use") {
+      _showError("Diese E-Mail wird bereits verwendet!");
+    } else if (e.code == "invalid-email") {
+      _showError("Ungültige E-Mail-Adresse.");
+    } else if (e.code == "weak-password") {
+      _showError("Passwort ist zu schwach (min. 6 Zeichen).");
+    } else {
+      _showError("Fehler: ${e.message}");
+    }
+
+  } catch (e) {
+    _showError("Unbekannter Fehler beim Registrieren.");
+  } finally {
+    setState(() => showSpinner = false);
+  }
+},
               ),
             ],
           ),
@@ -143,4 +151,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
     );
   }
+void _showError(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.redAccent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
+
+
 }
