@@ -79,7 +79,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     final textColor = isDark ? Colors.white : const Color(0xFF2D3436);
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
     
-    // 🔥 PERSONALISIERTE FARBE
     final accentColor = ChatTheme.myBubbleColor;
 
     final List<Widget> pages = [
@@ -108,7 +107,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: accentColor, // 🔥 Personalisiert
+          selectedItemColor: accentColor,
           unselectedItemColor: Colors.grey[400],
           showSelectedLabels: false,
           showUnselectedLabels: false,
@@ -132,7 +131,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                   _selectedIndex = 1;
                 });
               },
-              backgroundColor: accentColor, // 🔥 Personalisiert
+              backgroundColor: accentColor,
               elevation: 4,
               child: const Icon(Icons.add, color: Colors.white),
             )
@@ -177,7 +176,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     if (currentUser == null) {
       return Center(child: CircularProgressIndicator(color: accentColor));
     }
-
+    
     return StreamBuilder<QuerySnapshot>(
       stream: _firestore
           .collection('conversations')
@@ -211,7 +210,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               "avatar": "images/nexxchat.png",
               "isGroup": true,
               "unread": 0,
-              "color": accentColor, // 🔥 Personalisiert
+              "color": accentColor,
             };
             return _buildChatTile(liveChat, isLive: true, textColor: textColor, subTextColor: subTextColor);
           },
@@ -244,7 +243,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
             if (isGroup) {
                final groupName = convData['name'] ?? "Gruppe";
-               // Wenn Farbe gespeichert, nimm die, sonst Accent
                final storedColor = convData['color'] != null ? Color(convData['color']) : accentColor;
                
                final chatMap = {
@@ -278,7 +276,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     "icon": null, 
                     "isGroup": false,
                     "unread": 0,
-                    "color": accentColor, // 🔥 Personalisiert
+                    "color": accentColor,
                     "docId": convDoc.id,
                   };
                   return _buildChatTile(chatMap, isLive: false, textColor: textColor, subTextColor: subTextColor);

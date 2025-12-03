@@ -41,7 +41,7 @@
 * **B.3 SIGNIERUNG:**
     * * [ x ] Keystore (**Upload-Schlüssel**) für die Signierung erstellt/gesichert.
     * * [ x ] **Google Play App Signing** in der Play Console aktiviert (empfohlen).
-    * * [ ] Upload-Schlüssel sicher archiviert.
+    * * [ x ] Upload-Schlüssel sicher archiviert.
 
 * **B.4 FIREBASE-KONFIGURATION:**
     * * [ x ] Firebase-Projekt-ID stimmt mit der in der App verwendeten überein.
