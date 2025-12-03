@@ -92,36 +92,37 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // ---------- Load Other User ----------
+Future<void> _loadOtherUser() async {
+  try {
+    final convDoc = await _db.collection("conversations")
+        .doc(widget.conversationId)
+        .get();
 
-  Future<void> _loadOtherUser() async {
-    try {
-      final convDoc = await _db.collection("conversations").doc(widget.conversationId).get();
-      if (!convDoc.exists) return;
+    if (!convDoc.exists) return;
 
-      final data = convDoc.data()!;
-      final isGroup = data['isGroup'] == true;
+    final data = convDoc.data()!;
+    final isGroup = data['isGroup'] == true;
 
-      // Wenn es eine Gruppe ist, ist userDeleted irrelevant für den Chat
-      if (isGroup) return;
+    if (isGroup) return;
 
-      final members = List<String>.from(data['members'] ?? []);
-      final currentUid = _auth.currentUser?.uid;
+    final members = List<String>.from(data['members'] ?? []);
+    final currentUid = _auth.currentUser?.uid;
 
-      if (currentUid == null) return;
+    if (currentUid == null) return;
 
-      otherUserId = members.firstWhere((id) => id != currentUid, orElse: () => "");
+    otherUserId = members.firstWhere((id) => id != currentUid, orElse: () => "");
 
-      if (otherUserId!.isNotEmpty) {
-        final userDoc = await _db.collection("users").doc(otherUserId).get();
-        if (!userDoc.exists) {
-          if (mounted) setState(() => userDeleted = true);
-        }
+    if (otherUserId!.isNotEmpty) {
+      final userDoc = await _db.collection("users").doc(otherUserId).get();
+      if (!userDoc.exists) {
+        if (mounted) setState(() => userDeleted = true);
       }
-    } catch (e) {
-      debugPrint("Fehler beim Laden des Users: $e");
     }
-  }
 
+  } catch (e) {
+    debugPrint("Fehler beim Laden des Users: $e");
+  }
+}
   // ---------- Send Call ----------
 
   Future<void> _sendCallSummary(Map<String, dynamic> call) async {
