@@ -22,7 +22,7 @@
 
 * **A.3 DATENSICHERHEIT (DATA SAFETY SECTION in Play Console):**
     * * [ x ] Formular in der Play Console wahrheitsgemäß ausgefüllt.
-    * * [ ] Angabe, dass Daten **verschlüsselt** übertragen werden (Standard bei Firebase/HTTPS).
+    * * [ x ] Angabe, dass Daten **verschlüsselt** übertragen werden (Standard bei Firebase/HTTPS).
 
 * **A.4 BERECHTIGUNGEN:**
     * * [ x ] Nur absolut notwendige Berechtigungen (z.B. `INTERNET`, ggf. `CAMERA` für Bilder) angefordert.
@@ -44,8 +44,8 @@
     * * [ ] Upload-Schlüssel sicher archiviert.
 
 * **B.4 FIREBASE-KONFIGURATION:**
-    * * [ ] Firebase-Projekt-ID stimmt mit der in der App verwendeten überein.
-    * * [ ] **Paketname (Application ID)** im Android-Manifest und in der Firebase Console identisch.
+    * * [ x ] Firebase-Projekt-ID stimmt mit der in der App verwendeten überein.
+    * * [ x ] **Paketname (Application ID)** im Android-Manifest und in der Firebase Console identisch.
 
 * **B.5 STABILITÄT & TESTING:**
     * * [ ] App wurde auf realen Geräten (verschiedene Android-Versionen) getestet.
