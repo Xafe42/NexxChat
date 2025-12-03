@@ -14,11 +14,11 @@
     * * [ x ] Konto-Inhaber ist: **[Andrijan Berton]**
 
 * **A.2 DATENSCHUTZERKLÄRUNG (PRIVACY POLICY):**
-    * * [ ] Öffentliche, aktive **URL** zur Datenschutzerklärung erstellt.
-    * * [ ] Erklärung listet alle erfassten Daten (E-Mail, Chat-Inhalte, Gerätekennungen) auf.
-    * * [ ] Datennutzung und die Rolle von Drittanbietern (**Firebase**) ist transparent erklärt.
+    * * [ x ] Öffentliche, aktive **URL** zur Datenschutzerklärung erstellt.
+    * * [ x ] Erklärung listet alle erfassten Daten (E-Mail, Chat-Inhalte, Gerätekennungen) auf.
+    * * [ x ] Datennutzung und die Rolle von Drittanbietern (**Firebase**) ist transparent erklärt.
     * * [ ] Link zur Datenschutzerklärung in der **Play Console** hinterlegt.
-    * * [ ] Link zur Datenschutzerklärung in der **App selbst** leicht auffindbar (z.B. im Einstellungsmenü).
+    * * [ x ] Link zur Datenschutzerklärung in der **App selbst** leicht auffindbar (z.B. im Einstellungsmenü).
 
 * **A.3 DATENSICHERHEIT (DATA SAFETY SECTION in Play Console):**
     * * [ x ] Formular in der Play Console wahrheitsgemäß ausgefüllt.
