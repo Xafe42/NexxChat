@@ -1,22 +1,22 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nexxchat_firebase/Screens/chat_home_screen.dart';
 import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
 import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
 
-// WICHTIG: Importiere ChatTheme (Passe den Pfad an, falls er anders liegt)
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Stellt sicher, dass Flutter-Bindings initialisiert sind, bevor Firebase geladen wird
   await Firebase.initializeApp(); // Initialisiert Firebase
   
   // NEU: Einstellungen laden bevor die App startet
-  await ChatTheme.loadTheme();      // Lädt Farben (Hintergrund 0xFFEEEEEE statt Weiß)
+  await ChatTheme.loadTheme();      // Lädt Farben
   await ChatTheme.loadThemeMode();  // Lädt Dark/Light Mode Einstellung
 
   runApp(MyApp()); // Startet die App
@@ -29,34 +29,72 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Listener für Dark/Light Mode
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, currentMode, child) {
-        return MaterialApp(
-          title: 'NexxChat', // Titel der App
-          debugShowCheckedModeBanner: false, // Entfernt das Debug-Banner
-          theme: ThemeData(
-            useMaterial3: true,
-            scaffoldBackgroundColor: Colors.white, 
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light),
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
-          ),
-          themeMode: currentMode,
-          // Startbildschirm abhängig davon, ob der Benutzer eingeloggt ist
-          initialRoute: _auth.currentUser != null
-              ? ChatHomeScreen.screenRoute // Wenn eingeloggt, zur Übersicht
-              : WelcomeScreen.screenRoute, // Wenn nicht eingeloggt, Willkommensbildschirm
-          // Definierte Routen für die App
-          routes: {
-            WelcomeScreen.screenRoute: (context) => const WelcomeScreen(),
-            SignInScreen.screenRoute: (context) => const SignInScreen(),
-            RegistrationScreen.screenRoute: (context) => const RegistrationScreen(),
-            ChatScreen.screenRoute: (context) => const ChatScreen(),
-            ChatHomeScreen.screenRoute: (context) => const ChatHomeScreen(), // Route für Übersicht
+        
+        // 2. NEU: Listener für Farbänderungen (reloadNotifier)
+        return ValueListenableBuilder<int>(
+          valueListenable: reloadNotifier, 
+          builder: (context, _, __) {
+
+            // Optional: Passt die System-Leiste unten (Android Buttons) an
+            final bool isDark = currentMode == ThemeMode.dark;
+            SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+              systemNavigationBarColor: isDark ? const Color(0xFF121212) : Colors.white,
+              systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            ));
+
+            return MaterialApp(
+              title: 'NexxChat', // Titel der App
+              debugShowCheckedModeBanner: false, // Entfernt das Debug-Banner
+              
+              theme: ThemeData(
+                useMaterial3: true,
+                scaffoldBackgroundColor: Colors.white, 
+                // Hier nutzen wir deine gespeicherte Farbe als Seed
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: ChatTheme.myBubbleColor, 
+                  brightness: Brightness.light
+                ),
+                // Zwingt den FAB (Button unten), die Farbe sofort zu ändern
+                floatingActionButtonTheme: FloatingActionButtonThemeData(
+                  backgroundColor: ChatTheme.myBubbleColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              
+              darkTheme: ThemeData(
+                useMaterial3: true,
+                scaffoldBackgroundColor: const Color(0xFF121212),
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: ChatTheme.myBubbleColor, 
+                  brightness: Brightness.dark
+                ),
+                // Zwingt den FAB auch im Dark Mode zur Aktualisierung
+                floatingActionButtonTheme: FloatingActionButtonThemeData(
+                  backgroundColor: ChatTheme.myBubbleColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              
+              themeMode: currentMode,
+              
+              // Startbildschirm abhängig davon, ob der Benutzer eingeloggt ist
+              initialRoute: _auth.currentUser != null
+                  ? ChatHomeScreen.screenRoute // Wenn eingeloggt, zur Übersicht
+                  : WelcomeScreen.screenRoute, // Wenn nicht eingeloggt, Willkommensbildschirm
+              
+              // Definierte Routen für die App
+              routes: {
+                WelcomeScreen.screenRoute: (context) => const WelcomeScreen(),
+                SignInScreen.screenRoute: (context) => const SignInScreen(),
+                RegistrationScreen.screenRoute: (context) => const RegistrationScreen(),
+                ChatScreen.screenRoute: (context) => const ChatScreen(),
+                ChatHomeScreen.screenRoute: (context) => const ChatHomeScreen(), // Route für Übersicht
+              },
+            );
           },
         );
       },

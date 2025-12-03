@@ -11,11 +11,16 @@ class ChatTheme {
   // --- Farben Speichern & Laden (wie bisher) ---
   static Future<void> saveTheme(Color bubble, Color bg) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('bubble_color', bubble.value);
-    await prefs.setInt('bg_color', bg.value);
+    
+    // .value ist deprecated, wir nutzen jetzt .toARGB32()
+    await prefs.setInt('bubble_color', bubble.toARGB32());
+    await prefs.setInt('bg_color', bg.toARGB32());
     
     myBubbleColor = bubble;
     backgroundColor = bg;
+
+    // NEU: Wir triggern den Reload, damit sich auch der FAB sofort aktualisiert
+    reloadNotifier.value++;
   }
 
   static Future<void> loadTheme() async {
@@ -48,4 +53,4 @@ class ChatTheme {
       }
     }
   }
-} 
+}

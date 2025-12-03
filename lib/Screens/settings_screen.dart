@@ -15,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  
   void _refresh() {
     setState(() {});
   }
@@ -29,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, mode, _) {
         final bool isDark = mode == ThemeMode.dark;
         final textColor = isDark ? Colors.white : Colors.black;
+        // Nimmt die Hintergrundfarbe aus der main.dart (weiß oder dunkelgrau)
         final bgColor = Theme.of(context).scaffoldBackgroundColor;
         final accentColor = ChatTheme.myBubbleColor;
 
@@ -77,15 +77,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     accentColor: accentColor,
                     trailing: Switch.adaptive(
                       value: isDark,
-                      activeColor: accentColor,
+                      activeTrackColor: accentColor,
                       onChanged: (val) {
-                        // Modus bestimmen
                         final newMode = val ? ThemeMode.dark : ThemeMode.light;
-                        
-                        // UI aktualisieren
                         themeNotifier.value = newMode;
-                        
-                        // WICHTIG: Speichern für den nächsten Neustart
                         ChatTheme.saveThemeMode(newMode);
                       },
                     ),
@@ -96,7 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle: "Theme colors & wallpapers",
                     accentColor: accentColor,
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatDesignScreen()))
+                      Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const ChatDesignScreen()))
                           .then((_) => _refresh());
                     },
                   ),
@@ -116,17 +114,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle: "Password, FaceID & 2FA",
                     accentColor: accentColor,
                     onTap: () {
-                   Navigator.push(
-                    context,
-                   MaterialPageRoute(builder: (_) => const SecurityScreen()),
-                         );      
-                         },
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SecurityScreen()),
+                      );
+                    },
                   ),
                   _SettingsTile(
                     icon: Icons.notifications_outlined,
                     title: "Notifications",
                     accentColor: accentColor,
-                    onTap: () { },
+                    onTap: () {},
                   ),
                 ],
               ),
@@ -138,6 +137,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsGroup(
                 isDark: isDark,
                 children: [
+                  // 1. Datenschutzerklärung (Jetzt hier oben und als Tile)
+                  _SettingsTile(
+                    icon: Icons.privacy_tip,
+                    title: "Datenschutzerklärung",
+                    subtitle: "Privacy Policy",
+                    accentColor: Colors.green, // Grün gelassen wie gewünscht
+                    onTap: () async {
+                      final url = Uri.parse(
+                        "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
+                      );
+                      await launchUrl(url,
+                          mode: LaunchMode.externalApplication);
+                    },
+                  ),
+                  // 2. About NexxChat
                   _SettingsTile(
                     icon: Icons.info_outline,
                     title: "About NexxChat",
@@ -147,18 +161,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-
-            ListTile(
-  leading: Icon(Icons.privacy_tip, color: Colors.green),
-  title: Text("Datenschutzerklärung"),
-  subtitle: Text("Privacy Policy"),
-  onTap: () async {
-    final url = Uri.parse(
-      "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
-    );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
-  },
-),
               const SizedBox(height: 40),
 
               // -------- Logout --------
@@ -166,22 +168,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: TextButton(
                   onPressed: () async {
                     await auth.signOut();
-                    if(context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(context, WelcomeScreen.screenRoute, (_) => false);
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, WelcomeScreen.screenRoute, (_) => false);
                     }
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                    backgroundColor: Colors.red.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12),
+                    backgroundColor: Colors.red.withValues(alpha: 0.1),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.logout, size: 20),
                       SizedBox(width: 8),
-                      Text("Log Out", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("Log Out",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -193,14 +200,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _circleButton({required IconData icon, required Color iconColor, required bool isDark, required VoidCallback onTap}) {
+  Widget _circleButton(
+      {required IconData icon,
+      required Color iconColor,
+      required bool isDark,
+      required VoidCallback onTap}) {
     return Container(
-      width: 45, height: 45,
+      width: 45,
+      height: 45,
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[800] : Colors.grey[200],
         shape: BoxShape.circle,
       ),
-      child: IconButton(icon: Icon(icon, color: iconColor, size: 24), onPressed: onTap),
+      child: IconButton(
+          icon: Icon(icon, color: iconColor, size: 24), onPressed: onTap),
     );
   }
 
@@ -209,7 +222,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.only(bottom: 10, left: 10),
       child: Text(
         title,
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.2),
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[500],
+            letterSpacing: 1.2),
       ),
     );
   }
@@ -230,7 +247,10 @@ class _SettingsGroup extends StatelessWidget {
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 5))
         ],
       ),
       child: Column(children: children),
@@ -246,14 +266,13 @@ class _SettingsTile extends StatelessWidget {
   final VoidCallback? onTap;
   final Color accentColor;
 
-  const _SettingsTile({
-    required this.icon, 
-    required this.title, 
-    this.subtitle, 
-    this.trailing, 
-    this.onTap,
-    required this.accentColor
-  });
+  const _SettingsTile(
+      {required this.icon,
+      required this.title,
+      this.subtitle,
+      this.trailing,
+      this.onTap,
+      required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -270,9 +289,15 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Icon(icon, color: accentColor, size: 22),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      subtitle: subtitle != null ? Text(subtitle!, style: TextStyle(color: Colors.grey[600], fontSize: 13)) : null,
-      trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      subtitle: subtitle != null
+          ? Text(subtitle!,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13))
+          : null,
+      trailing: trailing ??
+          const Icon(Icons.arrow_forward_ios_rounded,
+              size: 16, color: Colors.grey),
     );
   }
 }
@@ -290,13 +315,25 @@ class ChatDesignScreen extends StatefulWidget {
 
 class _ChatDesignScreenState extends State<ChatDesignScreen> {
   final List<Color> bubbleColors = [
-    Colors.blue[800]!, Colors.purple, Colors.orange[800]!, Colors.green[700]!,
-    Colors.redAccent, const Color(0xFF2D3436), Colors.teal, const Color(0xFFE84393),
+    Colors.blue[800]!,
+    Colors.purple,
+    Colors.orange[800]!,
+    Colors.green[700]!,
+    Colors.redAccent,
+    const Color(0xFF2D3436),
+    Colors.teal,
+    const Color(0xFFE84393),
   ];
 
   final List<Color> bgColors = [
-    const Color(0xFFEEEEEE), const Color(0xFFE3F2FD), const Color(0xFFF3E5F5), const Color(0xFFFFF3E0),
-    const Color(0xFFE8F5E9), const Color(0xFFECEFF1), const Color(0xFF212121), Colors.black,
+    const Color(0xFFEEEEEE),
+    const Color(0xFFE3F2FD),
+    const Color(0xFFF3E5F5),
+    const Color(0xFFFFF3E0),
+    const Color(0xFFE8F5E9),
+    const Color(0xFFECEFF1),
+    const Color(0xFF212121),
+    Colors.black,
   ];
 
   @override
@@ -313,9 +350,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
   void _save(Color bubble, Color bg) {
     ChatTheme.saveTheme(bubble, bg);
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Design saved!"), behavior: SnackBarBehavior.floating, duration: Duration(milliseconds: 800)),
-    );
+    // Keine SnackBar mehr
   }
 
   @override
@@ -324,9 +359,12 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : const Color(0xFFF5F7FB),
+      // HIER KORRIGIERT: Statt Colors.black nehmen wir das sanftere Grau
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: Text("Chat Design", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+        title: Text("Chat Design",
+            style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -343,8 +381,14 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
             decoration: BoxDecoration(
               color: ChatTheme.backgroundColor,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.grey.withOpacity(0.2), width: 4),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))],
+              border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.2), width: 4),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10))
+              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -354,11 +398,19 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.grey[800] : Colors.white,
-                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20), bottomRight: Radius.circular(20)),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
-                    ),
-                    child: Text("How do you like the new design?", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                        color: isDark ? Colors.grey[800] : Colors.white,
+                        borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                            bottomRight: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 5)
+                        ]),
+                    child: Text("How do you like the new design?",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87)),
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -367,11 +419,21 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: ChatTheme.myBubbleColor,
-                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20), bottomLeft: Radius.circular(20)),
-                      boxShadow: [BoxShadow(color: ChatTheme.myBubbleColor.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
-                    ),
-                    child: const Text("Looks great! 🚀", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                        color: ChatTheme.myBubbleColor,
+                        borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                            bottomLeft: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: ChatTheme.myBubbleColor
+                                  .withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ]),
+                    child: const Text("Looks great! 🚀",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w500)),
                   ),
                 ),
               ],
@@ -381,7 +443,12 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
           const SizedBox(height: 40),
 
           // BUBBLE COLORS
-          Text("ACCENT COLOR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.5)),
+          Text("ACCENT COLOR",
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 1.5)),
           const SizedBox(height: 15),
           SizedBox(
             height: 60,
@@ -399,12 +466,20 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                     width: selected ? 55 : 45,
                     height: selected ? 55 : 45,
                     decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: selected ? Border.all(color: textColor, width: 3) : null,
-                      boxShadow: [BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
-                    ),
-                    child: selected ? const Icon(Icons.check, color: Colors.white) : null,
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: selected
+                            ? Border.all(color: textColor, width: 3)
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                              color: c.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ]),
+                    child: selected
+                        ? const Icon(Icons.check, color: Colors.white)
+                        : null,
                   ),
                 );
               },
@@ -414,7 +489,12 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
           const SizedBox(height: 40),
 
           // BACKGROUND COLORS
-          Text("BACKGROUND COLOR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.5)),
+          Text("BACKGROUND COLOR",
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 1.5)),
           const SizedBox(height: 15),
           SizedBox(
             height: 60,
@@ -434,9 +514,18 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: Border.all(color: selected ? Colors.blueAccent : Colors.grey.shade300, width: selected ? 3 : 1),
+                      border: Border.all(
+                          color: selected
+                              ? Colors.blueAccent
+                              : Colors.grey.shade300,
+                          width: selected ? 3 : 1),
                     ),
-                    child: selected ? Icon(Icons.check, color: c.computeLuminance() < 0.5 ? Colors.white : Colors.black) : null,
+                    child: selected
+                        ? Icon(Icons.check,
+                            color: c.computeLuminance() < 0.5
+                                ? Colors.white
+                                : Colors.black)
+                        : null,
                   ),
                 );
               },
