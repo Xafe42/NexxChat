@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/security_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/services/chat_theme.dart';
 import '../theme_notifier.dart';
@@ -106,13 +107,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "Security",
                     subtitle: "Password, FaceID & 2FA",
                     accentColor: accentColor,
-                    onTap: () {},
+                    onTap: () {
+                   Navigator.push(
+                    context,
+                   MaterialPageRoute(builder: (_) => const SecurityScreen()),
+                         );      
+                         },
                   ),
                   _SettingsTile(
                     icon: Icons.notifications_outlined,
                     title: "Notifications",
                     accentColor: accentColor,
-                    onTap: () {},
+                    onTap: () { },
                   ),
                 ],
               ),
