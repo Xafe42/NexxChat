@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:path/path.dart' as path;
-
+import '../widgets/reaction_picker.dart';
 // Mini-apps & previews
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
@@ -20,10 +20,10 @@ import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
 import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
+import '../widgets/event_card.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
-import '../widgets/reaction_picker.dart'; 
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -91,34 +91,161 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // ---------- Load Other User ----------
+  // Funktion für Gruppen Einstellungen
+  void _showGroupSettings(BuildContext context, Map<String, dynamic> convData) {
+    final currentUid = _auth.currentUser?.uid;
+    final adminUid = convData['admin'];
+    final isGroup = convData['isGroup'] == true;
+
+    // Nur bei Gruppen anzeigen
+    if (!isGroup) return;
+
+    showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) {
+          final nameCtrl = TextEditingController(text: convData['name']);
+
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Gruppen Einstellungen",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+
+                // Name ändern
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: "Gruppenname"),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameCtrl.text.trim().isNotEmpty) {
+                      await _db
+                          .collection('conversations')
+                          .doc(widget.conversationId)
+                          .update({'name': nameCtrl.text.trim()});
+                      if (mounted) Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Speichern"),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Löschen (Nur wenn Admin)
+                if (currentUid == adminUid)
+                  TextButton.icon(
+                    onPressed: () async {
+                      // Sicherheitsabfrage
+                      showDialog(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                                title: const Text("Gruppe löschen?"),
+                                content: const Text(
+                                    "Dies kann nicht rückgängig gemacht werden."),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(c),
+                                      child: const Text("Abbrechen")),
+                                  TextButton(
+                                      onPressed: () async {
+                                        Navigator.pop(c); // Dialog zu
+                                        Navigator.pop(
+                                            context); // BottomSheet zu
+                                        Navigator.pop(context); // Screen zu
+                                        await _db
+                                            .collection('conversations')
+                                            .doc(widget.conversationId)
+                                            .delete();
+                                      },
+                                      child: const Text("Löschen",
+                                          style: TextStyle(color: Colors.red))),
+                                ],
+                              ));
+                    },
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    label: const Text("Gruppe löschen",
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        });
+  }
+
+  // ---------- Load Other  User ----------
 
   Future<void> _loadOtherUser() async {
     try {
       final convDoc = await _db.collection("conversations").doc(widget.conversationId).get();
       if (!convDoc.exists) return;
 
-      final data = convDoc.data()!;
-      final isGroup = data['isGroup'] == true;
+    final data = convDoc.data()!;
+    final members = List<String>.from(data['members']);
+    final currentUid = FirebaseAuth.instance.currentUser!.uid;
 
-      // Wenn es eine Gruppe ist, ist userDeleted irrelevant für den Chat
-      if (isGroup) return;
+    // other uid
+    otherUserId = members.firstWhere((id) => id != currentUid);
 
-      final members = List<String>.from(data['members'] ?? []);
-      final currentUid = _auth.currentUser?.uid;
+    final userDoc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(otherUserId)
+        .get();
 
-      if (currentUid == null) return;
+    if (!userDoc.exists) {
+      setState(() => userDeleted = true);
+    }
+  }
 
-      otherUserId = members.firstWhere((id) => id != currentUid, orElse: () => "");
+  // ---------- Deleted User ----------
 
-      if (otherUserId!.isNotEmpty) {
-        final userDoc = await _db.collection("users").doc(otherUserId).get();
-        if (!userDoc.exists) {
-          if (mounted) setState(() => userDeleted = true);
-        }
-      }
-    } catch (e) {
-      debugPrint("Fehler beim Laden des Users: $e");
+  Future<void> _checkIfUserDeleted() async {
+    final otherUserDoc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(otherUserId)
+        .get();
+
+    if (!otherUserDoc.exists) {
+      setState(() => userDeleted = true);
+    }
+  }
+
+  // ---------- Sart Video Call----------
+
+  Future<void> _startVideoCall(Map<String, dynamic> convData) async {
+    final members = List<String>.from(convData['members'] ?? []);
+
+    final otherUserId = members.firstWhere(
+      (m) => m != _user!.uid,
+      orElse: () => "",
+    );
+
+    if (otherUserId.isEmpty) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CallScreen(
+          callID: widget.conversationId,
+          userID: _user!.uid,
+          userName: _user!.email!,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await _sendCallSummary(result);
+      setState(() {});
     }
   }
 
@@ -204,15 +331,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         return;
       }
     }
-
-    // Hidden Chat Logik
     await FirebaseFirestore.instance
         .collection("users")
         .doc(_user!.uid)
         .update({
       "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
     });
-
     if (mounted) setState(() {});
     setState(() => _sending = true);
     try {

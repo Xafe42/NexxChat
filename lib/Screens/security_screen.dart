@@ -174,7 +174,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
               TextField(
                 controller: currentPassController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Current Password"),
+                decoration:
+                    const InputDecoration(labelText: "Current Password"),
               ),
               TextField(
                 controller: newPassController,
