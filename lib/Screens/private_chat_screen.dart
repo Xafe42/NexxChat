@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+// Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:path/path.dart' as path;
@@ -20,8 +21,9 @@ import '../core/services/chat_service.dart';
 import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
+import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
-import '../widgets/reaction_picker.dart';
+import '../widgets/reaction_picker.dart'; 
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -51,6 +53,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _showScrollBtn = false;
 
   // -------- Mini-apps state --------
+  // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
   bool _isAiPreviewVisible = false;
@@ -88,436 +91,35 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // Funktion für Gruppen Einstellungen
-  void _showGroupSettings(BuildContext context, Map<String, dynamic> convData) {
-    final currentUid = _auth.currentUser?.uid;
-    final adminUid = convData['admin'];
-    final isGroup = convData['isGroup'] == true;
-    final members = List<String>.from(convData['members'] ?? []);
-
-    if (!isGroup) return;
-
-    showModalBottomSheet(
-<<<<<<< Updated upstream
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true, // Damit es nicht unter die Statusbar rutscht
-      builder: (context) {
-        final nameCtrl = TextEditingController(text: convData['name']);
-        
-        return DraggableScrollableSheet( // Macht das Sheet größer/scrollbar
-          expand: false,
-          initialChildSize: 0.9, // 90% der Höhe
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (_, scrollController) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 20, 
-                right: 20, 
-                top: 20
-              ),
-              child: ListView( // ListView statt Column für Scrollen
-                controller: scrollController,
-                children: [
-                  const Text("Gruppen Einstellungen", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                  const SizedBox(height: 20),
-                  
-                  // --- 1. NAME ÄNDERN ---
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: "Gruppenname",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.save),
-                        onPressed: () async {
-                          if (nameCtrl.text.trim().isNotEmpty) {
-                            await _db.collection('conversations').doc(widget.conversationId).update({
-                              'name': nameCtrl.text.trim()
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name gespeichert!")));
-                          }
-                        },
-                      )
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // --- 2. TEILNEHMER LISTE ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Teilnehmer (${members.length})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      // Hinzufügen Button
-                      IconButton(
-                        icon: const Icon(Icons.person_add, color: Colors.blue),
-                        onPressed: () => _showAddMemberDialog(context, members),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  
-                  // StreamBuilder für die User-Details der Mitglieder
-                  StreamBuilder<QuerySnapshot>(
-                    stream: _db.collection('users').where(FieldPath.documentId, whereIn: members).snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      
-                      final userDocs = snapshot.data!.docs;
-                      
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: userDocs.length,
-                        itemBuilder: (context, index) {
-                          final userData = userDocs[index].data() as Map<String, dynamic>;
-                          final uid = userDocs[index].id;
-                          final name = userData['fullName'] ?? "Unbekannt";
-                          final isAdmin = uid == adminUid;
-
-                          return ListTile(
-                            leading: CircleAvatar(
-                              child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?"),
-                            ),
-                            title: Text(name + (uid == currentUid ? " (Du)" : "")),
-                            subtitle: isAdmin ? const Text("Admin", style: TextStyle(color: Colors.green, fontSize: 12)) : null,
-                            trailing: (currentUid == adminUid && uid != currentUid)
-                                ? IconButton( // Admin kann andere kicken
-                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                                    onPressed: () => _removeMember(uid, name),
-                                  )
-                                : null,
-                          );
-                        },
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  
-                  // --- 3. AKTIONEN (Verlassen / Löschen) ---
-                  
-                  // Gruppe verlassen
-                  ListTile(
-                    leading: const Icon(Icons.exit_to_app, color: Colors.orange),
-                    title: const Text("Gruppe verlassen", style: TextStyle(color: Colors.orange)),
-                    onTap: () => _leaveGroup(currentUid!, members),
-                  ),
-
-                  // Löschen (Nur Admin)
-                  if (currentUid == adminUid)
-                    ListTile(
-                      leading: const Icon(Icons.delete_forever, color: Colors.red),
-                      title: const Text("Gruppe löschen", style: TextStyle(color: Colors.red)),
-                      onTap: () => _deleteGroup(context),
-                    ),
-                    
-                  const SizedBox(height: 20),
-                ],
-              ),
-            );
-          }
-        );
-      }
-    );
-  }
-
-  // --- HELPER: Dialog zum Hinzufügen von Mitgliedern ---
-  void _showAddMemberDialog(BuildContext context, List<String> currentMembers) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.8,
-          builder: (_, scrollCtrl) {
-            return Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text("Teilnehmer hinzufügen", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    // Zeige alle User, die NOCH NICHT in der Gruppe sind
-                    // (Firestore 'not-in' ist limitiert, besser client-side filtern oder einfache Query)
-                    stream: _db.collection('users').snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      
-                      // Filtere User, die schon drin sind
-                      final availableUsers = snapshot.data!.docs.where((doc) => !currentMembers.contains(doc.id)).toList();
-
-                      if (availableUsers.isEmpty) {
-                        return const Center(child: Text("Keine weiteren Nutzer gefunden"));
-                      }
-
-                      return ListView.builder(
-                        controller: scrollCtrl,
-                        itemCount: availableUsers.length,
-                        itemBuilder: (context, index) {
-                          final userDoc = availableUsers[index];
-                          final userData = userDoc.data() as Map<String, dynamic>;
-                          return ListTile(
-                            leading: CircleAvatar(child: Text((userData['fullName'] ?? "?")[0])),
-                            title: Text(userData['fullName'] ?? "Unbekannt"),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.add_circle, color: Colors.blue),
-                              onPressed: () async {
-                                // User hinzufügen
-                                await _db.collection('conversations').doc(widget.conversationId).update({
-                                  'members': FieldValue.arrayUnion([userDoc.id])
-                                });
-                                if (mounted) {
-                                  Navigator.pop(context); // Dialog schließen
-                                  // Optional: Toast/Snackbar
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          }
-        );
-      },
-    );
-  }
-
-  // --- HELPER: Mitglied entfernen ---
-  Future<void> _removeMember(String uid, String name) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text("$name entfernen?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Nein")),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Ja", style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await _db.collection('conversations').doc(widget.conversationId).update({
-        'members': FieldValue.arrayRemove([uid])
-      });
-    }
-  }
-
-  // --- HELPER: Gruppe verlassen ---
-  Future<void> _leaveGroup(String myUid, List<String> members) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text("Gruppe verlassen?"),
-        content: const Text("Du kannst danach keine Nachrichten mehr senden."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Abbrechen")),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Verlassen", style: TextStyle(color: Colors.orange))),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      // Wenn ich der letzte bin, Gruppe löschen? Oder einfach raus.
-      if (members.length <= 1) {
-         // Letzte Person -> Löschen
-         await _db.collection('conversations').doc(widget.conversationId).delete();
-      } else {
-         // Einfach raus
-         await _db.collection('conversations').doc(widget.conversationId).update({
-          'members': FieldValue.arrayRemove([myUid])
-        });
-      }
-      if (mounted) {
-        Navigator.pop(context); // Menü zu
-        Navigator.pop(context); // Chat Screen zu (zurück zur Home)
-      }
-    }
-  }
-
-  // --- HELPER: Gruppe löschen (Admin) ---
-  Future<void> _deleteGroup(BuildContext context) async {
-    showDialog(context: context, builder: (c) => AlertDialog(
-      title: const Text("Gruppe löschen?"),
-      content: const Text("Dies kann nicht rückgängig gemacht werden."),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text("Abbrechen")),
-        TextButton(onPressed: () async {
-           Navigator.pop(c); // Dialog zu
-           Navigator.pop(context); // BottomSheet zu
-           Navigator.pop(context); // Screen zu
-           await _db.collection('conversations').doc(widget.conversationId).delete();
-        }, child: const Text("Löschen", style: TextStyle(color: Colors.red))),
-      ],
-    ));
-  }
-    // ---------- Sart Video Call----------
-=======
-        context: context,
-        isScrollControlled: true,
-        builder: (context) {
-          final nameCtrl = TextEditingController(text: convData['name']);
-
-          return Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("Gruppen Einstellungen",
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-
-                // Name ändern
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: "Gruppenname"),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameCtrl.text.trim().isNotEmpty) {
-                      await _db
-                          .collection('conversations')
-                          .doc(widget.conversationId)
-                          .update({'name': nameCtrl.text.trim()});
-                      if (mounted) Navigator.pop(context);
-                    }
-                  },
-                  child: const Text("Speichern"),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Löschen (Nur wenn Admin)
-                if (currentUid == adminUid)
-                  TextButton.icon(
-                    onPressed: () async {
-                      // Sicherheitsabfrage
-                      showDialog(
-                          context: context,
-                          builder: (c) => AlertDialog(
-                                title: const Text("Gruppe löschen?"),
-                                content: const Text(
-                                    "Dies kann nicht rückgängig gemacht werden."),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(c),
-                                      child: const Text("Abbrechen")),
-                                  TextButton(
-                                      onPressed: () async {
-                                        Navigator.pop(c); // Dialog zu
-                                        Navigator.pop(
-                                            context); // BottomSheet zu
-                                        Navigator.pop(context); // Screen zu
-                                        await _db
-                                            .collection('conversations')
-                                            .doc(widget.conversationId)
-                                            .delete();
-                                      },
-                                      child: const Text("Löschen",
-                                          style: TextStyle(color: Colors.red))),
-                                ],
-                              ));
-                    },
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text("Gruppe löschen",
-                        style: TextStyle(color: Colors.red)),
-                  ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        });
-  }
-
-  // ---------- Load Other  User ----------
+  // ---------- Load Other User ----------
 
   Future<void> _loadOtherUser() async {
-    final convDoc = await FirebaseFirestore.instance
-        .collection("conversations")
-        .doc(widget.conversationId)
-        .get();
+    try {
+      final convDoc = await _db.collection("conversations").doc(widget.conversationId).get();
+      if (!convDoc.exists) return;
 
-    if (!convDoc.exists) return;
+      final data = convDoc.data()!;
+      final isGroup = data['isGroup'] == true;
 
-    final data = convDoc.data()!;
-    final members = List<String>.from(data['members']);
-    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+      // Wenn es eine Gruppe ist, ist userDeleted irrelevant für den Chat
+      if (isGroup) return;
 
-    // other uid
-    otherUserId = members.firstWhere((id) => id != currentUid);
+      final members = List<String>.from(data['members'] ?? []);
+      final currentUid = _auth.currentUser?.uid;
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(otherUserId)
-        .get();
+      if (currentUid == null) return;
 
-    if (!userDoc.exists) {
-      setState(() => userDeleted = true);
+      otherUserId = members.firstWhere((id) => id != currentUid, orElse: () => "");
+
+      if (otherUserId!.isNotEmpty) {
+        final userDoc = await _db.collection("users").doc(otherUserId).get();
+        if (!userDoc.exists) {
+          if (mounted) setState(() => userDeleted = true);
+        }
+      }
+    } catch (e) {
+      debugPrint("Fehler beim Laden des Users: $e");
     }
-  }
-
-  // ---------- Deleted User ----------
-
-  Future<void> _checkIfUserDeleted() async {
-    final otherUserDoc = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(otherUserId)
-        .get();
-
-    if (!otherUserDoc.exists) {
-      setState(() => userDeleted = true);
-    }
-  }
-
-  // ---------- Sart Video Call----------
-
-  Future<void> _startVideoCall(Map<String, dynamic> convData) async {
-    final members = List<String>.from(convData['members'] ?? []);
-
-    final otherUserId = members.firstWhere(
-      (m) => m != _user!.uid,
-      orElse: () => "",
-    );
->>>>>>> Stashed changes
-
-    if (otherUserId.isEmpty) return;
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CallScreen(
-          callID: widget.conversationId,
-          userID: _user!.uid,
-          userName: _user!.email!,
-        ),
-      ),
-    );
-
-<<<<<<< Updated upstream
-  if (result != null) {
-    await _sendCallSummary(result);
-    setState(() {});   
-=======
-    if (result != null) {
-      await _sendCallSummary(result);
-      setState(() {});
-    }
->>>>>>> Stashed changes
   }
 
   // ---------- Send Call ----------
@@ -552,11 +154,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _lastTypingState = isTyping;
 
-    await _db.collection('conversations').doc(widget.conversationId).update({
-      'typingUsers': isTyping
-          ? FieldValue.arrayUnion([_user!.uid])
-          : FieldValue.arrayRemove([_user!.uid]),
-    });
+    try {
+      await _db.collection('conversations').doc(widget.conversationId).update({
+        'typingUsers': isTyping
+            ? FieldValue.arrayUnion([_user!.uid])
+            : FieldValue.arrayRemove([_user!.uid]),
+      });
+    } catch (_) {
+      // Ignorieren falls Doc nicht existiert
+    }
   }
 
   // ---------- Input change (typing + slash commands) ----------
@@ -598,12 +204,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         return;
       }
     }
-      await FirebaseFirestore.instance
-      .collection("users")
-      .doc(_user!.uid)
-      .update({
-    "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
-     });
+
+    // Hidden Chat Logik
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(_user!.uid)
+        .update({
+      "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
+    });
+
     if (mounted) setState(() {});
     setState(() => _sending = true);
     try {
@@ -668,7 +277,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (_user == null) return;
 
     final convRef = _db.collection('conversations').doc(widget.conversationId);
-
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
@@ -822,7 +430,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ---------- Reactions  ----------
+  // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
     if (_user == null) return;
@@ -837,7 +445,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (!snap.exists) return;
 
     final data = snap.data() as Map<String, dynamic>;
-
     final currentReaction = data['reaction'];
 
     if (currentReaction == emoji) {
@@ -1022,52 +629,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             }
           }
 
-<<<<<<< Updated upstream
-        return Scaffold(
-          // 🔥 WICHTIGE ÄNDERUNG: Hintergrund ist jetzt IMMER ChatTheme.backgroundColor
-          // egal ob Dark Mode oder Light Mode aktiv ist.
-          backgroundColor: ChatTheme.backgroundColor, 
-          appBar: AppBar(
-            backgroundColor: isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            titleSpacing: 0,
-            title: Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-                CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: isGroup
-                    ? const Icon(Icons.groups, color: Colors.white, size: 20)
-                    : Text(
-                        displayTitle.isNotEmpty
-                            ? displayTitle[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: InkWell(
-                    // Klick auf den Titel öffnet Einstellungen bei Gruppen
-                    onTap: (isGroup && convData != null) 
-                        ? () => _showGroupSettings(context, convData!) 
-                        : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayTitle,
-                          style: const TextStyle(color: Colors.white, fontSize: 18),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (isGroup) 
-                          const Text("Tippen für Infos", style: TextStyle(color: Colors.white70, fontSize: 12))
-                      ],
-=======
           return Scaffold(
             backgroundColor: ChatTheme.backgroundColor,
             appBar: AppBar(
@@ -1081,7 +642,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
->>>>>>> Stashed changes
                     ),
                     CircleAvatar(
                       backgroundColor: Colors.teal,
@@ -1098,9 +658,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: InkWell(
-                        // Klick auf den Titel öffnet Einstellungen bei Gruppen
+                        // 🔥 Klick auf den Titel öffnet jetzt das GroupSettingsSheet
                         onTap: (isGroup && convData != null)
-                            ? () => _showGroupSettings(context, convData!)
+                            ? () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => GroupSettingsSheet(
+                                    conversationId: widget.conversationId,
+                                  ),
+                                );
+                              }
                             : null,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1192,6 +762,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           }
 
                           final docs = snap.data!.docs;
+
                           if (userDeleted) {
                             return Center(
                               child: Text(
@@ -1495,6 +1066,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (type == 'call') {
       final status = msg['status'];
       final duration = msg['duration'];
+      // ignore: unused_local_variable
       final callType = msg['callType'];
 
       String text = "";
@@ -1570,11 +1142,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       bubbleWidget = _Bubble(
         isMe: isMe,
         bubbleColor: bubbleColor,
-        child: child,
         time: time,
         textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(msg["id"]),
+        child: child,
       );
     }
 
@@ -1609,6 +1181,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         child: _Bubble(
           isMe: isMe,
           bubbleColor: bubbleColor,
+          time: time,
+          textColor: textColor,
+          senderName: isMe ? null : senderEmail.toString().split("@").first,
+          onLongPress: () => _openReactionPicker(msg['id']),
           child: Column(
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -1624,26 +1200,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   style: TextStyle(fontSize: 15, color: textColor)),
             ],
           ),
-          time: time,
-          textColor: textColor,
-          senderName: isMe ? null : senderEmail.toString().split("@").first,
-          onLongPress: () => _openReactionPicker(msg['id']),
         ),
       );
     }
 
     // ---------- EVENT REF ----------
     else if (type == 'event_ref') {
+      // ignore: unused_local_variable
       final eventId = msg['eventId']?.toString();
 
       bubbleWidget = _Bubble(
         isMe: isMe,
         bubbleColor: bubbleColor,
-        child: Text("📅 Event"),
         time: time,
         textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(msg["id"]),
+        child: Text("📅 Event"),
       );
     }
 
@@ -1653,12 +1226,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       bubbleWidget = _Bubble(
         isMe: isMe,
         bubbleColor: bubbleColor,
-        child: Text(text.toString(),
-            style: TextStyle(fontSize: 17, color: textColor)),
         time: time,
         textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(msg["id"]),
+        child: Text(text.toString(),
+            style: TextStyle(fontSize: 17, color: textColor)),
       );
     }
 
@@ -1709,8 +1282,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return Container(
       color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
       child: SafeArea(
-        top:
-            false, // Oben keine Safearea, damit es direkt an die Liste anschließt
+        top: false, // Oben keine Safearea, damit es direkt an die Liste anschließt
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
@@ -1789,7 +1361,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Widget _slashToolbar() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final backgroundColor =
+        isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Positioned(
       left: 0,
@@ -1885,9 +1458,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
-    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
+    final borderColor =
+        isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
     final titleColor = isDarkMode ? Colors.white : Colors.black;
-    final descColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
+    final descColor =
+        isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
 
     return GestureDetector(
       onTap: onTap,
@@ -1945,7 +1520,8 @@ class _DateChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
             color: isDark
                 ? const Color.fromARGB(200, 24, 34, 40)
@@ -1986,12 +1562,15 @@ class _ImageBubble extends StatelessWidget {
     );
 
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment:
+          isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        margin:
+            const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: borderRadius,
@@ -2016,7 +1595,6 @@ class _ImageBubble extends StatelessWidget {
     );
   }
 }
-
 class _Bubble extends StatelessWidget {
   final Widget child;
   final String time;
@@ -2076,7 +1654,7 @@ class _Bubble extends StatelessWidget {
                     Text(
                       time,
                       style: TextStyle(
-                        color: textColor.withOpacity(0.7),
+                        color: textColor.withOpacity(0.7), 
                         fontSize: 11,
                       ),
                     ),
