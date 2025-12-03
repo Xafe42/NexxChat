@@ -7,11 +7,18 @@ import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
 import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
 
+// WICHTIG: Importiere ChatTheme (Passe den Pfad an, falls er anders liegt)
+import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized(); // Stellt sicher, dass Flutter-Bindings initialisiert sind, bevor Firebase geladen wird
   await Firebase.initializeApp(); // Initialisiert Firebase
+  
+  // NEU: Einstellungen laden bevor die App startet
+  await ChatTheme.loadTheme();      // Lädt Farben (Hintergrund 0xFFEEEEEE statt Weiß)
+  await ChatTheme.loadThemeMode();  // Lädt Dark/Light Mode Einstellung
+
   runApp(MyApp()); // Startet die App
 }
 
@@ -30,8 +37,8 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false, // Entfernt das Debug-Banner
           theme: ThemeData(
             useMaterial3: true,
-            scaffoldBackgroundColor: Colors.white,
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light), // Hauptfarbe der App
+            scaffoldBackgroundColor: Colors.white, 
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light),
           ),
           darkTheme: ThemeData(
             useMaterial3: true,

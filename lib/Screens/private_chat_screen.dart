@@ -9,7 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:path/path.dart' as path;
-import '../widgets/reaction_picker.dart';
+
 // Mini-apps & previews
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
@@ -19,9 +19,9 @@ import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
 import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
-import '../widgets/event_card.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/hello_preview.dart';
+import '../widgets/reaction_picker.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -188,7 +188,7 @@ Future<void> _startVideoCall(Map<String, dynamic> convData) async {
 
   if (result != null) {
     await _sendCallSummary(result);
-    setState(() {}); 
+    setState(() {});   
   }
 }
 
@@ -698,6 +698,8 @@ Future<void> _toggleReaction(String messageId, String emoji) async {
         }
 
         return Scaffold(
+          // 🔥 WICHTIGE ÄNDERUNG: Hintergrund ist jetzt IMMER ChatTheme.backgroundColor
+          // egal ob Dark Mode oder Light Mode aktiv ist.
           backgroundColor: ChatTheme.backgroundColor, 
           appBar: AppBar(
             backgroundColor: isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,

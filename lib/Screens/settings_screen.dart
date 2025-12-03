@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../core/services/chat_theme.dart';
 import '../theme_notifier.dart';
 import 'welcome_screens.dart';
@@ -77,7 +78,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: isDark,
                       activeColor: accentColor,
                       onChanged: (val) {
-                        themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                        // Modus bestimmen
+                        final newMode = val ? ThemeMode.dark : ThemeMode.light;
+                        
+                        // UI aktualisieren
+                        themeNotifier.value = newMode;
+                        
+                        // WICHTIG: Speichern für den nächsten Neustart
+                        ChatTheme.saveThemeMode(newMode);
                       },
                     ),
                   ),
