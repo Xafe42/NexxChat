@@ -48,7 +48,7 @@
     * * [ x ] **Paketname (Application ID)** im Android-Manifest und in der Firebase Console identisch.
 
 * **B.5 STABILITÄT & TESTING:**
-    * * [ ] App wurde auf realen Geräten (verschiedene Android-Versionen) getestet.
+    * * [ x ] App wurde auf realen Geräten (verschiedene Android-Versionen) getestet.
 
 ---
 
