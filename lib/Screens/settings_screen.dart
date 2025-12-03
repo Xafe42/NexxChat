@@ -137,12 +137,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsGroup(
                 isDark: isDark,
                 children: [
-                  // 1. Datenschutzerklärung (Jetzt hier oben und als Tile)
                   _SettingsTile(
                     icon: Icons.privacy_tip,
                     title: "Datenschutzerklärung",
                     subtitle: "Privacy Policy",
-                    accentColor: Colors.green, // Grün gelassen wie gewünscht
+                    accentColor: accentColor, 
                     onTap: () async {
                       final url = Uri.parse(
                         "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
