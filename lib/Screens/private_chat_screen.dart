@@ -9,6 +9,9 @@ import 'package:intl/intl.dart';
 // Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
+import 'package:nexxchat_firebase/widgets/call_time_bubble.dart';
+import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
+import 'package:nexxchat_firebase/widgets/calltime_preview.dart';
 import 'package:path/path.dart' as path;
 
 // Mini-apps & previews
@@ -23,7 +26,7 @@ import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
-import '../widgets/reaction_picker.dart'; 
+import '../widgets/reaction_picker.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -92,37 +95,38 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // ---------- Load Other User ----------
-Future<void> _loadOtherUser() async {
-  try {
-    final convDoc = await _db.collection("conversations")
-        .doc(widget.conversationId)
-        .get();
+  Future<void> _loadOtherUser() async {
+    try {
+      final convDoc = await _db
+          .collection("conversations")
+          .doc(widget.conversationId)
+          .get();
 
-    if (!convDoc.exists) return;
+      if (!convDoc.exists) return;
 
-    final data = convDoc.data()!;
-    final isGroup = data['isGroup'] == true;
+      final data = convDoc.data()!;
+      final isGroup = data['isGroup'] == true;
 
-    if (isGroup) return;
+      if (isGroup) return;
 
-    final members = List<String>.from(data['members'] ?? []);
-    final currentUid = _auth.currentUser?.uid;
+      final members = List<String>.from(data['members'] ?? []);
+      final currentUid = _auth.currentUser?.uid;
 
-    if (currentUid == null) return;
+      if (currentUid == null) return;
 
-    otherUserId = members.firstWhere((id) => id != currentUid, orElse: () => "");
+      otherUserId =
+          members.firstWhere((id) => id != currentUid, orElse: () => "");
 
-    if (otherUserId!.isNotEmpty) {
-      final userDoc = await _db.collection("users").doc(otherUserId).get();
-      if (!userDoc.exists) {
-        if (mounted) setState(() => userDeleted = true);
+      if (otherUserId!.isNotEmpty) {
+        final userDoc = await _db.collection("users").doc(otherUserId).get();
+        if (!userDoc.exists) {
+          if (mounted) setState(() => userDeleted = true);
+        }
       }
+    } catch (e) {
+      debugPrint("Fehler beim Laden des Users: $e");
     }
-
-  } catch (e) {
-    debugPrint("Fehler beim Laden des Users: $e");
   }
-}
   // ---------- Send Call ----------
 
   Future<void> _sendCallSummary(Map<String, dynamic> call) async {
@@ -187,6 +191,7 @@ Future<void> _loadOtherUser() async {
           _openTetris();
         });
       }
+      ;
     });
   }
 
@@ -430,7 +435,35 @@ Future<void> _loadOtherUser() async {
       },
     );
   }
+Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
+  final date = data["date"]; 
+  final time = data["time"]; 
+  final note = data["note"];
 
+  final scheduledDateTime = DateTime.parse("$date $time:00");
+
+  
+  final payload = {
+    "date": date,
+    "time": time,
+    "note": note,
+    "scheduledAt": scheduledDateTime.millisecondsSinceEpoch,
+  };
+
+  await FirebaseFirestore.instance
+      .collection("conversations")
+      .doc(widget.conversationId)
+      .collection("messages")
+      .add({
+    "type": "calltime",
+    "senderId": _user!.uid,
+    "timestamp": FieldValue.serverTimestamp(),
+    "payload": payload,  
+    
+  });
+
+  _resetInput();
+}
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -992,7 +1025,19 @@ Future<void> _loadOtherUser() async {
                       },
                     ),
                   ),
-
+                // CallTime preview
+                if (_aktiveCmd?.type == "calltime")
+                  Positioned(
+                    bottom: 70,
+                    left: 0,
+                    right: 0,
+                    child: CallTimePreview(
+                      onCancel: _resetInput,
+                      onSend: (data) {
+                        _sendScheduledCall(data);
+                      },
+                    ),
+                  ),
                 // Event preview
                 if (_aktiveCmd?.type == "event")
                   Positioned(
@@ -1041,7 +1086,9 @@ Future<void> _loadOtherUser() async {
 
     // ---------- REACTION (ONE PER MESSAGE) ----------
     final String? reaction = msg['reaction'];
-
+    if (type == 'calltime') {
+      return CallTimeMessageCard(payload: msg['payload']);
+    }
     // ---------- IMAGE ----------
     if (type == 'image') {
       final url = (msg['content'] ?? payload?['url'] ?? '').toString();
@@ -1283,7 +1330,8 @@ Future<void> _loadOtherUser() async {
     return Container(
       color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
       child: SafeArea(
-        top: false, // Oben keine Safearea, damit es direkt an die Liste anschließt
+        top:
+            false, // Oben keine Safearea, damit es direkt an die Liste anschließt
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
@@ -1362,8 +1410,7 @@ Future<void> _loadOtherUser() async {
 
   Widget _slashToolbar() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Positioned(
       left: 0,
@@ -1430,6 +1477,16 @@ Future<void> _loadOtherUser() async {
               },
             ),
             _commandCard(
+              icon: "📞",
+              title: "Call Time",
+              description: "Plane einen Gruppen- oder Privat-Call",
+              onTap: () {
+                _ctrl.text = "/calltime";
+                _onTextChanged("/calltime");
+                setState(() => _isSlashToolbarVisible = false);
+              },
+            ),
+            _commandCard(
               icon: "📅",
               title: "Event",
               description: "Erstelle ein Gruppen-Event",
@@ -1459,11 +1516,9 @@ Future<void> _loadOtherUser() async {
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
-    final borderColor =
-        isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
+    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
     final titleColor = isDarkMode ? Colors.white : Colors.black;
-    final descColor =
-        isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
+    final descColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
 
     return GestureDetector(
       onTap: onTap,
@@ -1521,8 +1576,7 @@ class _DateChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
             color: isDark
                 ? const Color.fromARGB(200, 24, 34, 40)
@@ -1563,15 +1617,12 @@ class _ImageBubble extends StatelessWidget {
     );
 
     return Align(
-      alignment:
-          isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin:
-            const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: borderRadius,
@@ -1596,6 +1647,7 @@ class _ImageBubble extends StatelessWidget {
     );
   }
 }
+
 class _Bubble extends StatelessWidget {
   final Widget child;
   final String time;
@@ -1655,7 +1707,7 @@ class _Bubble extends StatelessWidget {
                     Text(
                       time,
                       style: TextStyle(
-                        color: textColor.withOpacity(0.7), 
+                        color: textColor.withOpacity(0.7),
                         fontSize: 11,
                       ),
                     ),
