@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 // Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
+import 'package:nexxchat_firebase/Screens/incoming_scheduled_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:nexxchat_firebase/widgets/call_time_bubble.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
@@ -49,7 +50,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _picker = ImagePicker();
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
 
+  final Set<String> _handledScheduledCalls = {};
   User? _user;
   bool _sending = false;
   bool _lastTypingState = false;
@@ -70,7 +73,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _user = _auth.currentUser;
     _loadTheme();
     _loadOtherUser();
-
+    _listenScheduledCalls();
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
 
@@ -91,6 +94,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _setTyping(false);
     _ctrl.dispose();
     _scrollCtrl.dispose();
+    _scheduledCallSub?.cancel();
     super.dispose();
   }
 
@@ -168,6 +172,106 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     } catch (_) {
       // Ignorieren falls Doc nicht existiert
     }
+  }
+
+  void _listenScheduledCalls() {
+    if (_user == null) return;
+
+    final convRef = _db.collection("conversations").doc(widget.conversationId);
+
+    _scheduledCallSub = convRef
+        .collection("messages")
+        .where("type", isEqualTo: "calltime")
+        .snapshots()
+        .listen((snap) {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final status = (data["status"] ?? "scheduled") as String;
+        final scheduledAt = data["scheduledAt"] as int?;
+
+        if (scheduledAt == null) continue;
+
+        final msgId = doc.id;
+
+        // ما نحبوش نظهرو نفس الكول مرتين
+        if (_handledScheduledCalls.contains(msgId)) continue;
+
+        // يظهر فقط إذا: مازال status = scheduled و وقته وصل (مع مارجن صغير)
+        final diff = nowMs - scheduledAt;
+        final isDue = diff >= 0 && diff < 2 * 60 * 1000; // في آخر دقيقتين
+
+        if (status == "scheduled" && isDue) {
+          _handledScheduledCalls.add(msgId);
+          _showIncomingScheduledCall(msgId, data);
+        }
+      }
+    });
+  }
+
+  void _showIncomingScheduledCall(
+      String messageId, Map<String, dynamic> data) async {
+    if (!mounted) return;
+
+    final payload = Map<String, dynamic>.from(data["payload"] ?? {});
+    final scheduledAtMs = data["scheduledAt"] as int;
+    final scheduledAt = DateTime.fromMillisecondsSinceEpoch(scheduledAtMs);
+
+    final note = (payload["note"] ?? "") as String? ?? "";
+    final convSnapshot =
+        await _db.collection("conversations").doc(widget.conversationId).get();
+
+    final convData = convSnapshot.data() as Map<String, dynamic>?;
+    final isGroup = convData?["isGroup"] == true;
+    final title = isGroup ? (convData?["name"] ?? widget.title) : widget.title;
+
+    // نفتح الشاشة fullscreen
+    // نستعمل push وليس replacement باش نرجع للشات بعد
+    // مهم: نعمل update للـ status حسب join/decline
+    // باش المرة الجاية ما يعاودش يطلع
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => IncomingScheduledCallScreen(
+          scheduledAt: scheduledAt,
+          title: title,
+          note: note.isEmpty ? null : note,
+          onJoin: () async {
+            // نعلم Firestore اللي الكول تتحل
+            await _db
+                .collection("conversations")
+                .doc(widget.conversationId)
+                .collection("messages")
+                .doc(messageId)
+                .update({"status": "accepted"});
+
+            //callID (conversationId)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CallScreen(
+                  callID: widget.conversationId,
+                  userID: _user!.uid,
+                  userName: _user!.email ?? "User",
+                ),
+              ),
+            );
+          },
+          onDecline: () async {
+            await _db
+                .collection("conversations")
+                .doc(widget.conversationId)
+                .collection("messages")
+                .doc(messageId)
+                .update({"status": "declined"});
+
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
   }
 
   // ---------- Input change (typing + slash commands) ----------
@@ -435,35 +539,40 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       },
     );
   }
-Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
-  final date = data["date"]; 
-  final time = data["time"]; 
-  final note = data["note"];
 
-  final scheduledDateTime = DateTime.parse("$date $time:00");
+  Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
+    if (_user == null) return;
 
-  
-  final payload = {
-    "date": date,
-    "time": time,
-    "note": note,
-    "scheduledAt": scheduledDateTime.millisecondsSinceEpoch,
-  };
+    final date = data["date"] as String;
+    final time = data["time"] as String;
+    final note = (data["note"] ?? "") as String;
 
-  await FirebaseFirestore.instance
-      .collection("conversations")
-      .doc(widget.conversationId)
-      .collection("messages")
-      .add({
-    "type": "calltime",
-    "senderId": _user!.uid,
-    "timestamp": FieldValue.serverTimestamp(),
-    "payload": payload,  
-    
-  });
+    final scheduledDateTime = DateTime.parse("$date $time:00");
 
-  _resetInput();
-}
+    final convRef = _db.collection("conversations").doc(widget.conversationId);
+
+    final payload = {
+      "date": date,
+      "time": time,
+      "note": note,
+    };
+
+    await convRef.collection("messages").add({
+      "type": "calltime",
+      "senderId": _user!.uid,
+      "timestamp": FieldValue.serverTimestamp(),
+      "scheduledAt": scheduledDateTime.millisecondsSinceEpoch,
+      "status": "scheduled",
+      "payload": payload,
+    });
+
+    await convRef.update({
+      "lastMessage": "📞 Call on $date at $time",
+      "lastMessageTime": FieldValue.serverTimestamp(),
+    });
+
+    _resetInput();
+  }
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -1087,7 +1196,9 @@ Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
     // ---------- REACTION (ONE PER MESSAGE) ----------
     final String? reaction = msg['reaction'];
     if (type == 'calltime') {
-      return CallTimeMessageCard(payload: msg['payload']);
+     return CallTimeMessageCard(
+  payload: msg["payload"],
+);
     }
     // ---------- IMAGE ----------
     if (type == 'image') {

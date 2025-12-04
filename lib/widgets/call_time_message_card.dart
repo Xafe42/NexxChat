@@ -1,25 +1,71 @@
-import 'package:flutter/material.dart';
 
-class CallTimeMessageCard extends StatelessWidget {
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/call_screen.dart';
+
+class CallTimeMessageCard extends StatefulWidget {
   final Map<String, dynamic> payload;
 
   const CallTimeMessageCard({super.key, required this.payload});
 
+  @override
+  State<CallTimeMessageCard> createState() => _CallTimeMessageCardState();
+}
+
+class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
+  bool isActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkActivation();
+  }
+
+  void _checkActivation() {
+    final dateString = widget.payload["date"];
+    final timeString = widget.payload["time"];
+
+    final scheduled = DateTime.parse("$dateString $timeString:00");
+    final now = DateTime.now();
+
+    // Already active
+    if (now.isAfter(scheduled)) {
+      setState(() => isActive = true);
+      return;
+    }
+
+    // Activate exactly at the right time
+    final diff = scheduled.difference(now);
+    Future.delayed(diff, () {
+      if (mounted) setState(() => isActive = true);
+    });
+  }
+
   String _formatMonth(int m) {
     const months = [
-      "Jan","Feb","Mar","Apr","May","Jun",
-      "Jul","Aug","Sep","Oct","Nov","Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return months[m - 1];
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateString = payload["date"];      // "2025-12-09"
-    final timeString = payload["time"];      // "18:45"
-    final note = payload["note"] ?? "";
+    final dateString = widget.payload["date"];
+    final timeString = widget.payload["time"];
+    final note = (widget.payload["note"] ?? "").toString();
 
-    final date = DateTime.parse("$dateString $timeString:00");
+    final scheduled = DateTime.parse("$dateString $timeString:00");
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -51,7 +97,8 @@ class CallTimeMessageCard extends StatelessWidget {
               children: [
                 // DATE BUBBLE
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade700,
                     borderRadius: BorderRadius.circular(16),
@@ -59,11 +106,12 @@ class CallTimeMessageCard extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        _formatMonth(date.month),
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        _formatMonth(scheduled.month),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 12),
                       ),
                       Text(
-                        date.day.toString(),
+                        scheduled.day.toString(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -90,8 +138,10 @@ class CallTimeMessageCard extends StatelessWidget {
               children: [
                 const Icon(Icons.access_time, size: 20),
                 const SizedBox(width: 8),
-                Text("$dateString    $timeString",
-                    style: const TextStyle(fontSize: 16)),
+                Text(
+                  "$dateString    $timeString",
+                  style: const TextStyle(fontSize: 16),
+                ),
               ],
             ),
 
@@ -110,11 +160,50 @@ class CallTimeMessageCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: HERE YOU TRIGGER THE VIDEO/AUDIO CALL
-                },
-                icon: const Icon(Icons.call),
-                label: const Text("Join Call"),
+                icon: Icon(
+                  Icons.call,
+                  color: isActive ? Colors.white : Colors.grey[600],
+                ),
+                label: Text(
+                  isActive ? "Join Now" : "Scheduled",
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isActive ? Colors.green : Colors.grey[300],
+                  disabledBackgroundColor: Colors.grey[300],
+                  elevation: isActive ? 3 : 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 12,
+                  ),
+                ),
+                onPressed: isActive
+                    ? () {
+                        String cleanID = "call_" +
+                            dateString.replaceAll("-", "") +
+                            "_" +
+                            timeString.replaceAll(":", "");
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CallScreen(
+                              callID: cleanID,
+                              userID: FirebaseAuth.instance.currentUser!.uid,
+                              userName:
+                                  FirebaseAuth.instance.currentUser!.email ??
+                                      "User",
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
               ),
             ),
           ],
