@@ -977,6 +977,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                               final msgIndex = index;
                               final msg = docs[msgIndex].data();
+                              final msgId = docs[msgIndex].id;
                               final senderEmail = msg['sender'] ?? '';
                               final isMe = msg['senderId'] == _user?.uid ||
                                   senderEmail == _user?.email;
@@ -1006,6 +1007,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                               final bubble = _buildMessageBubble(
                                 msg: msg,
+                                messageId: msgId,
                                 isMe: isMe,
                                 type: type,
                                 time: time,
@@ -1179,6 +1181,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------- Build one message bubble (text + image + mini-apps) ----------
   Widget _buildMessageBubble({
     required Map<String, dynamic> msg,
+    required String messageId,
     required bool isMe,
     required String type,
     required String time,
@@ -1192,13 +1195,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
     final payload = msg['payload'] as Map<String, dynamic>?;
     final senderEmail = msg['sender'] ?? '';
-
-    // ---------- REACTION (ONE PER MESSAGE) ----------
     final String? reaction = msg['reaction'];
+    // ---------- REACTION (ONE PER MESSAGE) ----------
+
     if (type == 'calltime') {
-     return CallTimeMessageCard(
-  payload: msg["payload"],
-);
+      final status = msg['status'] ?? 'scheduled';
+
+      if (status != 'scheduled') {
+        return const SizedBox.shrink();
+      }
+
+      return CallTimeMessageCard(
+        payload: msg["payload"] ?? <String, dynamic>{},
+        conversationId: widget.conversationId,
+        messageId: messageId,
+      );
     }
     // ---------- IMAGE ----------
     if (type == 'image') {
