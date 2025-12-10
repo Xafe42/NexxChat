@@ -1609,16 +1609,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               },
             ),
             _commandCard(
-              icon: "📅",
-              title: "Event",
-              description: "Erstelle ein Gruppen-Event",
-              onTap: () {
-                _ctrl.text = "/event";
-                _onTextChanged("/event");
-                setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
               icon: "🤖",
               title: "AI",
               description: "Chatte mit AI",
