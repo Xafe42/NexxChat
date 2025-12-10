@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
 import '../core/services/chat_theme.dart';
@@ -146,11 +147,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
       final data = userDoc.data();
       if (data != null) {
-        _hiddenChats =
-            List<String>.from(data["hiddenChats"] ?? <String>[]);
+        _hiddenChats = List<String>.from(data["hiddenChats"] ?? <String>[]);
 
-        final hiddenTimesRaw =
-            data["hiddenChatsTime"] as Map<String, dynamic>?;
+        final hiddenTimesRaw = data["hiddenChatsTime"] as Map<String, dynamic>?;
 
         _hiddenChatTimes = {};
         if (hiddenTimesRaw != null) {
@@ -304,7 +303,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             ),
             child: IconButton(
               icon: Icon(Icons.search_rounded, color: textColor),
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SearchUsersScreen()),
+                );
+              },
             ),
           ),
         ],
@@ -563,8 +567,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            (chat['color'] as Color).withOpacity(0.3),
+                        color: (chat['color'] as Color).withOpacity(0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       )
@@ -579,8 +582,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(
                             child: Text(
@@ -620,16 +622,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                           ),
                           if ((chat['unread'] as int) > 0)
                             Container(
-                              margin:
-                                  const EdgeInsets.only(left: 8),
+                              margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.redAccent,
-                                borderRadius:
-                                    BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 chat['unread'].toString(),
