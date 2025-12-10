@@ -195,12 +195,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         final msgId = doc.id;
 
-        // ما نحبوش نظهرو نفس الكول مرتين
         if (_handledScheduledCalls.contains(msgId)) continue;
 
-        // يظهر فقط إذا: مازال status = scheduled و وقته وصل (مع مارجن صغير)
         final diff = nowMs - scheduledAt;
-        final isDue = diff >= 0 && diff < 2 * 60 * 1000; // في آخر دقيقتين
+        final isDue = diff >= 0 && diff < 2 * 60 * 1000; 
 
         if (status == "scheduled" && isDue) {
           _handledScheduledCalls.add(msgId);
@@ -226,10 +224,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final isGroup = convData?["isGroup"] == true;
     final title = isGroup ? (convData?["name"] ?? widget.title) : widget.title;
 
-    // نفتح الشاشة fullscreen
-    // نستعمل push وليس replacement باش نرجع للشات بعد
-    // مهم: نعمل update للـ status حسب join/decline
-    // باش المرة الجاية ما يعاودش يطلع
+    
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -239,7 +234,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           title: title,
           note: note.isEmpty ? null : note,
           onJoin: () async {
-            // نعلم Firestore اللي الكول تتحل
             await _db
                 .collection("conversations")
                 .doc(widget.conversationId)
