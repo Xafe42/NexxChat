@@ -5,7 +5,6 @@ import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 
 import '../core/services/chat_theme.dart';
-import 'call_screen.dart';
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
@@ -35,30 +34,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   bool _loadingUserHiddenChats = true;
 
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
-  final List<Map<String, dynamic>> _staticChats = [
-    {
-      "name": "Support Bot",
-      "message": "Ich bin bereit für AI Fragen...",
-      "time": "Bot",
-      "avatar": null,
-      "icon": Icons.smart_toy_rounded,
-      "isGroup": false,
-      "unread": 0,
-      "color": Colors.purpleAccent,
-    },
-    /*
-    {
-      "name": "AI Image Generator",
-      "message": "Lass uns Bilder erstellen!",
-      "time": "Tool",
-      "avatar": null,
-      "icon": Icons.palette_rounded,
-      "isGroup": false,
-      "unread": 0,
-      "color": Colors.pinkAccent,
-    },
-    */
-  ];
+final List<Map<String, dynamic>> _staticChats = [];
 
   @override
   void initState() {
@@ -189,7 +165,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FB);
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF2D3436);
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
 
@@ -259,18 +235,25 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _selectedIndex = 1;
-                });
-              },
-              backgroundColor: accentColor,
-              elevation: 4,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+     floatingActionButton: _selectedIndex == 0
+    ? FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SupportBotScreen(),
+            ),
+          );
+        },
+        backgroundColor: Colors.white,
+        elevation: 6,
+        child: Icon(
+          Icons.smart_toy_rounded, // 🤖 KI icon
+          color: ChatTheme.myBubbleColor, // ولا Colors.purpleAccent
+          size: 28,
+        ),
+      )
+    : null,
     );
   }
 
@@ -289,6 +272,28 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             ),
           ),
           const Spacer(),
+           Container(
+          margin: const EdgeInsets.only(right: 10),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[800] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: IconButton(
+            icon: Icon(Icons.add_rounded, color: textColor, size: 26),
+            onPressed: () {
+              setState(() {
+                _selectedIndex = 1; 
+              });
+            },
+          ),
+        ),
           Container(
             decoration: BoxDecoration(
               color: isDark ? Colors.grey[800] : Colors.white,
@@ -378,7 +383,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
         return ListView.builder(
           itemCount: totalCount,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 6),
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
             if (index == 0) return globalChatTile;
@@ -488,108 +493,80 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       },
     );
   }
+Widget _buildChatTile(
+  Map<String, dynamic> chat, {
+  required bool isLive,
+  required Color textColor,
+  required Color? subTextColor,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Widget _buildChatTile(
-    Map<String, dynamic> chat, {
-    required bool isLive,
-    required Color textColor,
-    required Color? subTextColor,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (chat['name'] == "Support Bot") {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SupportBotScreen(),
-                ),
-              );
-            } else if (chat['name'] == "AI Image Generator") {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ImageBotScreen(),
-                ),
-              );
-            } else if (isLive) {
-              Navigator.pushNamed(context, ChatScreen.screenRoute);
-            } else if (chat['docId'] != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PrivateChatScreen(
-                    conversationId: chat['docId'],
-                    title: chat['name'],
-                  ),
-                ),
-              );
-            }
-          },
-          onLongPress: () {
-            if (chat['docId'] != null) {
-              _showChatOptions(chat);
-            }
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () {
+        if (chat['name'] == "Support Bot") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SupportBotScreen()),
+          );
+        } else if (chat['name'] == "AI Image Generator") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ImageBotScreen()),
+          );
+        } else if (isLive) {
+          Navigator.pushNamed(context, ChatScreen.screenRoute);
+        } else if (chat['docId'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PrivateChatScreen(
+                conversationId: chat['docId'],
+                title: chat['name'],
+              ),
+            ),
+          );
+        }
+      },
+      onLongPress: () {
+        if (chat['docId'] != null) {
+          _showChatOptions(chat);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        (chat['color'] as Color).withOpacity(0.8),
-                        (chat['color'] as Color),
-                      ],
+                // Avatar
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: ClipOval(
+                    child: Container(
+                      color: (chat['color'] as Color),
+                      child: _buildAvatarContent(chat),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (chat['color'] as Color).withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
                   ),
-                  child: _buildAvatarContent(chat),
                 ),
-                const SizedBox(width: 16),
+
+                const SizedBox(width: 12),
+
+                // Name + Message
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Flexible(
+                          Expanded(
                             child: Text(
                               chat['name'],
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 color: textColor,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -600,7 +577,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               color: subTextColor,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -616,28 +593,17 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 color: subTextColor,
-                                height: 1.2,
                               ),
                             ),
                           ),
                           if ((chat['unread'] as int) > 0)
                             Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                chat['unread'].toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blue,
                               ),
                             ),
                         ],
@@ -647,39 +613,39 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildAvatarContent(Map<String, dynamic> chat) {
-    if (chat['icon'] != null) {
-      return Icon(
-        chat['icon'] as IconData,
-        color: Colors.white,
-        size: 28,
-      );
-    }
-    if (chat['avatar'] != null) {
-      return ClipOval(
-        child: Image.asset(
-          chat['avatar'],
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-    return Center(
-      child: Text(
-        (chat['name'] as String).isNotEmpty
-            ? (chat['name'] as String)[0].toUpperCase()
-            : "?",
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
+          ],
         ),
       ),
+    ),
+  );
+}
+
+Widget _buildAvatarContent(Map<String, dynamic> chat) {
+  if (chat['icon'] != null) {
+    return Icon(
+      chat['icon'] as IconData,
+      color: Colors.white,
+      size: 28,
     );
   }
+  if (chat['avatar'] != null) {
+    return Image.asset(
+      chat['avatar'],
+      fit: BoxFit.cover,
+    );
+  }
+  return Center(
+    child: Text(
+      (chat['name'] as String).isNotEmpty
+          ? (chat['name'] as String)[0].toUpperCase()
+          : "?",
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 22,
+      ),
+    ),
+  );
+}
 }
