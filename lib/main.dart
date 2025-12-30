@@ -23,14 +23,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // NEU: Berechtigung aktiv beim User anfragen (Wichtig für Android 13+ Emulatoren!)
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
   // NEU: Hintergrund-Handling registrieren
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
