@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "at.isha.nexxchat_firebase"
-        minSdk = 21 
+        minSdk = flutter.minSdkVersion 
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"

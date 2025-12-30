@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
@@ -65,30 +66,46 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   // -------------------------------
   // 🔥 Generiere Bild mit Pollinations
   // -------------------------------
-  Future<Uint8List?> _generateImage(String prompt) async {
-    try {
-      // 1. URL erstellen (wie im alten Code)
-      final encodedPrompt = Uri.encodeComponent(prompt);
-      // Wir nutzen model=flux für bessere Qualität und einen Seed gegen Caching
-      final String url = "https://pollinations.ai/p/$encodedPrompt?width=800&height=800&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux";
+Future<Uint8List?> _generateImage(String prompt) async {
+  const String myApiKey = "pk_ZGrxJtS9qhTE2Hp2"; 
 
-      print("Lade Bild von: $url");
+  try {
+    final encodedPrompt = Uri.encodeComponent(prompt.trim());
+    final int seed = Random().nextInt(1000000); 
+    
+    const String model = "seedream";
 
-      // 2. Bild herunterladen, um die Bytes zu bekommen
-      // Dies ist notwendig, damit wir es danach zu Firebase hochladen können.
-      final response = await http.get(Uri.parse(url));
+    final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
+                       "?width=1024"
+                       "&height=1024"
+                       "&nologo=true"
+                       "&seed=$seed"
+                       "&model=$model";
 
-      if (response.statusCode == 200) {
+    print("DEBUG: Sende Anfrage an: $url");
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "Authorization": "Bearer $myApiKey",
+      },
+    ).timeout(const Duration(seconds: 40));
+
+    if (response.statusCode == 200) {
+      if (response.bodyBytes.length > 20000) {
         return response.bodyBytes;
-      } else {
-        print("Pollinations API error: ${response.statusCode}");
-        return null;
       }
-    } catch (e) {
-      print("Network error: $e");
-      return null;
+      print("FEHLER: Bilddaten zu klein.");
+    } else {
+      // Wenn es jetzt noch einen Fehler gibt, wird uns dieser Log genau sagen warum
+      print("API FEHLER: ${response.statusCode} - Nachricht: ${response.body}");
     }
+    return null;
+  } catch (e) {
+    print("Netzwerkfehler: $e");
+    return null;
   }
+}
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
