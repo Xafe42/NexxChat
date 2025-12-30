@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "at.isha.nexxchat_firebase"
-        minSdk = flutter.minSdkVersion
+        minSdk = 21 
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -53,6 +53,8 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -67,6 +69,8 @@ flutter {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24")
     implementation("androidx.multidex:multidex:2.0.1")
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))

@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:nexxchat_firebase/Screens/chat_home_screen.dart';
 import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
@@ -11,15 +13,45 @@ import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Stellt sicher, dass Flutter-Bindings initialisiert sind, bevor Firebase geladen wird
-  await Firebase.initializeApp(); // Initialisiert Firebase
-  
-  // NEU: Einstellungen laden bevor die App startet
-  await ChatTheme.loadTheme();      // Lädt Farben
-  await ChatTheme.loadThemeMode();  // Lädt Dark/Light Mode Einstellung
+// NEU: Hintergrund-Handler (ganz oben!)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
 
-  runApp(MyApp()); // Startet die App
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // NEU: Berechtigung aktiv beim User anfragen (Wichtig für Android 13+ Emulatoren!)
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // NEU: Hintergrund-Handling registrieren
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // NEU: Kanal für Android Vibration erstellen
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'chat_messages', 
+    'Chat Benachrichtigungen',
+    importance: Importance.max, // Max sorgt für das aufpoppende Banner
+    enableVibration: true,
+    playSound: true,
+  );
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  await ChatTheme.loadTheme();
+  await ChatTheme.loadThemeMode();
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

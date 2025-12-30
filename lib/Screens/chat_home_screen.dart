@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
@@ -36,12 +37,22 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
 final List<Map<String, dynamic>> _staticChats = [];
 
-  @override
+@override
   void initState() {
     super.initState();
     currentUser = _auth.currentUser;
     _loadTheme();
     _loadHiddenChats();
+    _saveFcmToken(); // NEU: Adresse des Handys speichern
+  }
+
+  Future<void> _saveFcmToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    if (token != null && currentUser != null) {
+      await _firestore.collection("users").doc(currentUser!.uid).set({
+        'fcmToken': token,
+      }, SetOptions(merge: true));
+    }
   }
 
   // 🔥 Hide specific conversation + store hide timestamp
