@@ -31,259 +31,198 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         password: _passwordController.text.trim(),
       );
 
-      
       Navigator.pushReplacementNamed(
         context,
         ChatHomeScreen.screenRoute,
       );
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = e.message;
-      });
+      setState(() => _error = e.message);
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      backgroundColor: const Color(0xFFF2F3F7),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ===== TOP BAR =====
-            Container(
-  height: 56,
-  padding: const EdgeInsets.symmetric(horizontal: 16),
-  color: const Color(0xFF3B5998),
-  child: Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
+              // ===== CENTER LOGO =====
+Center(
+  child: Column(
     children: [
+      const SizedBox(height: 30),
+
       Image.asset(
         'images/nexxchat.png',
-        width: 28,
-        height: 28,
+        width: 90,
+        height: 90,
       ),
-      const SizedBox(width: 8),
+
+      const SizedBox(height: 12),
+
       const Text(
         'NexxChat',
         style: TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF3B5998),
+          letterSpacing: -0.5,
         ),
       ),
+
+      const SizedBox(height: 30),
     ],
   ),
 ),
 
-              // ===== CONTENT =====
+              // ===== LOGIN CARD =====
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ===== TITLE =====
-                    const Text(
-                      'Welcome to NexxChat!',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'NexxChat helps you connect and chat with the people in your life.',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.black87,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ===== EMAIL =====
-                    const Text(
-                      'Email address',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    _inputField(
-                      controller: _emailController,
-                      obscure: false,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // ===== PASSWORD =====
-                    const Text(
-                      'Password',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    _inputField(
-                      controller: _passwordController,
-                      obscure: true,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // ===== LOGIN BUTTON =====
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: 150,
-                        height: 38,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B5998),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          onPressed: _login,
-                          child: const Text(
-                            'Log In',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // ===== FORGOT PASSWORD (NO ACTION) =====
-                    const Text(
-                      'Forgot password?',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF3B5998),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // ===== REGISTER =====
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          RegistrationScreen.screenRoute,
-                        );
-                      },
-                      child: const Text(
-                        'Need a NexxChat account? Sign up here.',
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Welcome back 👋',
                         style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF3B5998),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ===== LANGUAGE SECTION =====
-                    const Divider(color: Colors.black26),
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Language',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Fake dropdown
-                    Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.black26),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text(
-                            'English (UK)',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          Icon(Icons.arrow_drop_down),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Change language button
-                    Container(
-                      width: 160,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B5998),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: const Text(
-                        'Change language',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    const Text(
-                      'Help',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF3B5998),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Sign in to continue to NexxChat',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.black54,
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 150),
+                      const SizedBox(height: 22),
 
-                    const Text(
-                      'NexxChat © 2026 · Mobile site · Touch site',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black45,
+                      // EMAIL
+                      _modernInput(
+                        controller: _emailController,
+                        label: 'Email address',
+                        icon: Icons.email_outlined,
+                        obscure: false,
                       ),
-                    ),
 
-                    const SizedBox(height: 4),
+                      const SizedBox(height: 14),
 
-                    const Text(
-                      'Back',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF3B5998),
+                      // PASSWORD
+                      _modernInput(
+                        controller: _passwordController,
+                        label: 'Password',
+                        icon: Icons.lock_outline,
+                        obscure: true,
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 18),
+
+                      // LOGIN BUTTON
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B5998),
+                            foregroundColor: Colors.white, 
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Log In',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // ERROR
+                      if (_error != null)
+                        Text(
+                          _error!,
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 13,
+                          ),
+                        ),
+
+                      const SizedBox(height: 10),
+
+                      const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF3B5998),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // REGISTER
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    RegistrationScreen.screenRoute,
+                  );
+                },
+                child: const Text(
+                  'Need a NexxChat account? Sign up here.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF3B5998),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // FOOTER
+              const Text(
+                'NexxChat © 2026',
+                style: TextStyle(fontSize: 12, color: Colors.black45),
+              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -291,23 +230,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // ===== INPUT FIELD =====
-  Widget _inputField({
+  // ===== MODERN INPUT =====
+  Widget _modernInput({
     required TextEditingController controller,
+    required String label,
+    required IconData icon,
     required bool obscure,
   }) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black26),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscure,
-        decoration: const InputDecoration(
-          border: InputBorder.none,
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: const Color(0xFFF2F3F7),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
         ),
       ),
     );
