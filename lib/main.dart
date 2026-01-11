@@ -9,6 +9,7 @@ import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
 import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
+import 'package:nexxchat_firebase/core/Call_listener.dart';
 
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
@@ -70,55 +71,55 @@ class MyApp extends StatelessWidget {
               systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
             ));
 
-            return MaterialApp(
-              title: 'NexxChat', // Titel der App
-              debugShowCheckedModeBanner: false, // Entfernt das Debug-Banner
-              
-              theme: ThemeData(
-                useMaterial3: true,
-                scaffoldBackgroundColor: Colors.white, 
-                // Hier nutzen wir deine gespeicherte Farbe als Seed
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: ChatTheme.myBubbleColor, 
-                  brightness: Brightness.light
-                ),
-                // Zwingt den FAB (Button unten), die Farbe sofort zu ändern
-                floatingActionButtonTheme: FloatingActionButtonThemeData(
-                  backgroundColor: ChatTheme.myBubbleColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              
-              darkTheme: ThemeData(
-                useMaterial3: true,
-                scaffoldBackgroundColor: const Color(0xFF121212),
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: ChatTheme.myBubbleColor, 
-                  brightness: Brightness.dark
-                ),
-                // Zwingt den FAB auch im Dark Mode zur Aktualisierung
-                floatingActionButtonTheme: FloatingActionButtonThemeData(
-                  backgroundColor: ChatTheme.myBubbleColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              
-              themeMode: currentMode,
-              
-              // Startbildschirm abhängig davon, ob der Benutzer eingeloggt ist
-              initialRoute: _auth.currentUser != null
-                  ? ChatHomeScreen.screenRoute // Wenn eingeloggt, zur Übersicht
-                  : WelcomeScreen.screenRoute, // Wenn nicht eingeloggt, Willkommensbildschirm
-              
-              // Definierte Routen für die App
-              routes: {
-                WelcomeScreen.screenRoute: (context) => const WelcomeScreen(),
-                SignInScreen.screenRoute: (context) => const SignInScreen(),
-                RegistrationScreen.screenRoute: (context) => const RegistrationScreen(),
-                ChatScreen.screenRoute: (context) => const ChatScreen(),
-                ChatHomeScreen.screenRoute: (context) => const ChatHomeScreen(), // Route für Übersicht
-              },
-            );
+            
+
+return GlobalCallListener(
+  child: MaterialApp(
+    title: 'NexxChat',
+    debugShowCheckedModeBanner: false,
+
+    theme: ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: Colors.white,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: ChatTheme.myBubbleColor,
+        brightness: Brightness.light,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: ChatTheme.myBubbleColor,
+        foregroundColor: Colors.white,
+      ),
+    ),
+
+    darkTheme: ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: ChatTheme.myBubbleColor,
+        brightness: Brightness.dark,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: ChatTheme.myBubbleColor,
+        foregroundColor: Colors.white,
+      ),
+    ),
+
+    themeMode: currentMode,
+
+    initialRoute: _auth.currentUser != null
+        ? ChatHomeScreen.screenRoute
+        : WelcomeScreen.screenRoute,
+
+    routes: {
+      WelcomeScreen.screenRoute: (context) => const WelcomeScreen(),
+      SignInScreen.screenRoute: (context) => const SignInScreen(),
+      RegistrationScreen.screenRoute: (context) => const RegistrationScreen(),
+      ChatScreen.screenRoute: (context) => const ChatScreen(),
+      ChatHomeScreen.screenRoute: (context) => const ChatHomeScreen(),
+    },
+  ),
+);
+            
           },
         );
       },

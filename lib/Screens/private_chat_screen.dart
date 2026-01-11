@@ -12,7 +12,11 @@ import 'package:intl/intl.dart';
 // Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
+import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
+
 import 'package:nexxchat_firebase/Screens/incoming_scheduled_call_screen.dart';
+import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
 import 'package:nexxchat_firebase/widgets/calltime_preview.dart';
 import 'package:path/path.dart' as path;
@@ -53,6 +57,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _scrollCtrl = ScrollController();
   final _picker = ImagePicker();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _callSub;
+  final Set<String> _handledCalls = {};
+
 
   final Set<String> _handledScheduledCalls = {};
   User? _user;
@@ -75,6 +82,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _user = _auth.currentUser;
     _loadTheme();
     _loadOtherUser();
+    _listenIncomingCalls();
     _listenScheduledCalls();
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
@@ -97,6 +105,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _ctrl.dispose();
     _scrollCtrl.dispose();
     _scheduledCallSub?.cancel();
+    _callSub?.cancel();
     super.dispose();
   }
 
@@ -188,27 +197,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ---------- Send Call ----------
 
-  Future<void> _sendCallSummary(Map<String, dynamic> call) async {
-    final convRef = _db.collection('conversations').doc(widget.conversationId);
-    final msgRef = convRef.collection('messages').doc();
-
-    await msgRef.set({
-      'id': msgRef.id,
-      'type': 'call',
-      'senderId': _user!.uid,
-      'timestamp': FieldValue.serverTimestamp(),
-      'callType': call['type'], // video
-      'status': call['status'], // ended / missed
-      'duration': call['duration'], // null if missed
-    });
-
-    await convRef.update({
-      'lastMessage': call['status'] == 'missed'
-          ? '📞 Verpasster Videoanruf'
-          : '📞 Videoanruf beendet',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    });
-  }
 
   // ---------- Typing indicator ----------
 
@@ -275,7 +263,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final convSnapshot =
         await _db.collection("conversations").doc(widget.conversationId).get();
 
-    final convData = convSnapshot.data() as Map<String, dynamic>?;
+    final convData = convSnapshot.data();
     final isGroup = convData?["isGroup"] == true;
     final title = isGroup ? (convData?["name"] ?? widget.title) : widget.title;
 
@@ -481,7 +469,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
     }
   }
-
   Future<void> _sendTetrisScore(int score) async {
     if (_user == null) return;
 
@@ -636,6 +623,87 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _resetInput();
   }
+
+
+  void _listenIncomingCalls() {
+  if (_user == null) return;
+
+  _callSub = FirebaseFirestore.instance
+      .collection("calls")
+      .where("status", isEqualTo: "ringing")
+      .snapshots()
+      .listen((snap) {
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final callId = doc.id;
+
+      if (_handledCalls.contains(callId)) continue;
+
+      final isGroup = data["isGroup"] == true;
+      final callerId = data["callerId"];
+
+      bool shouldShow = false;
+
+      // PRIVATE
+      if (!isGroup && data["receiverId"] == _user!.uid) {
+        shouldShow = true;
+      }
+
+      // GROUP
+      if (isGroup &&
+          (data["members"] as List).contains(_user!.uid) &&
+          callerId != _user!.uid) {
+        shouldShow = true;
+      }
+
+      if (shouldShow) {
+        _handledCalls.add(callId);
+        _openIncomingCall(callId, data);
+      }
+    }
+  });
+}
+void _openIncomingCall(String callId, Map<String, dynamic> data) async {
+  if (!mounted) return;
+
+  final callService = CallService();
+  final isGroup = data["isGroup"] == true;
+
+  final title = isGroup
+      ? widget.title
+      : (data["callerId"] ?? "Incoming call");
+
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingScheduledCallScreen(
+        scheduledAt: DateTime.now(), // موش scheduled فعلي، فقط للعرض
+  title: "Incoming Video Call",
+  note: null,
+  onJoin: () async {
+    await callService.acceptCall(callId);
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CallScreen(
+          callID: callId,
+          userID: _user!.uid,
+          userName: _user!.email ?? "User",
+        ),
+      ),
+    );
+  },
+  onDecline: () async {
+    await callService.declineCall(callId);
+    Navigator.pop(context);
+        },
+      ),
+    ),
+  );
+}
+
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -898,59 +966,73 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   ],
                 ),
                 actions: [
-                  // 🔵 VIDEO CALL - PRIVATE CHAT
-                  if (!isGroup && convData != null && !userDeleted)
-                    IconButton(
-                      icon: const Icon(Icons.videocam_rounded,
-                          color: Colors.white),
-                      onPressed: () async {
-                        final members =
-                            List<String>.from(convData!['members'] ?? []);
+                 // 🔵 VIDEO CALL - PRIVATE CHAT
+if (!isGroup && convData != null && !userDeleted)
+  IconButton(
+    icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+    onPressed: () async {
+      if (_user == null) return;
 
-                        final otherUserId = members.firstWhere(
-                          (m) => m != _user!.uid,
-                          orElse: () => "",
-                        );
+      final members = List<String>.from(convData!['members'] ?? []);
+      final otherUserId = members.firstWhere(
+        (m) => m != _user!.uid,
+        orElse: () => "",
+      );
 
-                        if (otherUserId.isEmpty) return;
+      if (otherUserId.isEmpty) return;
 
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CallScreen(
-                              callID: widget.conversationId,
-                              userID: _user!.uid,
-                              userName: _user!.email!,
-                            ),
-                          ),
-                        );
+      final callService = CallService();
 
-                        if (result != null) {
-                          await _sendCallSummary(result);
-                          setState(() {});
-                        }
-                      },
-                    ),
+      final callId = await callService.startPrivateCall(
+        conversationId: widget.conversationId,
+        callerId: _user!.uid,
+        receiverId: otherUserId,
+      );
+
+      Navigator.push(
+        context,
+         MaterialPageRoute(
+    builder: (_) => OutgoingCallScreen(
+      callId: callId,
+      title: widget.title, 
+      userId: _user!.uid,
+      userName: _user!.email ?? "User",
+    ),
+        ),
+      );
+    },
+  ),
 
                   // 🔵 VIDEO CALL - GROUP
-                  if (isGroup && convData != null)
-                    IconButton(
-                      icon: const Icon(Icons.videocam, color: Colors.white),
-                      onPressed: () {
-                        final callID = widget.conversationId;
+if (isGroup && convData != null)
+  IconButton(
+    icon: const Icon(Icons.videocam, color: Colors.white),
+    onPressed: () async {
+      final callService = CallService();
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CallScreen(
-                              callID: callID,
-                              userID: _user!.uid,
-                              userName: _user!.email ?? "User",
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+      final members = List<String>.from(convData!['members'] ?? []);
+
+      if (members.isEmpty || _user == null) return;
+
+      final callId = await callService.startGroupCall(
+        conversationId: widget.conversationId,
+        callerId: _user!.uid,
+        members: members,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OutgoingCallScreen(
+            callId: callId,
+            title: widget.title,
+            userId: _user!.uid,
+            userName: _user!.email ?? "User",
+          ),
+        ),
+      );
+    },
+  ),
                 ]),
             body: Stack(
               children: [
