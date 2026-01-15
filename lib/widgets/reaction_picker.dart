@@ -8,22 +8,54 @@ class ReactionPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 40),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.black.withValues(alpha: 0.9),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _emoji("❤️", context),
-          _emoji("😂", context),
-          _emoji("🔥", context),
-          _emoji("😮", context),
-          _emoji("😡", context),
-          _emoji("👍", context),
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 15), 
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          SingleChildScrollView( // Falls es mal mehr Emojis werden
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _emoji("❤️", context),
+                _emoji("😂", context),
+                _emoji("🔥", context),
+                _emoji("😮", context),
+                _emoji("😡", context),
+                _emoji("👍", context),
+                const SizedBox(width: 10),
+                // Button zum Löschen aller eigenen Reaktionen
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    onSelect("REMOVE_ALL"); // Spezial-Key zum Löschen
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 28),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -36,10 +68,10 @@ class ReactionPicker extends StatelessWidget {
         onSelect(emoji);
       },
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Text(
           emoji,
-          style: const TextStyle(fontSize: 30),
+          style: const TextStyle(fontSize: 32),
         ),
       ),
     );

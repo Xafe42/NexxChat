@@ -137,29 +137,36 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // ---------- Notification -----------------
-  Future<void> _sendV1Notification(String partnerToken, String messageText) async {
+  Future<void> _sendV1Notification(
+      String partnerToken, String messageText) async {
     final serviceAccountJson = {
-        "type": "service_account",
-        "project_id": "nexxchat-1f0fc",
-        "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\nCZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\nCUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
-        "client_email": "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
-        "client_id": "102132668974376071943",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40nexxchat-1f0fc.iam.gserviceaccount.com",
-        "universe_domain": "googleapis.com"
+      "type": "service_account",
+      "project_id": "nexxchat-1f0fc",
+      "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
+      "private_key":
+          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\nCZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\nCUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
+      "client_email":
+          "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
+      "client_id": "102132668974376071943",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url":
+          "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url":
+          "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40nexxchat-1f0fc.iam.gserviceaccount.com",
+      "universe_domain": "googleapis.com"
     };
 
     final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-    
+
     try {
-      final credentials = auth.ServiceAccountCredentials.fromJson(serviceAccountJson);
+      final credentials =
+          auth.ServiceAccountCredentials.fromJson(serviceAccountJson);
       final client = await auth.clientViaServiceAccount(credentials, scopes);
 
-      final String url = 'https://fcm.googleapis.com/v1/projects/nexxchat-1f0fc/messages:send';
-      
+      final String url =
+          'https://fcm.googleapis.com/v1/projects/nexxchat-1f0fc/messages:send';
+
       await client.post(
         Uri.parse(url),
         body: jsonEncode({
@@ -250,7 +257,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (_handledScheduledCalls.contains(msgId)) continue;
 
         final diff = nowMs - scheduledAt;
-        final isDue = diff >= 0 && diff < 2 * 60 * 1000; 
+        final isDue = diff >= 0 && diff < 2 * 60 * 1000;
 
         if (status == "scheduled" && isDue) {
           _handledScheduledCalls.add(msgId);
@@ -585,7 +592,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       builder: (_) {
         return ReactionPicker(
           onSelect: (emoji) {
-            _toggleReaction(messageId, emoji);
+            if (emoji == "REMOVE_ALL") {
+              _removeAllMyReactions(messageId);
+            } else {
+              _toggleReaction(messageId, emoji);
+            }
           },
         );
       },
@@ -624,10 +635,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _resetInput();
   }
-  // ---------- Reactions ----------
+
+  // ---------- Neue Multi-Reaction Logik ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
     if (_user == null) return;
+    final myUid = _user!.uid;
 
     final msgRef = _db
         .collection('conversations')
@@ -638,13 +651,49 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final snap = await msgRef.get();
     if (!snap.exists) return;
 
-    final data = snap.data()!;
-    final currentReaction = data['reaction'];
+    final data = snap.data() as Map<String, dynamic>;
+    final Map<String, dynamic> reactions = data['reactions'] ?? {};
 
-    if (currentReaction == emoji) {
-      await msgRef.update({'reaction': FieldValue.delete()});
+    final List<dynamic> usersWhoReacted = reactions[emoji] ?? [];
+    final bool alreadyReacted = usersWhoReacted.contains(myUid);
+
+    if (alreadyReacted) {
+      await msgRef.update({
+        'reactions.$emoji': FieldValue.arrayRemove([myUid])
+      });
     } else {
-      await msgRef.update({'reaction': emoji});
+      await msgRef.update({
+        'reactions.$emoji': FieldValue.arrayUnion([myUid])
+      });
+    }
+  }
+
+  // --- NEU: Alle eigenen Reaktionen von einer Nachricht entfernen ---
+  Future<void> _removeAllMyReactions(String messageId) async {
+    if (_user == null) return;
+    final myUid = _user!.uid;
+
+    final msgRef = _db
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .doc(messageId);
+
+    final snap = await msgRef.get();
+    if (!snap.exists) return;
+
+    final data = snap.data() as Map<String, dynamic>;
+    final Map<String, dynamic> reactions = data['reactions'] ?? {};
+
+    Map<String, dynamic> updates = {};
+    reactions.forEach((emoji, userList) {
+      if ((userList as List).contains(myUid)) {
+        updates['reactions.$emoji'] = FieldValue.arrayRemove([myUid]);
+      }
+    });
+
+    if (updates.isNotEmpty) {
+      await msgRef.update(updates);
     }
   }
 
@@ -923,7 +972,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         }
                       },
                     ),
-
                   if (isGroup && convData != null)
                     IconButton(
                       icon: const Icon(Icons.videocam, color: Colors.white),
@@ -986,20 +1034,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             itemBuilder: (_, index) {
                               if (index == docs.length + 1) {
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 8),
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                       color: isDark
-                                          ? const Color.fromARGB(200, 24, 34, 40)
-                                          : const Color.fromARGB(148, 248, 236, 130),
+                                          ? const Color.fromARGB(
+                                              200, 24, 34, 40)
+                                          : const Color.fromARGB(
+                                              148, 248, 236, 130),
                                     ),
                                     child: Text(
                                       '🔒 Messages are end-to-end encrypted.',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: isDark ? Colors.yellow[200] : Colors.black87,
+                                        color: isDark
+                                            ? Colors.yellow[200]
+                                            : Colors.black87,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -1009,7 +1062,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                               if (index == docs.length) {
                                 final msgData = docs.last.data();
-                                final ts = (msgData['timestamp'] ?? msgData['time']) as Timestamp?;
+                                final ts = (msgData['timestamp'] ??
+                                    msgData['time']) as Timestamp?;
                                 final dt = ts?.toDate() ?? DateTime.now();
                                 return _DateChip(label: _formatDateLabel(dt));
                               }
@@ -1021,17 +1075,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   senderEmail == _user?.email;
 
                               final type = msg['type'] ?? 'text';
-                              final ts = (msg['timestamp'] ?? msg['time']) as Timestamp?;
+                              final ts = (msg['timestamp'] ?? msg['time'])
+                                  as Timestamp?;
                               final dt = ts?.toDate() ?? DateTime.now();
                               final time = _formatTime(ts);
 
                               bool showDateChip = false;
                               if (index < docs.length - 1) {
                                 final nextMsg = docs[index + 1].data();
-                                final nextTs = (nextMsg['timestamp'] ?? nextMsg['time']) as Timestamp?;
-                                final nextDt = nextTs?.toDate() ?? DateTime.now();
+                                final nextTs = (nextMsg['timestamp'] ??
+                                    nextMsg['time']) as Timestamp?;
+                                final nextDt =
+                                    nextTs?.toDate() ?? DateTime.now();
 
-                                if (dt.year != nextDt.year || dt.month != nextDt.month || dt.day != nextDt.day) {
+                                if (dt.year != nextDt.year ||
+                                    dt.month != nextDt.month ||
+                                    dt.day != nextDt.day) {
                                   showDateChip = true;
                                 }
                               }
@@ -1059,7 +1118,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         },
                       ),
                     ),
-
                     StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                       stream: _db
                           .collection("conversations")
@@ -1071,17 +1129,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         }
 
                         final data = snap.data!.data()!;
-                        final typingUsers = List<String>.from(data["typingUsers"] ?? []);
-                        final members = List<String>.from(data["members"] ?? []);
+                        final typingUsers =
+                            List<String>.from(data["typingUsers"] ?? []);
+                        final members =
+                            List<String>.from(data["members"] ?? []);
                         final me = _user?.uid;
-                        final otherUid = members.firstWhere((m) => m != me, orElse: () => "");
+                        final otherUid = members.firstWhere((m) => m != me,
+                            orElse: () => "");
 
-                        final isTyping = otherUid.isNotEmpty && typingUsers.contains(otherUid);
+                        final isTyping = otherUid.isNotEmpty &&
+                            typingUsers.contains(otherUid);
 
                         if (!isTyping) return const SizedBox.shrink();
 
                         return Padding(
-                          padding: const EdgeInsets.only(left: 18, bottom: 4, top: 2),
+                          padding: const EdgeInsets.only(
+                              left: 18, bottom: 4, top: 2),
                           child: Row(
                             children: [
                               Text(
@@ -1097,18 +1160,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         );
                       },
                     ),
-
                     _buildInput(isDark),
                   ],
                 ),
-
                 if (_showScrollBtn)
                   Positioned(
                     right: 12,
                     bottom: 90,
                     child: FloatingActionButton(
                       mini: true,
-                      backgroundColor: isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
+                      backgroundColor:
+                          isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
                       onPressed: () {
                         if (_scrollCtrl.hasClients) {
                           _scrollCtrl.animateTo(
@@ -1121,41 +1183,48 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       child: const Icon(Icons.arrow_downward, size: 20),
                     ),
                   ),
-
                 if (_aktiveCmd?.type == "hello")
                   Positioned(
-                    bottom: 70, left: 0, right: 0,
+                    bottom: 70,
+                    left: 0,
+                    right: 0,
                     child: HelloPreview(
                       text: _aktiveCmd!.previewText!,
                       onCancel: _resetInput,
                       onSend: _send,
                     ),
                   ),
-
                 if (_isAiPreviewVisible)
                   Positioned(
-                    bottom: 70, left: 0, right: 0,
+                    bottom: 70,
+                    left: 0,
+                    right: 0,
                     child: AiPreview(
-                      onCancel: () => setState(() => _isAiPreviewVisible = false),
+                      onCancel: () =>
+                          setState(() => _isAiPreviewVisible = false),
                       onSend: (prompt, response) async {
-                        await _sendAiMessage(prompt: prompt, response: response);
-                        if (mounted) setState(() => _isAiPreviewVisible = false);
+                        await _sendAiMessage(
+                            prompt: prompt, response: response);
+                        if (mounted)
+                          setState(() => _isAiPreviewVisible = false);
                       },
                     ),
                   ),
-                
                 if (_aktiveCmd?.type == "calltime")
                   Positioned(
-                    bottom: 70, left: 0, right: 0,
+                    bottom: 70,
+                    left: 0,
+                    right: 0,
                     child: CallTimePreview(
                       onCancel: _resetInput,
                       onSend: (data) => _sendScheduledCall(data),
                     ),
                   ),
-
                 if (_aktiveCmd?.type == "event")
                   Positioned(
-                    bottom: 70, left: 0, right: 0,
+                    bottom: 70,
+                    left: 0,
+                    right: 0,
                     child: EventPreview(
                       onCancel: _resetInput,
                       onSend: (form) async {
@@ -1169,7 +1238,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       },
                     ),
                   ),
-
                 if (_isSlashToolbarVisible) _slashToolbar(),
               ],
             ),
@@ -1188,10 +1256,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bubbleColor = isMe ? bubbleMe : bubbleOther;
-    final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
+    final textColor =
+        isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
     final payload = msg['payload'] as Map<String, dynamic>?;
     final senderEmail = msg['sender'] ?? '';
-    final String? reaction = msg['reaction'];
+
+    Widget bubbleWidget;
 
     if (type == 'calltime') {
       final status = msg['status'] ?? 'scheduled';
@@ -1203,12 +1273,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         messageId: messageId,
       );
     }
-    
+
     if (type == 'image' || type == 'ai_image') {
       final url = (msg['content'] ?? payload?['url'] ?? '').toString();
 
       return Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onLongPress: () => _openReactionPicker(messageId),
@@ -1218,7 +1289,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               isMe: isMe,
             ),
           ),
-          if (reaction != null) _reactionChip(isMe, reaction),
+          // NEU: Multi-Reaction Anzeige unter Bildern
+          _buildReactionsDisplay(msg, messageId),
         ],
       );
     }
@@ -1226,11 +1298,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (type == 'call') {
       final status = msg['status'];
       final duration = msg['duration'] ?? 0;
-      String text = status == "missed" 
-        ? "📞 Verpasster Videoanruf" 
-        : "📞 Videoanruf beendet – Dauer: ${(duration / 60).floor().toString().padLeft(2, '0')}:${(duration % 60).floor().toString().padLeft(2, '0')}";
+      String text = status == "missed"
+          ? "📞 Verpasster Videoanruf"
+          : "📞 Videoanruf beendet – Dauer: ${(duration / 60).floor().toString().padLeft(2, '0')}:${(duration % 60).floor().toString().padLeft(2, '0')}";
 
-      return _Bubble(
+      bubbleWidget = _Bubble(
         isMe: isMe,
         bubbleColor: bubbleColor,
         textColor: textColor,
@@ -1238,10 +1310,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         onLongPress: () => _openReactionPicker(messageId),
         child: Text(text, style: TextStyle(color: textColor, fontSize: 16)),
       );
-    }
-
-    Widget bubbleWidget;
-    if (type == 'app') {
+    } else if (type == 'app') {
       final appName = (payload?['app'] ?? '').toString();
       Widget child;
 
@@ -1255,8 +1324,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Tetris Score", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                Text("Score: $score", style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                const Text("Tetris Score",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                Text("Score: $score",
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.white70)),
               ],
             ),
           ],
@@ -1268,7 +1343,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             const Text("👋", style: TextStyle(fontSize: 22)),
             const SizedBox(width: 6),
-            Text("Hello $who!", style: TextStyle(fontSize: 16, color: textColor, fontWeight: FontWeight.w600)),
+            Text("Hello $who!",
+                style: TextStyle(
+                    fontSize: 16,
+                    color: textColor,
+                    fontWeight: FontWeight.w600)),
           ],
         );
       } else {
@@ -1276,7 +1355,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       bubbleWidget = _Bubble(
-        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: child,
@@ -1286,22 +1368,34 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final response = payload?['response'] ?? '';
 
       bubbleWidget = _Bubble(
-        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (prompt.isNotEmpty)
-              Text("Q: $prompt", style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.black54)),
+              Text("Q: $prompt",
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: isMe ? Colors.white70 : Colors.black54)),
             if (prompt.isNotEmpty) const SizedBox(height: 4),
-            Text(response.toString(), style: TextStyle(fontSize: 15, color: textColor)),
+            Text(response.toString(),
+                style: TextStyle(fontSize: 15, color: textColor)),
           ],
         ),
       );
     } else if (type == 'event_ref') {
       bubbleWidget = _Bubble(
-        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: const Text("📅 Event"),
@@ -1309,31 +1403,94 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     } else {
       final text = msg['content'] ?? payload?['text'] ?? '';
       bubbleWidget = _Bubble(
-        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
-        child: Text(text.toString(), style: TextStyle(fontSize: 17, color: textColor)),
+        child: Text(text.toString(),
+            style: TextStyle(fontSize: 17, color: textColor)),
       );
     }
 
     return Column(
-      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        bubbleWidget,
-        if (reaction != null) _reactionChip(isMe, reaction),
+        GestureDetector(
+          onLongPress: () => _openReactionPicker(messageId),
+          child: bubbleWidget,
+        ),
+        // NEU: Multi-Reaction Anzeige unter Text/Apps
+        _buildReactionsDisplay(msg, messageId),
       ],
     );
   }
 
-  Widget _reactionChip(bool isMe, String emoji) {
-    return Container(
-      margin: const EdgeInsets.only(top: 4, left: 8, right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: isMe ? Colors.teal[100] : Colors.grey[300],
-        borderRadius: BorderRadius.circular(12),
+  // --- NEUE HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE ---
+ // --- HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE (unverändert aus letztem Schritt) ---
+  Widget _buildReactionsDisplay(Map<String, dynamic> msg, String messageId) {
+    final Map<String, dynamic> reactions = msg['reactions'] ?? {};
+    if (reactions.isEmpty) return const SizedBox.shrink();
+
+    final activeReactions = reactions.entries
+        .where((e) => (e.value as List).isNotEmpty)
+        .toList();
+
+    if (activeReactions.isEmpty) return const SizedBox.shrink();
+
+    final isMe = msg['senderId'] == _user?.uid;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+        children: activeReactions.map((entry) {
+          final emoji = entry.key;
+          final List users = entry.value as List;
+          final count = users.length;
+          final bool iReacted = users.contains(_user?.uid);
+
+          return GestureDetector(
+            onTap: () => _toggleReaction(messageId, emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: iReacted
+                    ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white10
+                        : Colors.grey[200]),
+                borderRadius: BorderRadius.circular(12),
+                border: iReacted
+                    ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: iReacted
+                            ? ChatTheme.myBubbleColor
+                            : (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white70
+                                : Colors.black87)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
-      child: Text(emoji, style: const TextStyle(fontSize: 16)),
     );
   }
 
@@ -1343,7 +1500,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         padding: const EdgeInsets.all(16),
         alignment: Alignment.center,
         color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
-        child: const Text("Dieser Benutzer existiert nicht mehr.", style: TextStyle(color: Colors.red, fontSize: 14)),
+        child: const Text("Dieser Benutzer existiert nicht mehr.",
+            style: TextStyle(color: Colors.red, fontSize: 14)),
       );
     }
     return Container(
@@ -1366,14 +1524,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     onChanged: _onTextChanged,
                     onSubmitted: (_) => _send(),
                     textInputAction: TextInputAction.send,
-                    minLines: 1, maxLines: 5,
-                    decoration: const InputDecoration(hintText: "Nachricht senden", border: InputBorder.none),
+                    minLines: 1,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                        hintText: "Nachricht senden", border: InputBorder.none),
                   ),
                 ),
               ),
-              IconButton(icon: Icon(Icons.attach_file, color: isDark ? Colors.white70 : Colors.grey[700]), onPressed: _openAttachmentMenu),
               IconButton(
-                icon: Icon(_isSlashToolbarVisible ? Icons.extension : Icons.extension_outlined, color: ChatTheme.myBubbleColor),
+                  icon: Icon(Icons.attach_file,
+                      color: isDark ? Colors.white70 : Colors.grey[700]),
+                  onPressed: _openAttachmentMenu),
+              IconButton(
+                icon: Icon(
+                    _isSlashToolbarVisible
+                        ? Icons.extension
+                        : Icons.extension_outlined,
+                    color: ChatTheme.myBubbleColor),
                 onPressed: _toggleSlashToolbar,
               ),
               const SizedBox(width: 2),
@@ -1381,7 +1548,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 backgroundColor: ChatTheme.myBubbleColor,
                 child: IconButton(
                   icon: _sending
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.send, color: Colors.white),
                   onPressed: _sending ? null : _send,
                 ),
@@ -1398,53 +1569,104 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Positioned(
-      left: 0, right: 0, bottom: 80,
+      left: 0,
+      right: 0,
+      bottom: 80,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 18),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 8))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 20,
+                offset: const Offset(0, 8))
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _commandCard(icon: "👋", title: "Hello", description: "Sende Nachricht", onTap: () {
-              _ctrl.text = "/hello "; _onTextChanged("/hello ");
-              setState(() => _isSlashToolbarVisible = false);
-            }),
-            _commandCard(icon: "🖼️", title: "Bild senden", description: "Galerie", onTap: _pickFromGallery),
-            _commandCard(icon: "🧠", title: "KI Image", description: "KI generieren", onTap: () async {
-              setState(() => _isSlashToolbarVisible = false);
-              final imageUrl = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageBotScreen()));
-              if (imageUrl != null && imageUrl is String) await _sendAiImage(imageUrl);
-            }),
-            _commandCard(icon: "🎮", title: "Tetris", description: "Mini-Tetris", onTap: () {
-              _ctrl.text = "/tetris"; _onTextChanged("/tetris");
-              setState(() => _isSlashToolbarVisible = false);
-            }),
-            _commandCard(icon: "🤖", title: "AI", description: "Chat mit AI", onTap: _openAiPreview),
+            _commandCard(
+                icon: "👋",
+                title: "Hello",
+                description: "Sende Nachricht",
+                onTap: () {
+                  _ctrl.text = "/hello ";
+                  _onTextChanged("/hello ");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "🖼️",
+                title: "Bild senden",
+                description: "Galerie",
+                onTap: _pickFromGallery),
+            _commandCard(
+                icon: "🧠",
+                title: "KI Image",
+                description: "KI generieren",
+                onTap: () async {
+                  setState(() => _isSlashToolbarVisible = false);
+                  final imageUrl = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ImageBotScreen()));
+                  if (imageUrl != null && imageUrl is String)
+                    await _sendAiImage(imageUrl);
+                }),
+            _commandCard(
+                icon: "🎮",
+                title: "Tetris",
+                description: "Mini-Tetris",
+                onTap: () {
+                  _ctrl.text = "/tetris";
+                  _onTextChanged("/tetris");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "🤖",
+                title: "AI",
+                description: "Chat mit AI",
+                onTap: _openAiPreview),
           ],
         ),
       ),
     );
   }
 
-  Widget _commandCard({required String icon, required String title, required String description, required VoidCallback onTap}) {
+  Widget _commandCard(
+      {required String icon,
+      required String title,
+      required String description,
+      required VoidCallback onTap}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300), color: isDarkMode ? Colors.grey[800] : Colors.white),
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300),
+            color: isDarkMode ? Colors.grey[800] : Colors.white),
         child: Row(
           children: [
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: isDarkMode ? Colors.white : Colors.black)),
-              Text(description, style: TextStyle(fontSize: 13, color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700)),
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode ? Colors.white : Colors.black)),
+              Text(description,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey.shade700)),
             ]),
           ],
         ),
@@ -1465,8 +1687,15 @@ class _DateChip extends StatelessWidget {
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(color: isDark ? const Color.fromARGB(200, 24, 34, 40) : Colors.grey[300], borderRadius: BorderRadius.circular(16)),
-          child: Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
+          decoration: BoxDecoration(
+              color: isDark
+                  ? const Color.fromARGB(200, 24, 34, 40)
+                  : Colors.grey[300],
+              borderRadius: BorderRadius.circular(16)),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : Colors.black87)),
         ),
       ),
     );
@@ -1478,7 +1707,8 @@ class _ImageBubble extends StatelessWidget {
   final String time;
   final bool isMe;
 
-  const _ImageBubble({required this.imageUrl, required this.time, required this.isMe});
+  const _ImageBubble(
+      {required this.imageUrl, required this.time, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
@@ -1487,14 +1717,33 @@ class _ImageBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImagePage(imageUrl: imageUrl))),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => FullScreenImagePage(imageUrl: imageUrl))),
               child: ClipRRect(
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(isMe ? 12 : 0), topRight: Radius.circular(isMe ? 0 : 12), bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(12)),
-                child: Image.network(imageUrl, width: 230, height: 260, fit: BoxFit.cover,
-                  loadingBuilder: (_, child, progress) => progress == null ? child : Container(width: 230, height: 260, color: Colors.grey[300], child: const Center(child: CircularProgressIndicator())),
+                borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isMe ? 12 : 0),
+                    topRight: Radius.circular(isMe ? 0 : 12),
+                    bottomLeft: const Radius.circular(12),
+                    bottomRight: const Radius.circular(12)),
+                child: Image.network(
+                  imageUrl,
+                  width: 230,
+                  height: 260,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          width: 230,
+                          height: 260,
+                          color: Colors.grey[300],
+                          child:
+                              const Center(child: CircularProgressIndicator())),
                 ),
               ),
             ),
@@ -1516,7 +1765,14 @@ class _Bubble extends StatelessWidget {
   final String? senderName;
   final VoidCallback onLongPress;
 
-  const _Bubble({required this.child, required this.time, required this.isMe, required this.bubbleColor, required this.textColor, this.senderName, required this.onLongPress});
+  const _Bubble(
+      {required this.child,
+      required this.time,
+      required this.isMe,
+      required this.bubbleColor,
+      required this.textColor,
+      this.senderName,
+      required this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -1527,16 +1783,33 @@ class _Bubble extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
           child: Column(
-            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              if (!isMe && senderName != null) Text(senderName!, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+              if (!isMe && senderName != null)
+                Text(senderName!,
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600])),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                decoration: BoxDecoration(color: bubbleColor, borderRadius: BorderRadius.only(topLeft: Radius.circular(isMe ? 12 : 0), topRight: Radius.circular(isMe ? 0 : 12), bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(12))),
-                child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                  child, const SizedBox(height: 3),
-                  Text(time, style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 11)),
-                ]),
+                decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(isMe ? 12 : 0),
+                        topRight: Radius.circular(isMe ? 0 : 12),
+                        bottomLeft: const Radius.circular(12),
+                        bottomRight: const Radius.circular(12))),
+                child: Column(
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      child,
+                      const SizedBox(height: 3),
+                      Text(time,
+                          style: TextStyle(
+                              color: textColor.withValues(alpha: 0.7),
+                              fontSize: 11)),
+                    ]),
               ),
             ],
           ),
