@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
+import 'package:nexxchat_firebase/Screens/call_screen.dart';
+import 'package:nexxchat_firebase/Screens/incoming_scheduled_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
 
 import '../core/services/chat_theme.dart';
 import 'chat_screen.dart';
@@ -11,6 +16,7 @@ import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
 import 'settings_screen.dart';
 import 'support_bot_screen.dart';
+
 
 class ChatHomeScreen extends StatefulWidget {
   static const String screenRoute = "chat_home_screen";
@@ -36,6 +42,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
   final List<Map<String, dynamic>> _staticChats = [];
+  final CallService _callService = CallService();
+  StreamSubscription? _incomingPrivateSub;
+  StreamSubscription? _incomingGroupSub;
+
+  final Set<String> _handledCallIds = {};
+  bool _incomingDialogOpen = false;
 
   @override
   void initState() {
@@ -44,7 +56,89 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     _loadTheme();
     _loadHiddenChats();
     _saveFcmToken(); // NEU: Adresse des Handys speichern
+    _listenIncomingCalls();
   }
+
+  @override
+  void dispose() {
+    _incomingPrivateSub?.cancel();
+    _incomingGroupSub?.cancel();
+    super.dispose();
+  }
+  void _listenIncomingCalls() {
+  final uid = currentUser?.uid;
+  if (uid == null) return;
+
+  _incomingPrivateSub?.cancel();
+  _incomingGroupSub?.cancel();
+
+  _incomingPrivateSub =
+      _callService.listenIncomingPrivateCalls(uid).listen((snap) {
+    for (final doc in snap.docs) {
+      _handleIncomingCall(doc.id, doc.data());
+    }
+  });
+
+  _incomingGroupSub =
+      _callService.listenIncomingGroupCalls(uid).listen((snap) {
+    for (final doc in snap.docs) {
+      _handleIncomingCall(doc.id, doc.data());
+    }
+  });
+}
+
+Future<void> _handleIncomingCall(String callId, Map<String, dynamic> data) async {
+  if (!mounted) return;
+  if (_incomingDialogOpen) return;
+
+  if (_handledCallIds.contains(callId)) return;
+  _handledCallIds.add(callId);
+
+  // تأكد مازال ringing
+  if (data["status"] != "ringing") return;
+
+  _incomingDialogOpen = true;
+
+  final isGroup = data["isGroup"] == true;
+
+  // title: في private نجم نجيب اسم caller لاحقًا، توّا نخليها عامة
+  final title = isGroup ? "Group Call" : "Incoming Call";
+
+  final now = DateTime.now();
+
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingScheduledCallScreen(
+        scheduledAt: now, // فقط للعرض، موش scheduled
+        title: title,
+        note: "Video call",
+        onJoin: () async {
+          await _callService.acceptCall(callId);
+
+          // ادخل CallScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CallScreen(
+                callID: callId,
+                userID: currentUser!.uid,
+                userName: currentUser!.email ?? "User",
+              ),
+            ),
+          );
+        },
+        onDecline: () async {
+          await _callService.declineCall(callId);
+          Navigator.pop(context);
+        },
+      ),
+    ),
+  );
+
+  _incomingDialogOpen = false;
+}
 
   Future<void> _saveFcmToken() async {
     String? token = await FirebaseMessaging.instance.getToken();
