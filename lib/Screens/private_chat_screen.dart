@@ -27,6 +27,8 @@ import '../core/services/chat_service.dart';
 import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
+// NEU: Import der separaten Vollbild-Datei
+import '../widgets/full_screen_image_page.dart';
 import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/reaction_picker.dart';
@@ -124,7 +126,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           members.firstWhere((id) => id != currentUid, orElse: () => "");
 
       if (otherUserId!.isNotEmpty) {
-        final userDoc = await _db.collection("users").doc(otherUserId).get();
+        final userDoc = await _db.collection("users").doc(otherUserId!).get();
         if (!userDoc.exists) {
           if (mounted) setState(() => userDeleted = true);
         }
@@ -136,7 +138,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ---------- Notification -----------------
   Future<void> _sendV1Notification(String partnerToken, String messageText) async {
-    // 1. Hier die Daten deines NEUEN JSON-Schlüssels einfügen
     final serviceAccountJson = {
         "type": "service_account",
         "project_id": "nexxchat-1f0fc",
@@ -154,26 +155,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
     
     try {
-      // Authentifizierung holen
       final credentials = auth.ServiceAccountCredentials.fromJson(serviceAccountJson);
       final client = await auth.clientViaServiceAccount(credentials, scopes);
 
       final String url = 'https://fcm.googleapis.com/v1/projects/nexxchat-1f0fc/messages:send';
       
-      // Nachricht senden
       await client.post(
         Uri.parse(url),
         body: jsonEncode({
           'message': {
             'token': partnerToken,
             'notification': {
-              'title': _user?.email?.split('@')[0] ?? "NexxChat", // Wer schreibt
-              'body': messageText, // Nachrichtentext
+              'title': _user?.email?.split('@')[0] ?? "NexxChat",
+              'body': messageText,
             },
             'android': {
               'priority': 'high',
               'notification': {
-                'channel_id': 'chat_messages', // Wichtig: Muss exakt wie in main.dart heißen!
+                'channel_id': 'chat_messages',
                 'click_action': 'FLUTTER_NOTIFICATION_CLICK',
               },
             },
@@ -182,7 +181,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
       client.close();
     } catch (e) {
-      print("Fehler beim Senden der Benachrichtigung: $e");
+      debugPrint("Fehler beim Senden der Benachrichtigung: $e");
     }
   }
 
@@ -197,9 +196,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       'type': 'call',
       'senderId': _user!.uid,
       'timestamp': FieldValue.serverTimestamp(),
-      'callType': call['type'], // video
-      'status': call['status'], // ended / missed
-      'duration': call['duration'], // null if missed
+      'callType': call['type'],
+      'status': call['status'],
+      'duration': call['duration'],
     });
 
     await convRef.update({
@@ -224,9 +223,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ? FieldValue.arrayUnion([_user!.uid])
             : FieldValue.arrayRemove([_user!.uid]),
       });
-    } catch (_) {
-      // Ignorieren falls Doc nicht existiert
-    }
+    } catch (_) {}
   }
 
   void _listenScheduledCalls() {
@@ -271,15 +268,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final scheduledAtMs = data["scheduledAt"] as int;
     final scheduledAt = DateTime.fromMillisecondsSinceEpoch(scheduledAtMs);
 
-    final note = (payload["note"] ?? "") as String? ?? "";
+    final note = (payload["note"] ?? "") as String;
     final convSnapshot =
         await _db.collection("conversations").doc(widget.conversationId).get();
 
-    final convData = convSnapshot.data() as Map<String, dynamic>?;
+    if (!mounted) return;
+    final convData = convSnapshot.data();
     final isGroup = convData?["isGroup"] == true;
     final title = isGroup ? (convData?["name"] ?? widget.title) : widget.title;
 
-    
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -296,7 +293,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 .doc(messageId)
                 .update({"status": "accepted"});
 
-            //callID (conversationId)
+            if (!mounted) return;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -316,6 +313,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 .doc(messageId)
                 .update({"status": "declined"});
 
+            if (!mounted) return;
             Navigator.pop(context);
           },
         ),
@@ -344,7 +342,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           _openTetris();
         });
       }
-      ;
     });
   }
 
@@ -364,7 +361,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     }
 
-    // Hidden Chat Logik
     await FirebaseFirestore.instance
         .collection("users")
         .doc(_user!.uid)
@@ -372,10 +368,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
     });
 
-    if (mounted) setState(() {});
     setState(() => _sending = true);
     try {
-      // 1. Nachricht in Firestore speichern
       await _chatService.sendTextMessage(
         conversationId: widget.conversationId,
         text: text,
@@ -383,18 +377,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         senderEmail: _user!.email ?? '',
       );
 
-      // --- NEU: BENACHRICHTIGUNG SENDEN ---
       if (otherUserId != null) {
-        // Wir holen den Token des anderen Nutzers aus Firestore
         final userDoc = await _db.collection('users').doc(otherUserId!).get();
         final String? partnerToken = userDoc.data()?['fcmToken'];
 
         if (partnerToken != null) {
-          // Sende die Push-Notification über die V1 Funktion
           await _sendV1Notification(partnerToken, text);
         }
       }
-      // ------------------------------------
 
       _ctrl.clear();
       _raw = "";
@@ -425,7 +415,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         members.firstWhere((m) => m != _user!.uid, orElse: () => '');
 
     final helloPayload = HelloApp.buildPayload(cmd.data);
-
     final msgRef = convRef.collection('messages').doc();
 
     await msgRef.set({
@@ -611,7 +600,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final note = (data["note"] ?? "") as String;
 
     final scheduledDateTime = DateTime.parse("$date $time:00");
-
     final convRef = _db.collection("conversations").doc(widget.conversationId);
 
     final payload = {
@@ -650,7 +638,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final snap = await msgRef.get();
     if (!snap.exists) return;
 
-    final data = snap.data() as Map<String, dynamic>;
+    final data = snap.data()!;
     final currentReaction = data['reaction'];
 
     if (currentReaction == emoji) {
@@ -665,26 +653,35 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
 
-    final filename =
-        '${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}';
+    // Spinner aktivieren
+    setState(() => _sending = true);
 
-    final ref = FirebaseStorage.instance.ref().child('chat_images/$filename');
+    try {
+      final filename =
+          '${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}';
 
-    await ref.putFile(file);
-    final url = await ref.getDownloadURL();
+      final ref = FirebaseStorage.instance.ref().child('chat_images/$filename');
 
-    await _chatService.sendImageMessage(
-      conversationId: widget.conversationId,
-      url: url,
-      senderUid: _user!.uid,
-    );
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
 
-    if (_scrollCtrl.hasClients) {
-      _scrollCtrl.animateTo(
-        0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
+      await _chatService.sendImageMessage(
+        conversationId: widget.conversationId,
+        url: url,
+        senderUid: _user!.uid,
       );
+
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } catch (e) {
+      debugPrint("Fehler beim Bildversand: $e");
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -785,7 +782,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ),
       ),
     );
-
     _resetInput();
   }
 
@@ -812,11 +808,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final bubbleMe = ChatTheme.myBubbleColor;
     final bubbleOther = isDark ? const Color(0xFF262D31) : Colors.white;
 
-    // 🔥 Stream für live updates (Titeländerung)
     return StreamBuilder<DocumentSnapshot>(
         stream: _db
             .collection('conversations')
@@ -864,7 +858,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: InkWell(
-                        // 🔥 Klick auf den Titel öffnet jetzt das GroupSettingsSheet
                         onTap: (isGroup && convData != null)
                             ? () {
                                 showModalBottomSheet(
@@ -898,7 +891,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   ],
                 ),
                 actions: [
-                  // 🔵 VIDEO CALL - PRIVATE CHAT
                   if (!isGroup && convData != null && !userDeleted)
                     IconButton(
                       icon: const Icon(Icons.videocam_rounded,
@@ -907,12 +899,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         final members =
                             List<String>.from(convData!['members'] ?? []);
 
-                        final otherUserId = members.firstWhere(
+                        final oId = members.firstWhere(
                           (m) => m != _user!.uid,
                           orElse: () => "",
                         );
 
-                        if (otherUserId.isEmpty) return;
+                        if (oId.isEmpty) return;
 
                         final result = await Navigator.push(
                           context,
@@ -927,23 +919,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                         if (result != null) {
                           await _sendCallSummary(result);
-                          setState(() {});
+                          if (mounted) setState(() {});
                         }
                       },
                     ),
 
-                  // 🔵 VIDEO CALL - GROUP
                   if (isGroup && convData != null)
                     IconButton(
                       icon: const Icon(Icons.videocam, color: Colors.white),
                       onPressed: () {
-                        final callID = widget.conversationId;
-
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => CallScreen(
-                              callID: callID,
+                              callID: widget.conversationId,
                               userID: _user!.uid,
                               userName: _user!.email ?? "User",
                             ),
@@ -956,7 +945,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               children: [
                 Column(
                   children: [
-                    // -------- Messages list --------
                     Expanded(
                       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream:
@@ -970,7 +958,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           final docs = snap.data!.docs;
 
                           if (userDeleted) {
-                            return Center(
+                            return const Center(
                               child: Text(
                                 "Dieser Benutzer existiert nicht mehr.",
                                 style: TextStyle(color: Colors.grey),
@@ -996,32 +984,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                             itemCount: docs.length + 2,
                             itemBuilder: (_, index) {
-                              // Top encryption banner
                               if (index == docs.length + 1) {
                                 return Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 8,
-                                    bottom: 4,
-                                    left: 24,
-                                    right: 24,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                       color: isDark
-                                          ? const Color.fromARGB(
-                                              200, 24, 34, 40)
-                                          : const Color.fromARGB(
-                                              148, 248, 236, 130),
+                                          ? const Color.fromARGB(200, 24, 34, 40)
+                                          : const Color.fromARGB(148, 248, 236, 130),
                                     ),
                                     child: Text(
-                                      '🔒 Messages are end-to-end encrypted. No one outside this chat can read them.',
+                                      '🔒 Messages are end-to-end encrypted.',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: isDark
-                                            ? Colors.yellow[200]
-                                            : Colors.black87,
+                                        color: isDark ? Colors.yellow[200] : Colors.black87,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -1029,41 +1007,31 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 );
                               }
 
-                              // First date chip (oldest message)
                               if (index == docs.length) {
                                 final msgData = docs.last.data();
-                                final ts = (msgData['timestamp'] ??
-                                    msgData['time']) as Timestamp?;
+                                final ts = (msgData['timestamp'] ?? msgData['time']) as Timestamp?;
                                 final dt = ts?.toDate() ?? DateTime.now();
                                 return _DateChip(label: _formatDateLabel(dt));
                               }
 
-                              final msgIndex = index;
-                              final msg = docs[msgIndex].data();
-                              final msgId = docs[msgIndex].id;
+                              final msg = docs[index].data();
+                              final msgId = docs[index].id;
                               final senderEmail = msg['sender'] ?? '';
                               final isMe = msg['senderId'] == _user?.uid ||
                                   senderEmail == _user?.email;
 
                               final type = msg['type'] ?? 'text';
-                              final ts = (msg['timestamp'] ?? msg['time'])
-                                  as Timestamp?;
+                              final ts = (msg['timestamp'] ?? msg['time']) as Timestamp?;
                               final dt = ts?.toDate() ?? DateTime.now();
                               final time = _formatTime(ts);
 
-                              // Need date chip before this message?
                               bool showDateChip = false;
-                              if (msgIndex < docs.length - 1) {
-                                final nextMsg = docs[msgIndex + 1].data();
-                                final nextTs = (nextMsg['timestamp'] ??
-                                    nextMsg['time']) as Timestamp?;
-                                final nextDt =
-                                    nextTs?.toDate() ?? DateTime.now();
+                              if (index < docs.length - 1) {
+                                final nextMsg = docs[index + 1].data();
+                                final nextTs = (nextMsg['timestamp'] ?? nextMsg['time']) as Timestamp?;
+                                final nextDt = nextTs?.toDate() ?? DateTime.now();
 
-                                final d1 = DateTime(dt.year, dt.month, dt.day);
-                                final d2 = DateTime(
-                                    nextDt.year, nextDt.month, nextDt.day);
-                                if (d1.difference(d2).inDays != 0) {
+                                if (dt.year != nextDt.year || dt.month != nextDt.month || dt.day != nextDt.day) {
                                   showDateChip = true;
                                 }
                               }
@@ -1092,7 +1060,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       ),
                     ),
 
-                    // -------- Typing indicator --------
                     StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                       stream: _db
                           .collection("conversations")
@@ -1100,33 +1067,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           .snapshots(),
                       builder: (context, snap) {
                         if (!snap.hasData || snap.data!.data() == null) {
-                          return const SizedBox(height: 0);
+                          return const SizedBox.shrink();
                         }
 
                         final data = snap.data!.data()!;
-                        final typingUsers =
-                            List<String>.from(data["typingUsers"] ?? []);
-                        final members =
-                            List<String>.from(data["members"] ?? []);
-
+                        final typingUsers = List<String>.from(data["typingUsers"] ?? []);
+                        final members = List<String>.from(data["members"] ?? []);
                         final me = _user?.uid;
-                        final otherUid = members.firstWhere((m) => m != me,
-                            orElse: () => "");
+                        final otherUid = members.firstWhere((m) => m != me, orElse: () => "");
 
-                        final isTyping = otherUid.isNotEmpty &&
-                            typingUsers.contains(otherUid);
+                        final isTyping = otherUid.isNotEmpty && typingUsers.contains(otherUid);
 
-                        if (!isTyping) return const SizedBox(height: 0);
+                        if (!isTyping) return const SizedBox.shrink();
 
                         return Padding(
-                          padding: const EdgeInsets.only(
-                            left: 18,
-                            bottom: 4,
-                            top: 2,
-                          ),
+                          padding: const EdgeInsets.only(left: 18, bottom: 4, top: 2),
                           child: Row(
                             children: [
-                              const SizedBox(width: 4),
                               Text(
                                 "typing…",
                                 style: TextStyle(
@@ -1141,20 +1098,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       },
                     ),
 
-                    // -------- Input row (attach + ⚡ mini-apps + text + send) --------
                     _buildInput(isDark),
                   ],
                 ),
 
-                // Scroll to bottom FAB
                 if (_showScrollBtn)
                   Positioned(
                     right: 12,
                     bottom: 90,
                     child: FloatingActionButton(
                       mini: true,
-                      backgroundColor:
-                          isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
+                      backgroundColor: isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
                       onPressed: () {
                         if (_scrollCtrl.hasClients) {
                           _scrollCtrl.animateTo(
@@ -1168,14 +1122,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     ),
                   ),
 
-                // -------- Mini-apps overlays --------
-
-                // Hello preview
                 if (_aktiveCmd?.type == "hello")
                   Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
+                    bottom: 70, left: 0, right: 0,
                     child: HelloPreview(
                       text: _aktiveCmd!.previewText!,
                       onCancel: _resetInput,
@@ -1183,41 +1132,30 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     ),
                   ),
 
-                // AI preview
                 if (_isAiPreviewVisible)
                   Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
+                    bottom: 70, left: 0, right: 0,
                     child: AiPreview(
-                      onCancel: () =>
-                          setState(() => _isAiPreviewVisible = false),
+                      onCancel: () => setState(() => _isAiPreviewVisible = false),
                       onSend: (prompt, response) async {
-                        await _sendAiMessage(
-                            prompt: prompt, response: response);
-                        setState(() => _isAiPreviewVisible = false);
+                        await _sendAiMessage(prompt: prompt, response: response);
+                        if (mounted) setState(() => _isAiPreviewVisible = false);
                       },
                     ),
                   ),
-                // CallTime preview
+                
                 if (_aktiveCmd?.type == "calltime")
                   Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
+                    bottom: 70, left: 0, right: 0,
                     child: CallTimePreview(
                       onCancel: _resetInput,
-                      onSend: (data) {
-                        _sendScheduledCall(data);
-                      },
+                      onSend: (data) => _sendScheduledCall(data),
                     ),
                   ),
-                // Event preview
+
                 if (_aktiveCmd?.type == "event")
                   Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
+                    bottom: 70, left: 0, right: 0,
                     child: EventPreview(
                       onCancel: _resetInput,
                       onSend: (form) async {
@@ -1226,14 +1164,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           ...eventPayload,
                           "creator": _user!.email,
                         });
-
                         await _sendEventRef(doc.id);
                         _resetInput();
                       },
                     ),
                   ),
 
-                // Slash mini-apps toolbar
                 if (_isSlashToolbarVisible) _slashToolbar(),
               ],
             ),
@@ -1241,7 +1177,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         });
   }
 
-  // ---------- Build one message bubble (text + image + mini-apps) ----------
   Widget _buildMessageBubble({
     required Map<String, dynamic> msg,
     required String messageId,
@@ -1252,38 +1187,31 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required Color bubbleOther,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final bubbleColor = isMe ? bubbleMe : bubbleOther;
-    final textColor =
-        isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
+    final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
     final payload = msg['payload'] as Map<String, dynamic>?;
     final senderEmail = msg['sender'] ?? '';
     final String? reaction = msg['reaction'];
-    // ---------- REACTION (ONE PER MESSAGE) ----------
 
     if (type == 'calltime') {
       final status = msg['status'] ?? 'scheduled';
-
-      if (status != 'scheduled') {
-        return const SizedBox.shrink();
-      }
+      if (status != 'scheduled') return const SizedBox.shrink();
 
       return CallTimeMessageCard(
-        payload: msg["payload"] ?? <String, dynamic>{},
+        payload: msg["payload"] ?? {},
         conversationId: widget.conversationId,
         messageId: messageId,
       );
     }
-    // ---------- IMAGE ----------
-    if (type == 'image') {
+    
+    if (type == 'image' || type == 'ai_image') {
       final url = (msg['content'] ?? payload?['url'] ?? '').toString();
 
       return Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           GestureDetector(
-            onLongPress: () => _openReactionPicker(msg['id']),
+            onLongPress: () => _openReactionPicker(messageId),
             child: _ImageBubble(
               imageUrl: url,
               time: time,
@@ -1294,40 +1222,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ],
       );
     }
-    // ---------- CALL ----------
 
     if (type == 'call') {
       final status = msg['status'];
-      final duration = msg['duration'];
-      // ignore: unused_local_variable
-      final callType = msg['callType'];
-
-      String text = "";
-
-      if (status == "missed") {
-        text = "📞 Verpasster Videoanruf";
-      } else {
-        final minutes = (duration / 60).floor();
-        final seconds = duration % 60;
-        final durText =
-            "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
-
-        text = "📞 Videoanruf beendet – Dauer: $durText";
-      }
+      final duration = msg['duration'] ?? 0;
+      String text = status == "missed" 
+        ? "📞 Verpasster Videoanruf" 
+        : "📞 Videoanruf beendet – Dauer: ${(duration / 60).floor().toString().padLeft(2, '0')}:${(duration % 60).floor().toString().padLeft(2, '0')}";
 
       return _Bubble(
         isMe: isMe,
         bubbleColor: bubbleColor,
         textColor: textColor,
         time: time,
-        onLongPress: () => _openReactionPicker(msg['id']),
+        onLongPress: () => _openReactionPicker(messageId),
         child: Text(text, style: TextStyle(color: textColor, fontSize: 16)),
       );
     }
 
-    // ---------- MINI APP ----------
     Widget bubbleWidget;
-
     if (type == 'app') {
       final appName = (payload?['app'] ?? '').toString();
       Widget child;
@@ -1342,14 +1255,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Tetris Score",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                Text("Score: $score",
-                    style:
-                        const TextStyle(fontSize: 14, color: Colors.white70)),
+                const Text("Tetris Score", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text("Score: $score", style: const TextStyle(fontSize: 14, color: Colors.white70)),
               ],
             ),
           ],
@@ -1361,11 +1268,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             const Text("👋", style: TextStyle(fontSize: 22)),
             const SizedBox(width: 6),
-            Text("Hello $who!",
-                style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                    fontWeight: FontWeight.w600)),
+            Text("Hello $who!", style: TextStyle(fontSize: 16, color: textColor, fontWeight: FontWeight.w600)),
           ],
         );
       } else {
@@ -1373,110 +1276,50 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        time: time,
-        textColor: textColor,
+        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
-        onLongPress: () => _openReactionPicker(msg["id"]),
+        onLongPress: () => _openReactionPicker(messageId),
         child: child,
       );
-    }
-
-    // ---------- AI IMAGE ----------
-    else if (type == "ai_image") {
-      final url = msg['content'] ?? "";
-
-      return Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onLongPress: () => _openReactionPicker(msg['id']),
-            child: _ImageBubble(
-              imageUrl: url,
-              time: time,
-              isMe: isMe,
-            ),
-          ),
-          if (reaction != null) _reactionChip(isMe, reaction),
-        ],
-      );
-    }
-
-    // ---------- AI TEXT ----------
-    else if (type == "ai") {
+    } else if (type == "ai") {
       final prompt = payload?['prompt'] ?? '';
       final response = payload?['response'] ?? '';
 
-      bubbleWidget = GestureDetector(
-        onLongPress: () => _openReactionPicker(msg['id']),
-        child: _Bubble(
-          isMe: isMe,
-          bubbleColor: bubbleColor,
-          time: time,
-          textColor: textColor,
-          senderName: isMe ? null : senderEmail.toString().split("@").first,
-          onLongPress: () => _openReactionPicker(msg['id']),
-          child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              if (prompt.toString().isNotEmpty)
-                Text("Q: $prompt",
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: isMe ? Colors.white70 : Colors.black54)),
-              if (prompt.toString().isNotEmpty) const SizedBox(height: 4),
-              Text(response.toString(),
-                  style: TextStyle(fontSize: 15, color: textColor)),
-            ],
-          ),
+      bubbleWidget = _Bubble(
+        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
+        senderName: isMe ? null : senderEmail.toString().split("@").first,
+        onLongPress: () => _openReactionPicker(messageId),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (prompt.isNotEmpty)
+              Text("Q: $prompt", style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.black54)),
+            if (prompt.isNotEmpty) const SizedBox(height: 4),
+            Text(response.toString(), style: TextStyle(fontSize: 15, color: textColor)),
+          ],
         ),
       );
-    }
-
-    // ---------- EVENT REF ----------
-    else if (type == 'event_ref') {
-      // ignore: unused_local_variable
-      final eventId = msg['eventId']?.toString();
-
+    } else if (type == 'event_ref') {
       bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        time: time,
-        textColor: textColor,
+        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
-        onLongPress: () => _openReactionPicker(msg["id"]),
-        child: Text("📅 Event"),
+        onLongPress: () => _openReactionPicker(messageId),
+        child: const Text("📅 Event"),
       );
-    }
-
-    // ---------- TEXT ----------
-    else {
+    } else {
       final text = msg['content'] ?? payload?['text'] ?? '';
       bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        time: time,
-        textColor: textColor,
+        isMe: isMe, bubbleColor: bubbleColor, time: time, textColor: textColor,
         senderName: isMe ? null : senderEmail.toString().split("@").first,
-        onLongPress: () => _openReactionPicker(msg["id"]),
-        child: Text(text.toString(),
-            style: TextStyle(fontSize: 17, color: textColor)),
+        onLongPress: () => _openReactionPicker(messageId),
+        child: Text(text.toString(), style: TextStyle(fontSize: 17, color: textColor)),
       );
     }
 
-    // ---------- FINAL RETURN (with reaction chip) ----------
     return Column(
-      crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onLongPress: () => _openReactionPicker(msg['id']),
-          child: bubbleWidget,
-        ),
+        bubbleWidget,
         if (reaction != null) _reactionChip(isMe, reaction),
       ],
     );
@@ -1490,38 +1333,27 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         color: isMe ? Colors.teal[100] : Colors.grey[300],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        emoji,
-        style: const TextStyle(fontSize: 16),
-      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 16)),
     );
   }
 
-  // ---------- Input row ----------
-
   Widget _buildInput(bool isDark) {
-    // 🔥 FIX: Container ist jetzt außen, damit die Farbe bis ganz nach unten reicht
     if (userDeleted) {
       return Container(
         padding: const EdgeInsets.all(16),
         alignment: Alignment.center,
         color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
-        child: const Text(
-          "Dieser Benutzer existiert nicht mehr.",
-          style: TextStyle(color: Colors.red, fontSize: 14),
-        ),
+        child: const Text("Dieser Benutzer existiert nicht mehr.", style: TextStyle(color: Colors.red, fontSize: 14)),
       );
     }
     return Container(
       color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
       child: SafeArea(
-        top:
-            false, // Oben keine Safearea, damit es direkt an die Liste anschließt
+        top: false,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             children: [
-              // Text field (jetzt links)
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1534,52 +1366,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     onChanged: _onTextChanged,
                     onSubmitted: (_) => _send(),
                     textInputAction: TextInputAction.send,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: "Nachricht senden",
-                      border: InputBorder.none,
-                    ),
+                    minLines: 1, maxLines: 5,
+                    decoration: const InputDecoration(hintText: "Nachricht senden", border: InputBorder.none),
                   ),
                 ),
               ),
-
-              // Attach (jetzt rechts)
+              IconButton(icon: Icon(Icons.attach_file, color: isDark ? Colors.white70 : Colors.grey[700]), onPressed: _openAttachmentMenu),
               IconButton(
-                icon: Icon(
-                  Icons.attach_file,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
-                ),
-                onPressed: _openAttachmentMenu,
-              ),
-
-              // Mini-apps toggle (jetzt rechts)
-              // 🔥 ICON GEÄNDERT zu Puzzle (Extension)
-              IconButton(
-                icon: Icon(
-                  _isSlashToolbarVisible
-                      ? Icons.extension
-                      : Icons.extension_outlined,
-                  color: ChatTheme.myBubbleColor,
-                ),
+                icon: Icon(_isSlashToolbarVisible ? Icons.extension : Icons.extension_outlined, color: ChatTheme.myBubbleColor),
                 onPressed: _toggleSlashToolbar,
               ),
-
               const SizedBox(width: 2),
-
-              // Send button (ganz rechts)
               CircleAvatar(
                 backgroundColor: ChatTheme.myBubbleColor,
                 child: IconButton(
                   icon: _sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.send, color: Colors.white),
                   onPressed: _sending ? null : _send,
                 ),
@@ -1591,144 +1393,59 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ---------- Slash (mini-apps) toolbar ----------
-
   Widget _slashToolbar() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 80,
+      left: 0, right: 0, bottom: 80,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 18),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 8))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _commandCard(
-              icon: "👋",
-              title: "Hello",
-              description: "Sende eine freundliche Nachricht",
-              onTap: () {
-                _ctrl.text = "/hello ";
-                _onTextChanged("/hello ");
-                setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
-              icon: "🖼️",
-              title: "Bild senden",
-              description: "Wähle ein Bild aus der Galerie",
-              onTap: _pickFromGallery,
-            ),
-            _commandCard(
-              icon: "🧠",
-              title: "KI Image",
-              description: "Bild mit KI generieren",
-              onTap: () async {
-                setState(() => _isSlashToolbarVisible = false);
-
-                final imageUrl = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ImageBotScreen()),
-                );
-
-                if (imageUrl != null && imageUrl is String) {
-                  await _sendAiImage(imageUrl);
-                }
-              },
-            ),
-            _commandCard(
-              icon: "🎮",
-              title: "Tetris",
-              description: "Spiele ein Mini-Tetris",
-              onTap: () {
-                _ctrl.text = "/tetris";
-                _onTextChanged("/tetris");
-                setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
-              icon: "📞",
-              title: "Call Time",
-              description: "Plane einen Gruppen- oder Privat-Call",
-              onTap: () {
-                _ctrl.text = "/calltime";
-                _onTextChanged("/calltime");
-                setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
-              icon: "🤖",
-              title: "AI",
-              description: "Chatte mit AI",
-              onTap: _openAiPreview,
-            ),
+            _commandCard(icon: "👋", title: "Hello", description: "Sende Nachricht", onTap: () {
+              _ctrl.text = "/hello "; _onTextChanged("/hello ");
+              setState(() => _isSlashToolbarVisible = false);
+            }),
+            _commandCard(icon: "🖼️", title: "Bild senden", description: "Galerie", onTap: _pickFromGallery),
+            _commandCard(icon: "🧠", title: "KI Image", description: "KI generieren", onTap: () async {
+              setState(() => _isSlashToolbarVisible = false);
+              final imageUrl = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageBotScreen()));
+              if (imageUrl != null && imageUrl is String) await _sendAiImage(imageUrl);
+            }),
+            _commandCard(icon: "🎮", title: "Tetris", description: "Mini-Tetris", onTap: () {
+              _ctrl.text = "/tetris"; _onTextChanged("/tetris");
+              setState(() => _isSlashToolbarVisible = false);
+            }),
+            _commandCard(icon: "🤖", title: "AI", description: "Chat mit AI", onTap: _openAiPreview),
           ],
         ),
       ),
     );
   }
 
-  Widget _commandCard({
-    required String icon,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-  }) {
+  Widget _commandCard({required String icon, required String title, required String description, required VoidCallback onTap}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
-    final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
-    final titleColor = isDarkMode ? Colors.white : Colors.black;
-    final descColor = isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
-          color: cardColor,
-        ),
+        padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300), color: isDarkMode ? Colors.grey[800] : Colors.white),
         child: Row(
           children: [
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: titleColor,
-                  ),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: descColor,
-                  ),
-                ),
-              ],
-            ),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: isDarkMode ? Colors.white : Colors.black)),
+              Text(description, style: TextStyle(fontSize: 13, color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700)),
+            ]),
           ],
         ),
       ),
@@ -1736,35 +1453,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 }
 
-// ---------- Small helper widgets ----------
-
 class _DateChip extends StatelessWidget {
   final String label;
-
   const _DateChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color.fromARGB(200, 24, 34, 40)
-                : Colors.grey[300],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white70 : Colors.black87,
-            ),
-          ),
+          decoration: BoxDecoration(color: isDark ? const Color.fromARGB(200, 24, 34, 40) : Colors.grey[300], borderRadius: BorderRadius.circular(16)),
+          child: Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
         ),
       ),
     );
@@ -1776,46 +1478,28 @@ class _ImageBubble extends StatelessWidget {
   final String time;
   final bool isMe;
 
-  const _ImageBubble({
-    required this.imageUrl,
-    required this.time,
-    required this.isMe,
-  });
+  const _ImageBubble({required this.imageUrl, required this.time, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.only(
-      topLeft: Radius.circular(isMe ? 12 : 0),
-      topRight: Radius.circular(isMe ? 0 : 12),
-      bottomLeft: const Radius.circular(12),
-      bottomRight: const Radius.circular(12),
-    );
-
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: borderRadius,
-              child: Image.network(
-                imageUrl,
-                width: 230,
-                height: 260,
-                fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImagePage(imageUrl: imageUrl))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(isMe ? 12 : 0), topRight: Radius.circular(isMe ? 0 : 12), bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(12)),
+                child: Image.network(imageUrl, width: 230, height: 260, fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) => progress == null ? child : Container(width: 230, height: 260, color: Colors.grey[300], child: const Center(child: CircularProgressIndicator())),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              time,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-              ),
-            ),
+            Text(time, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
           ],
         ),
       ),
@@ -1832,15 +1516,7 @@ class _Bubble extends StatelessWidget {
   final String? senderName;
   final VoidCallback onLongPress;
 
-  const _Bubble({
-    required this.child,
-    required this.time,
-    required this.isMe,
-    required this.bubbleColor,
-    required this.textColor,
-    this.senderName,
-    required this.onLongPress,
-  });
+  const _Bubble({required this.child, required this.time, required this.isMe, required this.bubbleColor, required this.textColor, this.senderName, required this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -1851,43 +1527,16 @@ class _Bubble extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
           child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              if (!isMe && senderName != null)
-                Text(
-                  senderName!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
+              if (!isMe && senderName != null) Text(senderName!, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(isMe ? 12 : 0),
-                    topRight: Radius.circular(isMe ? 0 : 12),
-                    bottomLeft: const Radius.circular(12),
-                    bottomRight: const Radius.circular(12),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                  children: [
-                    child,
-                    const SizedBox(height: 3),
-                    Text(
-                      time,
-                      style: TextStyle(
-                        color: textColor.withOpacity(0.7),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
+                decoration: BoxDecoration(color: bubbleColor, borderRadius: BorderRadius.only(topLeft: Radius.circular(isMe ? 12 : 0), topRight: Radius.circular(isMe ? 0 : 12), bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(12))),
+                child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                  child, const SizedBox(height: 3),
+                  Text(time, style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 11)),
+                ]),
               ),
             ],
           ),

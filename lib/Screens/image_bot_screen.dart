@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/services/chat_theme.dart';
+import '../widgets/full_screen_image_page.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";
@@ -30,6 +31,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   ];
 
   bool _isLoading = false;
+  bool _isUploading = false; // Status für den Spinner beim Firebase-Upload
 
   @override
   void initState() {
@@ -66,14 +68,16 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   // -------------------------------
   // 🔥 Generiere Bild mit Pollinations
   // -------------------------------
-Future<Uint8List?> _generateImage(String prompt) async {
-  const String myApiKey = "pk_ZGrxJtS9qhTE2Hp2"; 
+Future<dynamic> _generateImage(String prompt) async {
+  // ACHTUNG: Füge hier deinen Secret Key (sk_...) ein!
+  const String myApiKey = "sk_OsgzUPABqx04kQQ2GIeEZwKKX4XtswXd"; 
 
   try {
     final encodedPrompt = Uri.encodeComponent(prompt.trim());
     final int seed = Random().nextInt(1000000); 
     
-    const String model = "seedream";
+    // Tipp: 'flux' ist das aktuell beste Modell bei Pollinations
+    const String model = "flux"; 
 
     final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
                        "?width=1024"
@@ -87,7 +91,7 @@ Future<Uint8List?> _generateImage(String prompt) async {
     final response = await http.get(
       Uri.parse(url),
       headers: {
-        "Authorization": "Bearer $myApiKey",
+        "Authorization": "Bearer $myApiKey", // Dein privater Key schaltet das Limit frei
       },
     ).timeout(const Duration(seconds: 40));
 
@@ -95,15 +99,17 @@ Future<Uint8List?> _generateImage(String prompt) async {
       if (response.bodyBytes.length > 20000) {
         return response.bodyBytes;
       }
-      print("FEHLER: Bilddaten zu klein.");
+      return "FEHLER: Bilddaten zu klein.";
+    } else if (response.statusCode == 429) {
+      // Falls das Limit deines Accounts doch erreicht wird:
+      return "Dein Account-Limit wurde erreicht. Bitte kurz warten. ⏳";
     } else {
-      // Wenn es jetzt noch einen Fehler gibt, wird uns dieser Log genau sagen warum
       print("API FEHLER: ${response.statusCode} - Nachricht: ${response.body}");
+      return "Fehler: ${response.statusCode}. Bitte prüfe deinen API Key.";
     }
-    return null;
   } catch (e) {
     print("Netzwerkfehler: $e");
-    return null;
+    return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
   }
 }
 
@@ -136,22 +142,23 @@ Future<Uint8List?> _generateImage(String prompt) async {
     _scrollToBottom();
 
     // Generierung aufrufen
-    final imageBytes = await _generateImage(text);
+    final result = await _generateImage(text);
 
     if (mounted) {
       setState(() {
         _isLoading = false;
-        if (imageBytes != null) {
+        if (result is Uint8List) {
           _messages.add({
             'role': 'ai',
-            'data': imageBytes, // Speichert die Bytes
+            'data': result, // Speichert die Bytes
             'type': 'image',
             'prompt': text,
           });
         } else {
+          // Zeige Fehlermeldung direkt im Chat
           _messages.add({
             'role': 'ai',
-            'text': "Fehler beim Laden des Bildes von Pollinations.",
+            'text': result.toString(),
             'type': 'text'
           });
         }
@@ -201,7 +208,7 @@ Future<Uint8List?> _generateImage(String prompt) async {
                         isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isMe ? "Dein Prompt" : "Generiertes Bild",
+                        isMe ? "Dein Prompt" : "KI Bot",
                         style: TextStyle(
                             color: Colors.pink[800],
                             fontSize: 12,
@@ -209,34 +216,51 @@ Future<Uint8List?> _generateImage(String prompt) async {
                       ),
                       const SizedBox(height: 4),
 
-                      //
-                      // IMAGE
-                      //
                       if (isImage)
                         Column(
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.memory(
-                                msg['data'],
-                                width: 300,
-                                fit: BoxFit.cover,
+                            // Klickbar für VOLLBILD
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FullScreenImagePage(imageBytes: msg['data']),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Image.memory(
+                                  msg['data'],
+                                  width: 300,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 10),
 
                             // 🔥 Send to Chat Button
                             ElevatedButton.icon(
-                              onPressed: () async {
+                              onPressed: _isUploading ? null : () async {
+                                setState(() => _isUploading = true);
+
                                 final url =
                                     await _uploadToFirebase(msg['data']);
 
                                 if (url != null) {
                                   Navigator.pop(context, url);
                                 }
+                                
+                                if (mounted) setState(() => _isUploading = false);
                               },
-                              icon: const Icon(Icons.send),
-                              label: const Text("Send to Chat"),
+                              icon: _isUploading 
+                                ? const SizedBox(
+                                    width: 18, 
+                                    height: 18, 
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.send),
+                              label: Text(_isUploading ? "Wird gesendet..." : "Send to Chat"),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.pink[700],
                                 foregroundColor: Colors.white,
@@ -249,9 +273,6 @@ Future<Uint8List?> _generateImage(String prompt) async {
                             ),
                           ],
                         )
-                      //
-                      // TEXT
-                      //
                       else
                         Container(
                           padding: const EdgeInsets.all(12),
