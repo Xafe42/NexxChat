@@ -28,7 +28,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
   void _loadTheme() async {
     await ChatTheme.loadTheme();
-    if(mounted) setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -71,7 +71,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 color: isDark ? Colors.grey[900] : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))
                 ],
               ),
               child: TextField(
@@ -135,13 +135,13 @@ class _PeopleScreenState extends State<PeopleScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [accentColor.withOpacity(0.8), accentColor], // 🔥 Personalisiert
+                                colors: [accentColor.withValues(alpha: 0.8), accentColor], // 🔥 Personalisiert
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight
                               ),
                               borderRadius: BorderRadius.circular(18),
                               boxShadow: [
-                                BoxShadow(color: accentColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6))
+                                BoxShadow(color: accentColor.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 6))
                               ]
                             ),
                             child: const Row(
@@ -174,7 +174,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 3))
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3))
                         ]
                       ),
                       child: ListTile(
@@ -184,6 +184,10 @@ class _PeopleScreenState extends State<PeopleScreen> {
                               currentUid: currentUid, 
                               otherUid: userDoc.id
                             );
+                            
+                            // FIX: Prüfung auf 'context.mounted' nach einem asynchronen Aufruf (await)
+                            if (!context.mounted) return;
+                            
                             Navigator.push(
                               context, 
                               MaterialPageRoute(builder: (_) => PrivateChatScreen(
@@ -195,7 +199,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                         leading: CircleAvatar(
                           radius: 24,
-                          backgroundColor: accentColor.withOpacity(0.1), // 🔥 Personalisiert
+                          backgroundColor: accentColor.withValues(alpha: 0.1), // 🔥 Personalisiert
                           child: Text(
                             fullName.isNotEmpty ? fullName[0].toUpperCase() : "?",
                             style: TextStyle(color: accentColor, fontWeight: FontWeight.bold), // 🔥 Personalisiert
@@ -212,7 +216,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         trailing: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.1), 
+                            color: accentColor.withValues(alpha: 0.1), 
                             shape: BoxShape.circle
                           ),
                           child: Icon(Icons.chat_bubble_outline_rounded, size: 18, color: accentColor), // 🔥 Personalisiert

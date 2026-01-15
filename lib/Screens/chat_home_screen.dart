@@ -35,9 +35,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   bool _loadingUserHiddenChats = true;
 
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
-final List<Map<String, dynamic>> _staticChats = [];
+  final List<Map<String, dynamic>> _staticChats = [];
 
-@override
+  @override
   void initState() {
     super.initState();
     currentUser = _auth.currentUser;
@@ -68,8 +68,6 @@ final List<Map<String, dynamic>> _staticChats = [];
 
       setState(() {
         _hiddenChats.add(chatId);
-        // local können wir erstmal null lassen – wird beim nächsten _loadHiddenChats
-        // oder Snapshot-Refresh korrekt nachgeladen
         _hiddenChatTimes[chatId] = Timestamp.now();
       });
     } catch (e) {
@@ -211,7 +209,8 @@ final List<Map<String, dynamic>> _staticChats = [];
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              // FIX: withOpacity -> withValues
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, -5),
             )
@@ -246,25 +245,25 @@ final List<Map<String, dynamic>> _staticChats = [];
           ],
         ),
       ),
-     floatingActionButton: _selectedIndex == 0
-    ? FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const SupportBotScreen(),
-            ),
-          );
-        },
-        backgroundColor: Colors.white,
-        elevation: 6,
-        child: Icon(
-          Icons.smart_toy_rounded, // 🤖 KI icon
-          color: ChatTheme.myBubbleColor, // ولا Colors.purpleAccent
-          size: 28,
-        ),
-      )
-    : null,
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SupportBotScreen(),
+                  ),
+                );
+              },
+              backgroundColor: Colors.white,
+              elevation: 6,
+              child: Icon(
+                Icons.smart_toy_rounded, // 🤖 KI icon
+                color: ChatTheme.myBubbleColor,
+                size: 28,
+              ),
+            )
+          : null,
     );
   }
 
@@ -283,35 +282,37 @@ final List<Map<String, dynamic>> _staticChats = [];
             ),
           ),
           const Spacer(),
-           Container(
-          margin: const EdgeInsets.only(right: 10),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
-            ],
+          Container(
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[800] : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  // FIX: withOpacity -> withValues
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(Icons.add_rounded, color: textColor, size: 26),
+              onPressed: () {
+                setState(() {
+                  _selectedIndex = 1;
+                });
+              },
+            ),
           ),
-          child: IconButton(
-            icon: Icon(Icons.add_rounded, color: textColor, size: 26),
-            onPressed: () {
-              setState(() {
-                _selectedIndex = 1; 
-              });
-            },
-          ),
-        ),
           Container(
             decoration: BoxDecoration(
               color: isDark ? Colors.grey[800] : Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  // FIX: withOpacity -> withValues
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
@@ -417,9 +418,6 @@ final List<Map<String, dynamic>> _staticChats = [];
             final isHidden = _hiddenChats.contains(convDoc.id);
             final hiddenAt = _hiddenChatTimes[convDoc.id];
 
-            // ⚙️ Logic:
-            // - If chat is hidden AND there is NO newer message after it was hidden -> keep it hidden
-            // - If there *is* a new message (lastMessageTime > hiddenAt) -> unhide & show again
             if (isHidden) {
               final lastDate = lastMsgTime?.toDate();
               final hiddenDate = hiddenAt?.toDate();
@@ -428,12 +426,9 @@ final List<Map<String, dynamic>> _staticChats = [];
                   (hiddenDate == null || lastDate.isAfter(hiddenDate));
 
               if (!hasNewMessage) {
-                // still hidden, no new messages -> don't render
                 return const SizedBox.shrink();
               } else {
-                // new message after hide -> unhide in background
                 _unhideChat(convDoc.id);
-                // und weiter unten ganz normal anzeigen
               }
             }
 
@@ -504,159 +499,153 @@ final List<Map<String, dynamic>> _staticChats = [];
       },
     );
   }
-Widget _buildChatTile(
-  Map<String, dynamic> chat, {
-  required bool isLive,
-  required Color textColor,
-  required Color? subTextColor,
-}) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  return Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: () {
-        if (chat['name'] == "Support Bot") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SupportBotScreen()),
-          );
-        } else if (chat['name'] == "AI Image Generator") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ImageBotScreen()),
-          );
-        } else if (isLive) {
-          Navigator.pushNamed(context, ChatScreen.screenRoute);
-        } else if (chat['docId'] != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PrivateChatScreen(
-                conversationId: chat['docId'],
-                title: chat['name'],
+  Widget _buildChatTile(
+    Map<String, dynamic> chat, {
+    required bool isLive,
+    required Color textColor,
+    required Color? subTextColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (chat['name'] == "Support Bot") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SupportBotScreen()),
+            );
+          } else if (chat['name'] == "AI Image Generator") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ImageBotScreen()),
+            );
+          } else if (isLive) {
+            Navigator.pushNamed(context, ChatScreen.screenRoute);
+          } else if (chat['docId'] != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PrivateChatScreen(
+                  conversationId: chat['docId'],
+                  title: chat['name'],
+                ),
               ),
-            ),
-          );
-        }
-      },
-      onLongPress: () {
-        if (chat['docId'] != null) {
-          _showChatOptions(chat);
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Avatar
-                SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: ClipOval(
-                    child: Container(
-                      color: (chat['color'] as Color),
-                      child: _buildAvatarContent(chat),
-                    ),
+            );
+          }
+        },
+        onLongPress: () {
+          if (chat['docId'] != null) {
+            _showChatOptions(chat);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+          child: Row(
+            children: [
+              // Avatar
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: ClipOval(
+                  child: Container(
+                    color: (chat['color'] as Color),
+                    child: _buildAvatarContent(chat),
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-                // Name + Message
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chat['name'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            chat['time'],
+              // Name + Message
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat['name'],
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          chat['time'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subTextColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat['message'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
                               color: subTextColor,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chat['message'],
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: subTextColor,
-                              ),
+                        ),
+                        if ((chat['unread'] as int) > 0)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue,
                             ),
                           ),
-                          if ((chat['unread'] as int) > 0)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.blue,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-
-          ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildAvatarContent(Map<String, dynamic> chat) {
-  if (chat['icon'] != null) {
-    return Icon(
-      chat['icon'] as IconData,
-      color: Colors.white,
-      size: 28,
-    );
-  }
-  if (chat['avatar'] != null) {
-    return Image.asset(
-      chat['avatar'],
-      fit: BoxFit.cover,
-    );
-  }
-  return Center(
-    child: Text(
-      (chat['name'] as String).isNotEmpty
-          ? (chat['name'] as String)[0].toUpperCase()
-          : "?",
-      style: const TextStyle(
+  Widget _buildAvatarContent(Map<String, dynamic> chat) {
+    if (chat['icon'] != null) {
+      return Icon(
+        chat['icon'] as IconData,
         color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 22,
+        size: 28,
+      );
+    }
+    if (chat['avatar'] != null) {
+      return Image.asset(
+        chat['avatar'],
+        fit: BoxFit.cover,
+      );
+    }
+    return Center(
+      child: Text(
+        (chat['name'] as String).isNotEmpty
+            ? (chat['name'] as String)[0].toUpperCase()
+            : "?",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

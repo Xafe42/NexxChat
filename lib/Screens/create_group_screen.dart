@@ -67,7 +67,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         'lastMessageTime': FieldValue.serverTimestamp(),
         'createdBy': _auth.currentUser!.email,
         'icon': null,
-        'color': ChatTheme.myBubbleColor.value, // 🔥 Speichert die aktuelle Theme Farbe für die Gruppe
+        // FIX: .value ist veraltet, .toARGB32() ist der neue Standard
+        'color': ChatTheme.myBubbleColor.toARGB32(), // 🔥 Speichert die aktuelle Theme Farbe für die Gruppe
         'typingUsers': [], 
       });
 
@@ -129,7 +130,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 Container(
                   width: 60, height: 60,
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.1), // 🔥 Personalisiert
+                    // FIX: withOpacity ist veraltet, use withValues()
+                    color: accentColor.withValues(alpha: 0.1), // 🔥 Personalisiert
                     shape: BoxShape.circle
                   ),
                   child: Icon(Icons.camera_alt_rounded, color: accentColor, size: 30), // 🔥 Personalisiert
@@ -187,8 +189,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   final data = doc.data() as Map<String, dynamic>;
                   final uid = doc.id;
                   final name = (data['fullName'] ?? '').toString().toLowerCase();
-                  if (uid == currentUid) return false;
-                  if (_search.isNotEmpty && !name.contains(_search)) return false;
+                  
+                  // FIX: Curly braces added for flow control structures
+                  if (uid == currentUid) {
+                    return false;
+                  }
+                  if (_search.isNotEmpty && !name.contains(_search)) {
+                    return false;
+                  }
                   return true;
                 }).toList();
 
@@ -208,8 +216,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     return InkWell(
                       onTap: () {
                         setState(() {
-                          if (isSelected) _selectedUids.remove(uid);
-                          else _selectedUids.add(uid);
+                          if (isSelected) {
+                            _selectedUids.remove(uid);
+                          } else {
+                            _selectedUids.add(uid);
+                          }
                         });
                       },
                       child: Padding(

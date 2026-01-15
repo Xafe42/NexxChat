@@ -41,6 +41,7 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     final end = DateTime.now().millisecondsSinceEpoch;
     final duration = ((end - startTime) / 1000).round();
 
+    // Sende die Daten zurück an den vorherigen Screen
     Navigator.pop(context, {
       "type": "video",
       "status": "ended",
@@ -59,10 +60,11 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        _finishCall();
-        return true;
+    return PopScope(
+      canPop: false, // Wir verhindern das direkte Schließen, um _finishCall() zu nutzen
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _finishCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
       },
       child: ZegoUIKitPrebuiltCall(
         appID: 1324862294,
