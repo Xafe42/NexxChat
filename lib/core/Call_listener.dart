@@ -16,7 +16,6 @@ class GlobalCallListener extends StatefulWidget {
   @override
   State<GlobalCallListener> createState() => _GlobalCallListenerState();
 }
-
 class _GlobalCallListenerState extends State<GlobalCallListener> {
   StreamSubscription<QuerySnapshot>? _sub;
 
@@ -46,8 +45,8 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         final data = doc.data() as Map<String, dynamic>;
         final callId = doc.id;
 
-        // ❌ ignore calls I started
         if (data["callerId"] == user.uid) continue;
+        if (_incomingOpen) continue;
         if (_handledCalls.contains(callId)) continue;
 
         final isGroup = data["isGroup"] == true;
@@ -67,8 +66,6 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
   }
 
   void _openIncoming(String callId, Map<String, dynamic> data) {
-    if (_incomingOpen) return;
-
     final navigator = globalNavigatorKey.currentState;
     if (navigator == null) return;
 
@@ -93,20 +90,20 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
                 builder: (_) => CallScreen(
                   callID: callId,
                   userID: _auth.currentUser!.uid,
-                  userName:
-                      _auth.currentUser!.email ?? "User",
+                  userName: _auth.currentUser!.email ?? "User",
                 ),
               ),
             );
           },
           onDecline: () async {
             await _callService.declineCall(callId);
-            navigator.pop();
+            if (navigator.canPop()) {
+              navigator.pop();
+            }
           },
         ),
       ),
-    )
-        .then((_) {
+    ).then((_) {
       _incomingOpen = false;
     });
   }

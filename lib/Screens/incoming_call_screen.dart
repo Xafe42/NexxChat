@@ -29,17 +29,16 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   void initState() {
     super.initState();
 
-    // 🔴 نسمع للـ call document
     _sub = _callService.listenCall(widget.callId).listen((snap) {
       final data = snap.data();
       if (data == null) return;
 
       final status = data["status"];
 
-      // ❌ caller سكّر / رفض / missed
       if (status == "ended" ||
           status == "declined" ||
-          status == "missed") {
+          status == "missed" ||
+          status == "cancelled") {
         _safeClose();
       }
     });
@@ -49,7 +48,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     if (_closed) return;
     _closed = true;
 
-    if (mounted) {
+    if (mounted && Navigator.canPop(context)) {
       Navigator.of(context).pop();
     }
   }
@@ -83,7 +82,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             children: [
               const SizedBox(height: 40),
 
-              // 👤 Avatar + Name
               Column(
                 children: [
                   CircleAvatar(
@@ -121,13 +119,11 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                 ],
               ),
 
-              // 🟢🔴 Buttons
               Padding(
                 padding: const EdgeInsets.only(bottom: 50),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // 🔴 Decline
                     GestureDetector(
                       onTap: () async {
                         await widget.onDecline();
@@ -154,8 +150,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                         ),
                       ),
                     ),
-
-                    // 🟢 Accept
                     GestureDetector(
                       onTap: () async {
                         await widget.onAccept();

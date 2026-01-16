@@ -20,10 +20,10 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen>
     with WidgetsBindingObserver {
-  late int _startTime;
-  bool _popped = false;
-
   final CallService _callService = CallService();
+
+  late int _startTime;
+  bool _ended = false;
 
   @override
   void initState() {
@@ -38,9 +38,9 @@ class _CallScreenState extends State<CallScreen>
     super.dispose();
   }
 
-  Future<void> _finishCall() async {
-    if (_popped) return;
-    _popped = true;
+  Future<void> _endCall() async {
+    if (_ended) return;
+    _ended = true;
 
     final end = DateTime.now().millisecondsSinceEpoch;
     final duration = ((end - _startTime) / 1000).round();
@@ -53,10 +53,11 @@ class _CallScreenState extends State<CallScreen>
         status: "accepted",
         duration: duration,
       );
+      await _callService.endCall(widget.callID);
     } catch (_) {}
 
-    if (mounted) {
-      Navigator.pop(context);
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -64,7 +65,7 @@ class _CallScreenState extends State<CallScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      _finishCall();
+      _endCall();
     }
   }
  @override
@@ -73,7 +74,7 @@ class _CallScreenState extends State<CallScreen>
       canPop: false, // Wir verhindern das direkte Schließen, um _finishCall() zu nutzen
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _finishCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
+        _endCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
       },
       child: ZegoUIKitPrebuiltCall(
         appID: 1324862294,
