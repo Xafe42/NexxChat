@@ -159,7 +159,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     GestureDetector(
                       onTap: () async {
                         await widget.onAccept();
-                        _safeClose();
                       },
                       child: Container(
                         width: 72,
