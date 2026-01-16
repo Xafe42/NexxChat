@@ -17,54 +17,31 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
-  int startTime = 0;
-  bool popped = false;
+class _CallScreenState extends State<CallScreen> {
+  late int _startTime;
+  bool _closed = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    startTime = DateTime.now().millisecondsSinceEpoch;
+    _startTime = DateTime.now().millisecondsSinceEpoch;
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  void _finishCall() {
-    if (popped) return;
-    popped = true;
+  void _finishCallSafe() {
+    if (_closed || !mounted) return;
+    _closed = true;
 
     final end = DateTime.now().millisecondsSinceEpoch;
-    final duration = ((end - startTime) / 1000).round();
-
-    // Sende die Daten zurück an den vorherigen Screen
-    Navigator.pop(context, {
-      "type": "video",
-      "status": "ended",
-      "duration": duration,
-    });
+    final duration = ((end - _startTime) / 1000).round();
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Detect when user leaves the call screen (BACK or END CALL)
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      _finishCall();
-    }
-  }
-
-  @override
+ @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false, // Wir verhindern das direkte Schließen, um _finishCall() zu nutzen
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _finishCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
+        _finishCallSafe(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
       },
       child: ZegoUIKitPrebuiltCall(
         appID: 1324862294,
