@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../core/services/call_service.dart';
 
-class IncomingCallScreen extends StatelessWidget {
+class IncomingCallScreen extends StatefulWidget {
   final String callId;
   final String title;
-  final VoidCallback onAccept;
-  final VoidCallback onDecline;
+  final Future<void> Function() onAccept;
+  final Future<void> Function() onDecline;
 
   const IncomingCallScreen({
     super.key,
@@ -13,6 +15,50 @@ class IncomingCallScreen extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
   });
+
+  @override
+  State<IncomingCallScreen> createState() => _IncomingCallScreenState();
+}
+
+class _IncomingCallScreenState extends State<IncomingCallScreen> {
+  final CallService _callService = CallService();
+  StreamSubscription? _sub;
+  bool _closed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔴 نسمع للـ call document
+    _sub = _callService.listenCall(widget.callId).listen((snap) {
+      final data = snap.data();
+      if (data == null) return;
+
+      final status = data["status"];
+
+      // ❌ caller سكّر / رفض / missed
+      if (status == "ended" ||
+          status == "declined" ||
+          status == "missed") {
+        _safeClose();
+      }
+    });
+  }
+
+  void _safeClose() {
+    if (_closed) return;
+    _closed = true;
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,39 +87,37 @@ class IncomingCallScreen extends StatelessWidget {
               Column(
                 children: [
                   CircleAvatar(
-  radius: 55,
-  backgroundColor: Colors.white24,
-  child: Text(
-    title.isNotEmpty ? title[0].toUpperCase() : "?",
-    style: const TextStyle(
-      fontSize: 42,
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-),
-
-const SizedBox(height: 20),
-
-Text(
-  title,
-  textAlign: TextAlign.center,
-  style: const TextStyle(
-    color: Colors.white,
-    fontSize: 26,
-    fontWeight: FontWeight.w600,
-  ),
-),
-
-const SizedBox(height: 8),
-
-const Text(
-  "Incoming video call",
-  style: TextStyle(
-    color: Colors.white70,
-    fontSize: 16,
-  ),
-),
+                    radius: 55,
+                    backgroundColor: Colors.white24,
+                    child: Text(
+                      widget.title.isNotEmpty
+                          ? widget.title[0].toUpperCase()
+                          : "?",
+                      style: const TextStyle(
+                        fontSize: 42,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Incoming video call",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
                 ],
               ),
 
@@ -85,7 +129,10 @@ const Text(
                   children: [
                     // 🔴 Decline
                     GestureDetector(
-                      onTap: onDecline,
+                      onTap: () async {
+                        await widget.onDecline();
+                        _safeClose();
+                      },
                       child: Container(
                         width: 72,
                         height: 72,
@@ -110,7 +157,10 @@ const Text(
 
                     // 🟢 Accept
                     GestureDetector(
-                      onTap: onAccept,
+                      onTap: () async {
+                        await widget.onAccept();
+                        _safeClose();
+                      },
                       child: Container(
                         width: 72,
                         height: 72,

@@ -148,6 +148,12 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                 child: GestureDetector(
                   onTap: () async {
                     await callService.endCall(widget.callId);
+                    await callService.logCallMessage(
+                      conversationId: widget.callId.split("_").first,
+                      callId: widget.callId,
+                      type: "video",
+                      status: "cancelled",
+                    );
                     Navigator.pop(context);
                   },
                   child: Container(

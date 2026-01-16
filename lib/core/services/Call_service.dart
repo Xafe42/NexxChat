@@ -102,4 +102,54 @@ Future<void> markMissed(String callId) async {
   });
 }
 
+Future<void> logCallMessage({
+  required String conversationId,
+  required String callId,
+  required String type, // video / audio
+  required String status, // accepted / missed / declined / cancelled
+  int? duration,
+}) async {
+  final convRef =
+      _db.collection("conversations").doc(conversationId);
+
+  String text;
+
+  switch (status) {
+    case "accepted":
+      text = "📞 Video call • ${_formatDuration(duration ?? 0)}";
+      break;
+    case "missed":
+      text = "❌ Missed video call";
+      break;
+    case "declined":
+      text = "🚫 Call declined";
+      break;
+    case "cancelled":
+      text = "⏱ Call cancelled";
+      break;
+    default:
+      text = "📞 Video call";
+  }
+
+  await convRef.collection("messages").add({
+    "type": "call",
+    "callId": callId,
+    "status": status,
+    "duration": duration,
+    "text": text,
+    "timestamp": FieldValue.serverTimestamp(),
+  });
+
+  await convRef.update({
+    "lastMessage": text,
+    "lastMessageTime": FieldValue.serverTimestamp(),
+  });
+}
+
+String _formatDuration(int seconds) {
+  final m = (seconds ~/ 60).toString().padLeft(2, '0');
+  final s = (seconds % 60).toString().padLeft(2, '0');
+  return "$m:$s";
+}
+
 }

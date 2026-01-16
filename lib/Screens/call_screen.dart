@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 class CallScreen extends StatefulWidget {
@@ -17,23 +18,54 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> {
+class _CallScreenState extends State<CallScreen>
+    with WidgetsBindingObserver {
   late int _startTime;
-  bool _closed = false;
+  bool _popped = false;
+
+  final CallService _callService = CallService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startTime = DateTime.now().millisecondsSinceEpoch;
   }
 
-  void _finishCallSafe() {
-    if (_closed || !mounted) return;
-    _closed = true;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _finishCall() async {
+    if (_popped) return;
+    _popped = true;
 
     final end = DateTime.now().millisecondsSinceEpoch;
     final duration = ((end - _startTime) / 1000).round();
-    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    try {
+      await _callService.logCallMessage(
+        conversationId: widget.callID.split("_").first,
+        callId: widget.callID,
+        type: "video",
+        status: "accepted",
+        duration: duration,
+      );
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _finishCall();
+    }
   }
  @override
   Widget build(BuildContext context) {
@@ -41,7 +73,7 @@ class _CallScreenState extends State<CallScreen> {
       canPop: false, // Wir verhindern das direkte Schließen, um _finishCall() zu nutzen
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _finishCallSafe(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
+        _finishCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
       },
       child: ZegoUIKitPrebuiltCall(
         appID: 1324862294,

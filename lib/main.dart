@@ -10,6 +10,7 @@ import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
 import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
 import 'package:nexxchat_firebase/core/Call_listener.dart';
+import 'package:nexxchat_firebase/core/navigation.dart';
 
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
@@ -74,7 +75,9 @@ class MyApp extends StatelessWidget {
             
 
 return GlobalCallListener(
+  
   child: MaterialApp(
+    navigatorKey: globalNavigatorKey,
     title: 'NexxChat',
     debugShowCheckedModeBanner: false,
 
