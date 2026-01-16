@@ -16,25 +16,21 @@ class GlobalCallListener extends StatefulWidget {
   @override
   State<GlobalCallListener> createState() => _GlobalCallListenerState();
 }
-
 class _GlobalCallListenerState extends State<GlobalCallListener> {
   StreamSubscription<QuerySnapshot>? _sub;
 
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
-  final _callService = CallService();
 
   bool _incomingOpen = false;
-
-  final Set<String> _handledCalls = {};
 
   @override
   void initState() {
     super.initState();
-    _listenIncomingCalls();
+    _startListening();
   }
 
-  void _listenIncomingCalls() {
+  void _startListening() {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -43,12 +39,12 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         .where("status", isEqualTo: "ringing")
         .snapshots()
         .listen((snapshot) {
+      if (_incomingOpen) return;
+
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final callId = doc.id;
 
-        if (_handledCalls.contains(callId)) continue;
-        if (_incomingOpen) continue;
         if (data["callerId"] == user.uid) continue;
 
         final isGroup = data["isGroup"] == true;
@@ -61,8 +57,10 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
 
         if (!isForMe) continue;
 
-        _handledCalls.add(callId);
+        _incomingOpen = true;
+        _sub?.cancel(); 
         _openIncoming(callId, data);
+        break;
       }
     });
   }
@@ -70,8 +68,6 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
   void _openIncoming(String callId, Map<String, dynamic> data) {
     final navigator = globalNavigatorKey.currentState;
     if (navigator == null) return;
-
-    _incomingOpen = true;
 
     final title =
         data["callerName"] ??
@@ -85,7 +81,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
           callId: callId,
           title: title,
           onAccept: () async {
-            await _callService.acceptCall(callId);
+            await CallService().acceptCall(callId);
 
             navigator.pushReplacement(
               MaterialPageRoute(
@@ -98,13 +94,15 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
             );
           },
           onDecline: () async {
-            await _callService.declineCall(callId);
-            if (navigator.canPop()) navigator.pop();
+            await CallService().declineCall(callId);
+            navigator.pop();
           },
         ),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       _incomingOpen = false;
+      _startListening(); 
     });
   }
 
