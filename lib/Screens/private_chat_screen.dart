@@ -12,7 +12,7 @@ import 'package:intl/intl.dart';
 // Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
-import 'package:nexxchat_firebase/Screens/incoming_scheduled_call_screen.dart';
+import 'package:nexxchat_firebase/Screens/incoming_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
@@ -58,11 +58,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _picker = ImagePicker();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _callSub;
-  final Set<String> _handledCalls = {};
-
+  final Set<String> _handledCallIds = {};
 
   final Set<String> _handledScheduledCalls = {};
   User? _user;
+
   bool _sending = false;
   bool _lastTypingState = false;
   bool _showScrollBtn = false;
@@ -268,71 +268,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         if (status == "scheduled" && isDue) {
           _handledScheduledCalls.add(msgId);
-          _showIncomingScheduledCall(msgId, data);
         }
       }
     });
-  }
-
-  void _showIncomingScheduledCall(
-      String messageId, Map<String, dynamic> data) async {
-    if (!mounted) return;
-
-    final payload = Map<String, dynamic>.from(data["payload"] ?? {});
-    final scheduledAtMs = data["scheduledAt"] as int;
-    final scheduledAt = DateTime.fromMillisecondsSinceEpoch(scheduledAtMs);
-
-    final note = (payload["note"] ?? "") as String;
-    final convSnapshot =
-        await _db.collection("conversations").doc(widget.conversationId).get();
-
-    if (!mounted) return;
-    final convData = convSnapshot.data();
-    final isGroup = convData?["isGroup"] == true;
-    final title = isGroup ? (convData?["name"] ?? widget.title) : widget.title;
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => IncomingScheduledCallScreen(
-          scheduledAt: scheduledAt,
-          title: title,
-          note: note.isEmpty ? null : note,
-          onJoin: () async {
-            await _db
-                .collection("conversations")
-                .doc(widget.conversationId)
-                .collection("messages")
-                .doc(messageId)
-                .update({"status": "accepted"});
-
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: widget.conversationId,
-                  userID: _user!.uid,
-                  userName: _user!.email ?? "User",
-                ),
-              ),
-            );
-          },
-          onDecline: () async {
-            await _db
-                .collection("conversations")
-                .doc(widget.conversationId)
-                .collection("messages")
-                .doc(messageId)
-                .update({"status": "declined"});
-
-            if (!mounted) return;
-            Navigator.pop(context);
-          },
-        ),
-      ),
-    );
   }
 
   // ---------- Input change (typing + slash commands) ----------
@@ -484,6 +422,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
     }
   }
+
   Future<void> _sendTetrisScore(int score) async {
     if (_user == null) return;
 
@@ -643,7 +582,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _listenIncomingCalls() {
-    if (_user == null) return;
+    final uid = _user?.uid;
+    if (uid == null) return;
+
+    _callSub?.cancel();
 
     _callSub = FirebaseFirestore.instance
         .collection("calls")
@@ -654,32 +596,64 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         final data = doc.data();
         final callId = doc.id;
 
-        if (_handledCalls.contains(callId)) continue;
+        if (data["callerId"] == uid) continue;
+
+        if (_handledCallIds.contains(callId)) continue;
 
         final isGroup = data["isGroup"] == true;
-        final callerId = data["callerId"];
-
         bool shouldShow = false;
 
-        // PRIVATE
-        if (!isGroup && data["receiverId"] == _user!.uid) {
+        if (!isGroup && data["receiverId"] == uid) {
           shouldShow = true;
         }
 
-        // GROUP
-        if (isGroup &&
-            (data["members"] is List) &&
-            (data["members"] as List).contains(_user!.uid) &&
-            callerId != _user!.uid) {
+        if (isGroup && (data["members"] as List).contains(uid)) {
           shouldShow = true;
         }
 
         if (shouldShow) {
-          _handledCalls.add(callId);
-          _openIncomingCall(callId, data);
+          _handledCallIds.add(callId);
+          _handleIncomingCall(callId, data);
         }
       }
     });
+  }
+
+  Future<void> _handleIncomingCall(
+    String callId,
+    Map<String, dynamic> data,
+  ) async {
+    if (!mounted) return;
+
+    final callService = CallService();
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => IncomingCallScreen(
+          callId: callId,
+          title: "Incoming Call",
+          onAccept: () async {
+            await callService.acceptCall(callId);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CallScreen(
+                  callID: callId,
+                  userID: _user!.uid,
+                  userName: _user!.email ?? "User",
+                ),
+              ),
+            );
+          },
+          onDecline: () async {
+            await callService.declineCall(callId);
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
   }
 
   void _openIncomingCall(String callId, Map<String, dynamic> data) async {
@@ -688,19 +662,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final callService = CallService();
     final isGroup = data["isGroup"] == true;
 
-    final title = isGroup
-        ? widget.title
-        : (data["callerId"] ?? "Incoming call");
+    final title =
+        isGroup ? widget.title : (data["callerId"] ?? "Incoming call");
 
     await Navigator.push(
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => IncomingScheduledCallScreen(
-          scheduledAt: DateTime.now(),
-          title: "Incoming Video Call",
-          note: null,
-          onJoin: () async {
+        builder: (_) => IncomingCallScreen(
+          callId: callId,
+          title: title,
+          onAccept: () async {
             await callService.acceptCall(callId);
 
             Navigator.pushReplacement(
@@ -722,7 +694,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ),
     );
   }
-
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -1052,7 +1023,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           callerId: _user!.uid,
                           receiverId: otherUserId,
                         );
-
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -1538,7 +1508,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // --- NEUE HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE ---
- // --- HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE (unverändert aus letztem Schritt) ---
+  // --- HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE (unverändert aus letztem Schritt) ---
   Widget _buildReactionsDisplay(Map<String, dynamic> msg, String messageId) {
     final Map<String, dynamic> reactions = msg['reactions'] ?? {};
     if (reactions.isEmpty) return const SizedBox.shrink();

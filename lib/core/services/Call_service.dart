@@ -18,6 +18,7 @@ class CallService {
       "callerId": callerId,
       "receiverId": receiverId,
       "isGroup": false,
+      "isScheduled": false,
       "type": "video",
       "status": "ringing",
       "createdAt": FieldValue.serverTimestamp(),
