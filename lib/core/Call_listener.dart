@@ -16,6 +16,7 @@ class GlobalCallListener extends StatefulWidget {
   @override
   State<GlobalCallListener> createState() => _GlobalCallListenerState();
 }
+
 class _GlobalCallListenerState extends State<GlobalCallListener> {
   StreamSubscription<QuerySnapshot>? _sub;
 
@@ -26,7 +27,6 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
   bool _incomingOpen = false;
 
   final Set<String> _handledCalls = {};
-  final Set<String> _joinedCalls = {};
 
   @override
   void initState() {
@@ -47,10 +47,9 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         final data = doc.data() as Map<String, dynamic>;
         final callId = doc.id;
 
-        if (data["callerId"] == user.uid) continue;
-        if (_incomingOpen) continue;
         if (_handledCalls.contains(callId)) continue;
-        if (_joinedCalls.contains(callId)) continue;
+        if (_incomingOpen) continue;
+        if (data["callerId"] == user.uid) continue;
 
         final isGroup = data["isGroup"] == true;
         final receiverId = data["receiverId"];
@@ -86,8 +85,6 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
           callId: callId,
           title: title,
           onAccept: () async {
-            _joinedCalls.add(callId);
-
             await _callService.acceptCall(callId);
 
             navigator.pushReplacement(

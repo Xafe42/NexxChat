@@ -46,14 +46,11 @@ class _CallScreenState extends State<CallScreen>
     final duration = ((end - _startTime) / 1000).round();
 
     try {
-      await _callService.logCallMessage(
-        conversationId: widget.callID.split("_").first,
+      await _callService.finalizeCall(
         callId: widget.callID,
-        type: "video",
         status: "accepted",
         duration: duration,
       );
-      await _callService.endCall(widget.callID);
     } catch (_) {}
 
     if (mounted && Navigator.of(context).canPop()) {
@@ -68,13 +65,14 @@ class _CallScreenState extends State<CallScreen>
       _endCall();
     }
   }
- @override
+
+  @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, // Wir verhindern das direkte Schließen, um _finishCall() zu nutzen
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _endCall(); // Wird aufgerufen, wenn Zego oder der User den Screen verlassen will
+        _endCall();
       },
       child: ZegoUIKitPrebuiltCall(
         appID: 1324862294,
