@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/call_screen.dart';
+import 'package:nexxchat_firebase/core/call/zego_call_engine.dart';
 
 class CallTimeMessageCard extends StatefulWidget {
   final Map<String, dynamic> payload;
@@ -65,67 +66,72 @@ class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
   }
 
   Future<void> _handleJoinPressed() async {
-    if (!isActive) return;
+  if (!isActive) return;
 
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
 
-    final dateString = widget.payload["date"];
-    final timeString = widget.payload["time"];
+  final dateString = widget.payload["date"];
+  final timeString = widget.payload["time"];
 
-    final cleanID = "call_" +
-        dateString.replaceAll("-", "") +
-        "_" +
-        timeString.replaceAll(":", "");
+  final cleanID = "call_" +
+      dateString.replaceAll("-", "") +
+      "_" +
+      timeString.replaceAll(":", "");
 
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CallScreen(
-          callID: cleanID,
-          userID: currentUser.uid,
-          userName: currentUser.email ?? "User",
-        ),
+  final engine = ZegoCallEngine();
+  engine.init(
+    callId: cleanID,
+    userId: currentUser.uid,
+    userName: currentUser.email ?? "User",
+  );
+
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CallScreen(
+        callID: cleanID,
+        userID: currentUser.uid,
+        userName: currentUser.email ?? "User",
+        engine: engine,
       ),
-    );
+    ),
+  );
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    if (result is Map<String, dynamic>) {
-      final status = result["status"] ?? "ended";
-      final duration = result["duration"];
+  if (result is Map<String, dynamic>) {
+    final status = result["status"] ?? "ended";
+    final duration = result["duration"];
 
-      final convRef = FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(widget.conversationId);
-      final msgRef = convRef.collection('messages').doc();
+    final convRef = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId);
+    final msgRef = convRef.collection('messages').doc();
 
-      // call summary message
-      await msgRef.set({
-        'id': msgRef.id,
-        'type': 'call',
-        'senderId': currentUser.uid,
-        'timestamp': FieldValue.serverTimestamp(),
-        'callType': result['type'] ?? 'video',
-        'status': status,
-        'duration': duration,
-      });
+    await msgRef.set({
+      'id': msgRef.id,
+      'type': 'call',
+      'senderId': currentUser.uid,
+      'timestamp': FieldValue.serverTimestamp(),
+      'callType': result['type'] ?? 'video',
+      'status': status,
+      'duration': duration,
+    });
 
-      // update conversation last message
-      await convRef.update({
-        'lastMessage': status == 'missed'
-            ? '📞 Verpasster Videoanruf'
-            : '📞 Videoanruf beendet',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-      });
+    await convRef.update({
+      'lastMessage': status == 'missed'
+          ? '📞 Verpasster Videoanruf'
+          : '📞 Videoanruf beendet',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+    });
 
-      // 👇 هنا النقطة المهمة: نخفي الـ CallTime القديم
-      await convRef
-          .collection('messages')
-          .doc(widget.messageId)
-          .update({'status': 'ended'});
-    }
+    await convRef
+        .collection('messages')
+        .doc(widget.messageId)
+        .update({'status': 'ended'});
   }
+}
 
   @override
   Widget build(BuildContext context) {

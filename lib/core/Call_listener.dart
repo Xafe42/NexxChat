@@ -69,46 +69,30 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
     });
   }
 
-  void _openIncoming(String callId, Map<String, dynamic> data) {
-    final navigator = globalNavigatorKey.currentState;
-    if (navigator == null) return;
+ void _openIncoming(String callId, Map<String, dynamic> data) {
+  final navigator = globalNavigatorKey.currentState;
+  if (navigator == null) return;
 
-    final title =
-        data["callerName"] ??
-        (data["isGroup"] == true ? "Group Call" : "Incoming Call");
+  final title =
+      data["callerName"] ??
+      (data["isGroup"] == true ? "Group Call" : "Incoming Call");
 
-    navigator
-        .push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => IncomingCallScreen(
-          callId: callId,
-          title: title,
-          onAccept: () async {
-            _blockedCalls.add(callId);
-            await _callService.acceptCall(callId);
-
-            navigator.pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: callId,
-                  userID: _auth.currentUser!.uid,
-                  userName: _auth.currentUser!.email ?? "User",
-                ),
-              ),
-            );
-          },
-          onDecline: () async {
-            _blockedCalls.add(callId);
-            await _callService.declineCall(callId);
-            if (navigator.canPop()) navigator.pop();
-          },
-        ),
+  navigator
+      .push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingCallScreen(
+        callId: callId,
+        title: title,
+        userId: _auth.currentUser!.uid,
+        userName: _auth.currentUser!.email ?? "User",
       ),
-    ).then((_) {
-      _incomingOpen = false;
-    });
-  }
+    ),
+  )
+      .then((_) {
+    _incomingOpen = false;
+  });
+}
 
   @override
   void dispose() {

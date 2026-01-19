@@ -68,55 +68,37 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     ;
   }
 
-  Future<void> _handleIncomingCall(
-    String callId,
-    Map<String, dynamic> data,
-  ) async {
-    if (!mounted) return;
-    if (_incomingDialogOpen) return;
+ Future<void> _handleIncomingCall(
+  String callId,
+  Map<String, dynamic> data,
+) async {
+  if (!mounted) return;
+  if (_incomingDialogOpen) return;
+  if (_handledCallIds.contains(callId)) return;
+  if (data["status"] != "ringing") return;
 
-    if (_handledCallIds.contains(callId)) return;
-    _handledCallIds.add(callId);
+  _handledCallIds.add(callId);
+  _incomingDialogOpen = true;
 
-    if (data["status"] != "ringing") return;
+  final isGroup = data["isGroup"] == true;
+  final title =
+      isGroup ? "Group Call" : (data["callerName"] ?? "Incoming Call");
 
-    _incomingDialogOpen = true;
-
-    final isGroup = data["isGroup"] == true;
-    final title = isGroup
-    ? "Group Call"
-    : (data["callerName"] ?? "Incoming Call");
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => IncomingCallScreen(
-          callId: callId,
-          title: "Incoming Call",
-          onAccept: () async {
-            await _callService.acceptCall(callId);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: callId,
-                  userID: currentUser!.uid,
-                  userName: currentUser!.email ?? "User",
-                ),
-              ),
-            );
-          },
-          onDecline: () async {
-            await _callService.declineCall(callId);
-            Navigator.pop(context);
-          },
-        ),
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingCallScreen(
+        callId: callId,
+        title: title,
+        userId: currentUser!.uid,
+        userName: currentUser!.email ?? "User",
       ),
-    );
+    ),
+  );
 
-    _incomingDialogOpen = false;
-  }
+  _incomingDialogOpen = false;
+}
 
   Future<void> _saveFcmToken() async {
     String? token = await FirebaseMessaging.instance.getToken();

@@ -619,81 +619,45 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  Future<void> _handleIncomingCall(
-    String callId,
-    Map<String, dynamic> data,
-  ) async {
-    if (!mounted) return;
+Future<void> _handleIncomingCall(
+  String callId,
+  Map<String, dynamic> data,
+) async {
+  if (!mounted) return;
 
-    final callService = CallService();
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => IncomingCallScreen(
-          callId: callId,
-          title: "Incoming Call",
-          onAccept: () async {
-            await callService.acceptCall(callId);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: callId,
-                  userID: _user!.uid,
-                  userName: _user!.email ?? "User",
-                ),
-              ),
-            );
-          },
-          onDecline: () async {
-            await callService.declineCall(callId);
-            Navigator.pop(context);
-          },
-        ),
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingCallScreen(
+        callId: callId,
+        title: "Incoming Call",
+        userId: _user!.uid,
+        userName: _user!.email ?? "User",
       ),
-    );
-  }
+    ),
+  );
+}
+ void _openIncomingCall(String callId, Map<String, dynamic> data) async {
+  if (!mounted) return;
 
-  void _openIncomingCall(String callId, Map<String, dynamic> data) async {
-    if (!mounted) return;
+  final isGroup = data["isGroup"] == true;
+  final title =
+      isGroup ? widget.title : (data["callerId"] ?? "Incoming call");
 
-    final callService = CallService();
-    final isGroup = data["isGroup"] == true;
-
-    final title =
-        isGroup ? widget.title : (data["callerId"] ?? "Incoming call");
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => IncomingCallScreen(
-          callId: callId,
-          title: title,
-          onAccept: () async {
-            await callService.acceptCall(callId);
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callID: callId,
-                  userID: _user!.uid,
-                  userName: _user!.email ?? "User",
-                ),
-              ),
-            );
-          },
-          onDecline: () async {
-            await callService.declineCall(callId);
-            Navigator.pop(context);
-          },
-        ),
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingCallScreen(
+        callId: callId,
+        title: title,
+        userId: _user!.uid,
+        userName: _user!.email ?? "User",
       ),
-    );
-  }
+    ),
+  );
+}
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
