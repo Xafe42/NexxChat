@@ -11,6 +11,9 @@ class CallSession extends ChangeNotifier {
   String? userId;
   String? userName;
 
+  /// "video" | "audio"
+  String callType = 'video';
+
   CallEngine? engine;
 
   /* ───────── GETTERS ───────── */
@@ -18,24 +21,36 @@ class CallSession extends ChangeNotifier {
   bool get isActive => _active;
   bool get inFullScreen => _inFullScreen;
 
+  bool get isAudio => callType == 'audio';
+  bool get isVideo => callType == 'video';
+
   /// show mini overlay ?
   bool get showMiniOverlay => _active && !_inFullScreen;
 
-  /* ───────── START CALL ───────── */
+  /* ───────── START / ATTACH CALL ───────── */
 
-  /// Attach an already-running call (engine already init)
+  /// Attach an already-running call (engine already initialized)
   void start({
     required String callId,
     required CallEngine engine,
     required String title,
     required String userId,
     required String userName,
+    required String type, // "video" | "audio"
   }) {
+    // 🔒 prevent duplicate start for same call
+    if (_active && this.callId == callId) {
+      _inFullScreen = true;
+      notifyListeners();
+      return;
+    }
+
     this.callId = callId;
     this.engine = engine;
     this.title = title;
     this.userId = userId;
     this.userName = userName;
+    callType = type;
 
     _active = true;
     _inFullScreen = true;
@@ -45,16 +60,16 @@ class CallSession extends ChangeNotifier {
 
   /* ───────── UI STATE ───────── */
 
-  /// Call screen opened (hide mini overlay)
+  /// Fullscreen opened (hide mini overlay)
   void enterFullScreen() {
-    if (!_active) return;
+    if (!_active || _inFullScreen) return;
     _inFullScreen = true;
     notifyListeners();
   }
 
   /// User pressed back → show mini overlay
   void minimize() {
-    if (!_active) return;
+    if (!_active || !_inFullScreen) return;
     _inFullScreen = false;
     notifyListeners();
   }
@@ -76,12 +91,15 @@ class CallSession extends ChangeNotifier {
     title = null;
     userId = null;
     userName = null;
+    callType = 'video';
     engine = null;
 
     notifyListeners();
   }
 
-  /// 🔁 Used by mini overlay
+  /* ───────── NAVIGATION HELPER ───────── */
+
+  /// Used by mini overlay / global navigator
   Widget buildCallScreen() {
     return CallScreen(
       callId: callId!,
@@ -89,6 +107,7 @@ class CallSession extends ChangeNotifier {
       title: title!,
       userId: userId!,
       userName: userName!,
+      callType: callType,
     );
   }
 }

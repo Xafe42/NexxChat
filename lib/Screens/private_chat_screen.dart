@@ -801,135 +801,198 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           return Scaffold(
             backgroundColor: ChatTheme.backgroundColor,
             appBar: AppBar(
-                backgroundColor:
-                    isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
-                elevation: 0,
-                automaticallyImplyLeading: false,
-                titleSpacing: 0,
-                title: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+  backgroundColor: isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
+  elevation: 0,
+  automaticallyImplyLeading: false,
+  titleSpacing: 0,
+  title: Row(
+    children: [
+      IconButton(
+        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+      ),
+      CircleAvatar(
+        backgroundColor: Colors.teal,
+        child: isGroup
+            ? const Icon(Icons.groups, color: Colors.white, size: 20)
+            : Text(
+                displayTitle.isNotEmpty
+                    ? displayTitle[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(color: Colors.white),
+              ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: InkWell(
+          onTap: (isGroup && convData != null)
+              ? () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => GroupSettingsSheet(
+                      conversationId: widget.conversationId,
                     ),
-                    CircleAvatar(
-                      backgroundColor: Colors.teal,
-                      child: isGroup
-                          ? const Icon(Icons.groups,
-                              color: Colors.white, size: 20)
-                          : Text(
-                              displayTitle.isNotEmpty
-                                  ? displayTitle[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: InkWell(
-                        onTap: (isGroup && convData != null)
-                            ? () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  useSafeArea: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) => GroupSettingsSheet(
-                                    conversationId: widget.conversationId,
-                                  ),
-                                );
-                              }
-                            : null,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayTitle,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 18),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (isGroup)
-                              const Text("Tippen für Infos",
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 12))
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                  );
+                }
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayTitle,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (isGroup)
+                const Text(
+                  "Tippen für Infos",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                actions: [
-                  // 🔵 VIDEO CALL - PRIVATE CHAT
-                  if (!isGroup && convData != null && !userDeleted)
-                    IconButton(
-                      icon: const Icon(Icons.videocam_rounded,
-                          color: Colors.white),
-                      onPressed: () async {
-                        if (_user == null) return;
+            ],
+          ),
+        ),
+      ),
+    ],
+  ),
+  actions: [
+    /// 🟢 AUDIO CALL - PRIVATE
+    if (!isGroup && convData != null && !userDeleted)
+      IconButton(
+        icon: const Icon(Icons.call, color: Colors.white),
+        onPressed: () async {
+          if (_user == null) return;
 
-                        final members =
-                            List<String>.from(convData!['members'] ?? []);
+          final members = List<String>.from(convData!['members'] ?? []);
+          final otherUserId = members.firstWhere(
+            (m) => m != _user!.uid,
+            orElse: () => "",
+          );
+          if (otherUserId.isEmpty) return;
 
-                        final otherUserId = members.firstWhere(
-                          (m) => m != _user!.uid,
-                          orElse: () => "",
-                        );
+          final callId = await CallService().startPrivateCall(
+            conversationId: widget.conversationId,
+            callerId: _user!.uid,
+            receiverId: otherUserId,
+            type: 'audio',
+          );
 
-                        if (otherUserId.isEmpty) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OutgoingCallScreen(
+                callId: callId,
+                title: widget.title,
+                userId: _user!.uid,
+                userName: _user!.email ?? "User",
+                callType: 'audio', // ✅ صحيح
+              ),
+            ),
+          );
+        },
+      ),
 
-                        final callService = CallService();
+    /// 🔵 VIDEO CALL - PRIVATE
+    if (!isGroup && convData != null && !userDeleted)
+      IconButton(
+        icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+        onPressed: () async {
+          if (_user == null) return;
 
-                        final callId = await callService.startPrivateCall(
-                          conversationId: widget.conversationId,
-                          callerId: _user!.uid,
-                          receiverId: otherUserId,
-                        );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OutgoingCallScreen(
-                              callId: callId,
-                              title: widget.title,
-                              userId: _user!.uid,
-                              userName: _user!.email ?? "User",
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  // 🔵 VIDEO CALL - GROUP
-                  if (isGroup && convData != null)
-                    IconButton(
-                      icon: const Icon(Icons.videocam, color: Colors.white),
-                      onPressed: () async {
-                        final callService = CallService();
+          final members = List<String>.from(convData!['members'] ?? []);
+          final otherUserId = members.firstWhere(
+            (m) => m != _user!.uid,
+            orElse: () => "",
+          );
+          if (otherUserId.isEmpty) return;
 
-                        final members =
-                            List<String>.from(convData!['members'] ?? []);
+          final callId = await CallService().startPrivateCall(
+            conversationId: widget.conversationId,
+            callerId: _user!.uid,
+            receiverId: otherUserId,
+            type: 'video',
+          );
 
-                        if (members.isEmpty || _user == null) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OutgoingCallScreen(
+                callId: callId,
+                title: widget.title,
+                userId: _user!.uid,
+                userName: _user!.email ?? "User",
+                callType: 'video', // ✅
+              ),
+            ),
+          );
+        },
+      ),
+    /// 🟢 AUDIO CALL - GROUP
+if (isGroup && convData != null)
+  IconButton(
+    icon: const Icon(Icons.call, color: Colors.white),
+    onPressed: () async {
+      if (_user == null) return;
 
-                        final callId = await callService.startGroupCall(
-                          conversationId: widget.conversationId,
-                          callerId: _user!.uid,
-                          members: members,
-                        );
+      final members = List<String>.from(convData!['members'] ?? []);
+      if (members.isEmpty) return;
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OutgoingCallScreen(
-                              callId: callId,
-                              title: widget.title,
-                              userId: _user!.uid,
-                              userName: _user!.email ?? "User",
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                ]),
+      final callId = await CallService().startGroupCall(
+        conversationId: widget.conversationId,
+        callerId: _user!.uid,
+        members: members,
+        type: 'audio', // 🎧
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OutgoingCallScreen(
+            callId: callId,
+            title: widget.title,
+            userId: _user!.uid,
+            userName: _user!.email ?? "User",
+            callType: 'audio', // 🎧
+          ),
+        ),
+      );
+    },
+  ),
+    /// 🔵 VIDEO CALL - GROUP
+    if (isGroup && convData != null)
+      IconButton(
+        icon: const Icon(Icons.videocam, color: Colors.white),
+        onPressed: () async {
+          if (_user == null) return;
+
+          final members = List<String>.from(convData!['members'] ?? []);
+          if (members.isEmpty) return;
+
+          final callId = await CallService().startGroupCall(
+            conversationId: widget.conversationId,
+            callerId: _user!.uid,
+            members: members,
+          );
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OutgoingCallScreen(
+                callId: callId,
+                title: widget.title,
+                userId: _user!.uid,
+                userName: _user!.email ?? "User",
+                callType: 'video', // ✅ مهمّة
+              ),
+            ),
+          );
+        },
+      ),
+  ],
+            ),
+                 
             body: Stack(
               children: [
                 Column(
@@ -1236,22 +1299,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
     }
 
-    if (type == 'call') {
-      final status = msg['status'];
-      final duration = msg['duration'] ?? 0;
-      String text = status == "missed"
-          ? "📞 Verpasster Videoanruf"
-          : "📞 Videoanruf beendet – Dauer: ${(duration / 60).floor().toString().padLeft(2, '0')}:${(duration % 60).floor().toString().padLeft(2, '0')}";
+  if (type == 'call') {
+  final status = msg['status'];
+  final duration = msg['duration'] ?? 0;
+  final callType = msg['callType'] ?? 'video'; // 👈 المهم
+  final isAudio = callType == 'audio';
 
-      bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        textColor: textColor,
-        time: time,
-        onLongPress: () => _openReactionPicker(messageId),
-        child: Text(text, style: TextStyle(color: textColor, fontSize: 16)),
-      );
-    } else if (type == 'app') {
+  late String text;
+
+  if (status == "missed") {
+    text = isAudio
+        ? "📞 Verpasster Audioanruf"
+        : "🎥 Verpasster Videoanruf";
+  } else {
+    final mm = (duration ~/ 60).toString().padLeft(2, '0');
+    final ss = (duration % 60).toString().padLeft(2, '0');
+
+    text = isAudio
+        ? "📞 Audioanruf beendet – Dauer: $mm:$ss"
+        : "🎥 Videoanruf beendet – Dauer: $mm:$ss";
+  }
+
+  bubbleWidget = _Bubble(
+    isMe: isMe,
+    bubbleColor: bubbleColor,
+    textColor: textColor,
+    time: time,
+    onLongPress: () => _openReactionPicker(messageId),
+    child: Text(
+      text,
+      style: TextStyle(color: textColor, fontSize: 16),
+    ),
+  );
+} else if (type == 'app') {
       final appName = (payload?['app'] ?? '').toString();
       Widget child;
 

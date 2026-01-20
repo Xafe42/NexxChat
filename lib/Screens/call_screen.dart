@@ -13,6 +13,7 @@ class CallScreen extends StatefulWidget {
   final String title;
   final String userId;
   final String userName;
+  final String callType; // "video" | "audio"
 
   const CallScreen({
     super.key,
@@ -21,29 +22,33 @@ class CallScreen extends StatefulWidget {
     required this.title,
     required this.userId,
     required this.userName,
+    required this.callType,
   });
 
   @override
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
+class _CallScreenState extends State<CallScreen>
+    with WidgetsBindingObserver {
   final CallService _callService = CallService();
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSub;
 
   bool _ended = false;
+
+  bool get _isAudio => widget.callType == 'audio';
+
+  /* ───────── INIT ───────── */
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // ✅ attach session + fullscreen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final session = context.read<CallSession>();
 
-      // مهم: ما تعاودش start إذا already active بنفس callId
       if (!session.isActive || session.callId != widget.callId) {
         session.start(
           callId: widget.callId,
@@ -51,13 +56,13 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
           title: widget.title,
           userId: widget.userId,
           userName: widget.userName,
+          type: widget.callType,
         );
       }
 
       session.enterFullScreen();
     });
 
-    // 👂 remote end/cancel/missed/declined
     _callSub = _callService.listenCall(widget.callId).listen((snap) async {
       final data = snap.data();
       if (data == null) return;
@@ -81,6 +86,8 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     });
   }
 
+  /* ───────── ACTIONS ───────── */
+
   Future<void> _endCall() async {
     if (_ended) return;
     _ended = true;
@@ -94,13 +101,10 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
   }
 
   void _minimizeAndPop() {
-    if (_ended) return;
-    if (!mounted) return;
+    if (_ended || !mounted) return;
 
-    // ✅ يظهر mini overlay
     context.read<CallSession>().minimize();
 
-    // ✅ يخرج من CallScreen ويرجع للشاشة اللي قبل
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -108,8 +112,8 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Messenger behavior: background => minimize (مش end)
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       _minimizeAndPop();
     }
   }
@@ -121,27 +125,28 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /* ───────── UI ───────── */
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // ✅ خلي الـ navigator ينجم يعمل pop عادي
       canPop: true,
-
-      // ✅ وقت يصير pop (back system أو swipe) نعمل minimize
       onPopInvoked: (didPop) {
-        if (!didPop) return;
-        if (_ended) return;
-        if (!mounted) return;
+        if (!didPop || _ended || !mounted) return;
         context.read<CallSession>().minimize();
       },
-
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            Positioned.fill(child: widget.engine.buildView()),
+            // 🎥 VIDEO / 🎧 AUDIO VIEW
+            Positioned.fill(
+              child: _isAudio
+                  ? _buildAudioView()
+                  : widget.engine.buildView(),
+            ),
 
-            // ⬇️ Minimize button
+            // ⬇️ TOP BAR
             Positioned(
               top: 48,
               left: 12,
@@ -157,13 +162,16 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      widget.title,
+                      _isAudio ? 'Audio Call' : widget.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -177,7 +185,7 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // 🔴 End button
+            // 🔴 END CALL
             Positioned(
               bottom: 40,
               left: 0,
@@ -191,15 +199,67 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                     decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 10)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black38,
+                          blurRadius: 10,
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.call_end, color: Colors.white, size: 34),
+                    child: const Icon(
+                      Icons.call_end,
+                      color: Colors.white,
+                      size: 34,
+                    ),
                   ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /* ───────── AUDIO UI ───────── */
+
+  Widget _buildAudioView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.white24,
+            child: Text(
+              widget.title.isNotEmpty
+                  ? widget.title[0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                fontSize: 42,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            widget.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Audio call in progress',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -106,18 +106,7 @@ class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
 
     if (!mounted) return;
 
-    // 🔵 Go to OutgoingCallScreen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OutgoingCallScreen(
-          callId: callId,
-          title: convData['name'] ?? 'Call',
-          userId: currentUser.uid,
-          userName: currentUser.email ?? 'User',
-        ),
-      ),
-    );
+    
   }
 
   @override

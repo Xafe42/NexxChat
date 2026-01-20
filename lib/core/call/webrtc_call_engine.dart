@@ -7,10 +7,15 @@ import '../services/call_service.dart';
 import 'call_engine.dart';
 
 class WebRTCCallEngine implements CallEngine {
-  WebRTCCallEngine({required bool isCaller}) : _isCaller = isCaller;
+  WebRTCCallEngine({
+    required bool isCaller,
+    required this.callType, // "video" | "audio"
+  }) : _isCaller = isCaller;
+
+  final bool _isCaller;
+  final String callType;
 
   late String _callId;
-  final bool _isCaller;
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -32,6 +37,8 @@ class WebRTCCallEngine implements CallEngine {
 
   final Set<String> _seenCandidates = {};
 
+  /* ───────── INIT ───────── */
+
   @override
   Future<void> init({
     required String callId,
@@ -43,8 +50,10 @@ class WebRTCCallEngine implements CallEngine {
 
     _callId = callId;
 
-    await _localR.initialize();
-    await _remoteR.initialize();
+    if (callType == 'video') {
+      await _localR.initialize();
+      await _remoteR.initialize();
+    }
 
     await _initMedia();
     await _initPeer();
@@ -60,13 +69,22 @@ class WebRTCCallEngine implements CallEngine {
     _listenCallStatus();
   }
 
+  /* ───────── MEDIA ───────── */
+
   Future<void> _initMedia() async {
     _local = await navigator.mediaDevices.getUserMedia({
       'audio': true,
-      'video': {'facingMode': 'user'},
+      'video': callType == 'video'
+          ? {'facingMode': 'user'}
+          : false,
     });
-    _localR.srcObject = _local;
+
+    if (callType == 'video') {
+      _localR.srcObject = _local;
+    }
   }
+
+  /* ───────── PEER ───────── */
 
   Future<void> _initPeer() async {
     _pc = await createPeerConnection({
@@ -75,19 +93,22 @@ class WebRTCCallEngine implements CallEngine {
       ],
     });
 
-    for (final t in _local!.getTracks()) {
-      await _pc!.addTrack(t, _local!);
+    for (final track in _local!.getTracks()) {
+      await _pc!.addTrack(track, _local!);
     }
 
-    _pc!.onTrack = (ev) {
-      if (ev.streams.isNotEmpty) {
-        _remote = ev.streams.first;
-        _remoteR.srcObject = _remote;
+    _pc!.onTrack = (event) {
+      if (event.streams.isNotEmpty) {
+        _remote = event.streams.first;
+        if (callType == 'video') {
+          _remoteR.srcObject = _remote;
+        }
       }
     };
 
-    _pc!.onIceCandidate = (c) {
-      if (c.candidate == null) return;
+    _pc!.onIceCandidate = (candidate) {
+      if (candidate.candidate == null) return;
+
       final role = _isCaller ? 'caller' : 'callee';
 
       _db
@@ -96,9 +117,11 @@ class WebRTCCallEngine implements CallEngine {
           .collection('candidates')
           .doc(role)
           .collection('items')
-          .add(c.toMap());
+          .add(candidate.toMap());
     };
   }
+
+  /* ───────── OFFER / ANSWER ───────── */
 
   Future<void> _createOffer() async {
     final offer = await _pc!.createOffer();
@@ -160,6 +183,8 @@ class WebRTCCallEngine implements CallEngine {
     });
   }
 
+  /* ───────── ICE ───────── */
+
   void _listenCandidates() {
     final otherRole = _isCaller ? 'callee' : 'caller';
 
@@ -186,6 +211,8 @@ class WebRTCCallEngine implements CallEngine {
     });
   }
 
+  /* ───────── STATUS ───────── */
+
   void _listenCallStatus() {
     _statusSub =
         _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
@@ -202,6 +229,8 @@ class WebRTCCallEngine implements CallEngine {
       }
     });
   }
+
+  /* ───────── END ───────── */
 
   @override
   Future<void> endCall() async {
@@ -238,13 +267,27 @@ class WebRTCCallEngine implements CallEngine {
     } catch (_) {}
 
     try {
-      await _localR.dispose();
-      await _remoteR.dispose();
+      if (callType == 'video') {
+        await _localR.dispose();
+        await _remoteR.dispose();
+      }
     } catch (_) {}
   }
 
+  /* ───────── UI ───────── */
+
   @override
   Widget buildView() {
+    if (callType == 'audio') {
+      return const Center(
+        child: Icon(
+          Icons.call,
+          color: Colors.white,
+          size: 120,
+        ),
+      );
+    }
+
     return Stack(
       children: [
         Positioned.fill(

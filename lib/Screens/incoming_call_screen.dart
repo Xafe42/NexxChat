@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../core/services/call_service.dart';
 
 class IncomingCallScreen extends StatefulWidget {
@@ -22,8 +24,11 @@ class IncomingCallScreen extends StatefulWidget {
 
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   final CallService _callService = CallService();
-  StreamSubscription? _sub;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
+
   bool _closed = false;
+  String _callType = 'video'; // default
 
   @override
   void initState() {
@@ -33,13 +38,20 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
       final data = snap.data();
       if (data == null) return;
 
-      final status = data["status"];
+      // ✅ read call type once
+      _callType = (data['type'] ?? 'video').toString();
 
-      if (status == "ended" ||
-          status == "declined" ||
-          status == "missed" ||
-          status == "cancelled") {
+      final status = (data['status'] ?? '').toString();
+
+      if (status == 'ended' ||
+          status == 'declined' ||
+          status == 'missed' ||
+          status == 'cancelled') {
         _safeClose();
+      }
+
+      if (mounted) {
+        setState(() {});
       }
     });
   }
@@ -61,6 +73,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAudio = _callType == 'audio';
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -87,16 +101,22 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                   CircleAvatar(
                     radius: 55,
                     backgroundColor: Colors.white24,
-                    child: Text(
-                      widget.title.isNotEmpty
-                          ? widget.title[0].toUpperCase()
-                          : "?",
-                      style: const TextStyle(
-                        fontSize: 42,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: isAudio
+                        ? const Icon(
+                            Icons.call,
+                            color: Colors.white,
+                            size: 48,
+                          )
+                        : Text(
+                            widget.title.isNotEmpty
+                                ? widget.title[0].toUpperCase()
+                                : "?",
+                            style: const TextStyle(
+                              fontSize: 42,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -109,9 +129,11 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    "Incoming video call",
-                    style: TextStyle(
+                  Text(
+                    isAudio
+                        ? 'Incoming audio call'
+                        : 'Incoming video call',
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 16,
                     ),
@@ -124,6 +146,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    // Decline
                     GestureDetector(
                       onTap: () async {
                         await widget.onDecline();
@@ -150,6 +173,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                         ),
                       ),
                     ),
+
+                    // Accept
                     GestureDetector(
                       onTap: () async {
                         await widget.onAccept();
@@ -168,8 +193,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.call,
+                        child: Icon(
+                          isAudio ? Icons.call : Icons.videocam,
                           color: Colors.white,
                           size: 34,
                         ),

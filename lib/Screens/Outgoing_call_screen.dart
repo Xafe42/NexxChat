@@ -11,6 +11,7 @@ class OutgoingCallScreen extends StatefulWidget {
   final String title;
   final String userId;
   final String userName;
+  final String callType; // ✅ audio | video
 
   const OutgoingCallScreen({
     super.key,
@@ -18,6 +19,7 @@ class OutgoingCallScreen extends StatefulWidget {
     required this.title,
     required this.userId,
     required this.userName,
+    required this.callType,
   });
 
   @override
@@ -36,31 +38,36 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
   bool _navigated = false;
   bool _closed = false;
 
+  bool get _isAudio => widget.callType == 'audio';
+
   @override
   void initState() {
     super.initState();
 
-    //  Calling... animation
     _dotController =
         AnimationController(vsync: this, duration: const Duration(seconds: 1))
           ..repeat();
     _dotAnimation = IntTween(begin: 1, end: 3).animate(_dotController);
 
-    //  Listen call document
     _sub = _callService.listenCall(widget.callId).listen(_onCallUpdate);
   }
 
-  void _onCallUpdate(DocumentSnapshot<Map<String, dynamic>> snap) async {
+  Future<void> _onCallUpdate(
+    DocumentSnapshot<Map<String, dynamic>> snap,
+  ) async {
     final data = snap.data();
     if (data == null) return;
 
     final status = (data['status'] ?? '').toString();
 
-    //  Call accepted → open CallScreen
     if (status == 'accepted' && !_navigated) {
       _navigated = true;
 
-      final engine = WebRTCCallEngine(isCaller: true);
+      final engine = WebRTCCallEngine(
+        isCaller: true,
+        callType: widget.callType, // ✅ مهم
+      );
+
       await engine.init(
         callId: widget.callId,
         userId: widget.userId,
@@ -78,13 +85,13 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
             title: widget.title,
             userId: widget.userId,
             userName: widget.userName,
+            callType: widget.callType, // ✅ مهم
           ),
         ),
       );
       return;
     }
 
-    // Call ended before accept
     if (status == 'declined' ||
         status == 'missed' ||
         status == 'ended' ||
@@ -143,22 +150,24 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
             children: [
               const SizedBox(height: 40),
 
-              //  Avatar + Name
               Column(
                 children: [
                   CircleAvatar(
                     radius: 55,
                     backgroundColor: Colors.white24,
-                    child: Text(
-                      widget.title.isNotEmpty
-                          ? widget.title[0].toUpperCase()
-                          : "?",
-                      style: const TextStyle(
-                        fontSize: 42,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isAudio
+                        ? const Icon(Icons.call,
+                            color: Colors.white, size: 48)
+                        : Text(
+                            widget.title.isNotEmpty
+                                ? widget.title[0].toUpperCase()
+                                : "?",
+                            style: const TextStyle(
+                              fontSize: 42,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -169,9 +178,17 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isAudio
+                        ? 'Outgoing audio call'
+                        : 'Outgoing video call',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 12),
-
-                  //  Calling...
                   AnimatedBuilder(
                     animation: _dotAnimation,
                     builder: (_, __) {
@@ -187,7 +204,6 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                 ],
               ),
 
-              // Cancel button
               Padding(
                 padding: const EdgeInsets.only(bottom: 50),
                 child: GestureDetector(
@@ -202,7 +218,6 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                         BoxShadow(
                           color: Colors.black38,
                           blurRadius: 10,
-                          offset: Offset(0, 4),
                         ),
                       ],
                     ),

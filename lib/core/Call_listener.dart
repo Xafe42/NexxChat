@@ -91,11 +91,14 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         onAccept: () async {
           _blockedCalls.add(callId);
 
-          // 1️⃣ نحدّث status
           await _callService.acceptCall(callId);
 
-          // 2️⃣ نخلق engine (callee)
-          final engine = WebRTCCallEngine(isCaller: false);
+          final callType = (data['type'] ?? 'video') as String;
+
+final engine = WebRTCCallEngine(
+  isCaller: false,
+  callType: callType,
+);
           await engine.init(
             callId: callId,
             userId: _auth.currentUser!.uid,
@@ -111,6 +114,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
                 title: title,
                 userId: _auth.currentUser!.uid,
                 userName: _auth.currentUser!.email ?? "User",
+                callType: callType,
               ),
             ),
           );

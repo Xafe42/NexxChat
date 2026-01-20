@@ -3,16 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class CallService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// START CALL
-
+  /// START CALL (PRIVATE)
   Future<String> startPrivateCall({
     required String conversationId,
     required String callerId,
     required String receiverId,
     String? callerName,
+    String type = "video", // ✅ "video" OR "audio"
   }) async {
-    final callId =
-        '${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
+    final callId = '${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
     await _db.collection('calls').doc(callId).set({
       'callId': callId,
@@ -21,7 +20,7 @@ class CallService {
       'callerName': callerName,
       'receiverId': receiverId,
       'isGroup': false,
-      'type': 'video',
+      'type': type,
       'status': 'ringing',
       'createdAt': FieldValue.serverTimestamp(),
       'acceptedAtMs': null,
@@ -33,14 +32,15 @@ class CallService {
     return callId;
   }
 
+  /// START CALL (GROUP)
   Future<String> startGroupCall({
     required String conversationId,
     required String callerId,
     required List<String> members,
     String? callerName,
+    String type = "video", // ✅ allow audio too if you want
   }) async {
-    final callId =
-        'group_${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
+    final callId = 'group_${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
     await _db.collection('calls').doc(callId).set({
       'callId': callId,
@@ -49,7 +49,7 @@ class CallService {
       'callerName': callerName,
       'members': members,
       'isGroup': true,
-      'type': 'video',
+      'type': type,
       'status': 'ringing',
       'createdAt': FieldValue.serverTimestamp(),
       'acceptedAtMs': null,
@@ -62,33 +62,43 @@ class CallService {
   }
 
   /// LISTENERS
-
   Stream<DocumentSnapshot<Map<String, dynamic>>> listenCall(String callId) {
     return _db.collection('calls').doc(callId).snapshots();
   }
 
+  /// Incoming PRIVATE calls (optionally filter by type)
   Stream<QuerySnapshot<Map<String, dynamic>>> listenIncomingPrivateCalls(
-      String userId) {
-    return _db
+    String userId, {
+    String? type, // "video" / "audio" / null => all
+  }) {
+    var q = _db
         .collection('calls')
         .where('isGroup', isEqualTo: false)
         .where('receiverId', isEqualTo: userId)
-        .where('status', isEqualTo: 'ringing')
-        .snapshots();
+        .where('status', isEqualTo: 'ringing');
+
+    if (type != null) q = q.where('type', isEqualTo: type);
+
+    return q.snapshots();
   }
 
+  /// Incoming GROUP calls (optionally filter by type)
   Stream<QuerySnapshot<Map<String, dynamic>>> listenIncomingGroupCalls(
-      String userId) {
-    return _db
+    String userId, {
+    String? type, // "video" / "audio" / null => all
+  }) {
+    var q = _db
         .collection('calls')
         .where('isGroup', isEqualTo: true)
         .where('members', arrayContains: userId)
-        .where('status', isEqualTo: 'ringing')
-        .snapshots();
+        .where('status', isEqualTo: 'ringing');
+
+    if (type != null) q = q.where('type', isEqualTo: type);
+
+    return q.snapshots();
   }
 
   /// STATE CHANGES
-
   Future<void> acceptCall(String callId) async {
     await _db.collection('calls').doc(callId).update({
       'status': 'accepted',
@@ -107,7 +117,7 @@ class CallService {
     await _logCallMessageIfNeeded(callId);
   }
 
-  ///  CALLER cancels before accept
+  /// CALLER cancels before accept
   Future<void> cancelCall(String callId) async {
     final ref = _db.collection('calls').doc(callId);
     final snap = await ref.get();
@@ -125,7 +135,7 @@ class CallService {
     await _logCallMessageIfNeeded(callId);
   }
 
-  /// END CALL (caller oder callee)
+  /// END CALL (caller or callee)
   Future<void> endCall(String callId) async {
     final ref = _db.collection('calls').doc(callId);
 
@@ -136,7 +146,7 @@ class CallService {
       final data = snap.data()!;
       final status = data['status'];
 
-      //  already finished
+      // already finished
       if (status == 'ended' ||
           status == 'missed' ||
           status == 'declined' ||
@@ -168,8 +178,7 @@ class CallService {
     await _logCallMessageIfNeeded(callId);
   }
 
-  // CALL SUMMARY MESSAGE  
-
+  /// CALL SUMMARY MESSAGE (writes 1 message only)
   Future<void> _logCallMessageIfNeeded(String callId) async {
     final callRef = _db.collection('calls').doc(callId);
 
@@ -182,27 +191,46 @@ class CallService {
 
       final conversationId = data['conversationId'];
       final callerId = data['callerId'];
-      final status = data['status'];
-      final duration = data['duration'] ?? 0;
+      final status = (data['status'] ?? '').toString();
+      final duration = (data['duration'] ?? 0) as int;
+      final type = (data['type'] ?? 'video').toString(); // ✅ audio/video
 
       if (conversationId == null || callerId == null) return;
 
       final convRef = _db.collection('conversations').doc(conversationId);
       final msgRef = convRef.collection('messages').doc();
 
+      final isAudio = type == 'audio';
+
       String text;
-      switch (status) {
-        case 'missed':
-          text = '📞 Verpasster Videoanruf';
-          break;
-        case 'declined':
-          text = '🚫 Videoanruf abgelehnt';
-          break;
-        case 'cancelled':
-          text = '⏱ Videoanruf abgebrochen';
-          break;
-        default:
-          text = '📞 Videoanruf beendet – Dauer: ${_format(duration)}';
+      if (isAudio) {
+        switch (status) {
+          case 'missed':
+            text = '📞 Verpasster Sprachanruf';
+            break;
+          case 'declined':
+            text = '🚫 Sprachanruf abgelehnt';
+            break;
+          case 'cancelled':
+            text = '⏱ Sprachanruf abgebrochen';
+            break;
+          default:
+            text = '📞 Sprachanruf beendet – Dauer: ${_format(duration)}';
+        }
+      } else {
+        switch (status) {
+          case 'missed':
+            text = '📹 Verpasster Videoanruf';
+            break;
+          case 'declined':
+            text = '🚫 Videoanruf abgelehnt';
+            break;
+          case 'cancelled':
+            text = '⏱ Videoanruf abgebrochen';
+            break;
+          default:
+            text = '📹 Videoanruf beendet – Dauer: ${_format(duration)}';
+        }
       }
 
       tx.set(msgRef, {
@@ -212,6 +240,7 @@ class CallService {
         'senderId': callerId,
         'status': status,
         'duration': duration,
+        'callType': type, // ✅ optional but useful (audio/video)
         'text': text,
         'timestamp': FieldValue.serverTimestamp(),
       });
