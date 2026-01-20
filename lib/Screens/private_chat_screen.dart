@@ -64,7 +64,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _lastTypingState = false;
   bool _showScrollBtn = false;
 
-  // -------- Mini-apps state --------
+  // Mini-apps state 
   // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
@@ -104,7 +104,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // ---------- Load Other User ----------
+  // Load Other User 
   Future<void> _loadOtherUser() async {
     try {
       final convDoc = await _db
@@ -138,7 +138,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // ---------- Notification -----------------
+  //  Notification 
   Future<void> _sendV1Notification(
       String partnerToken, String messageText) async {
     final serviceAccountJson = {
@@ -194,10 +194,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // ---------- Send Call ----------
 
 
-  // ---------- Typing indicator ----------
+  // - Typing indicator 
 
   Future<void> _setTyping(bool isTyping) async {
     if (_user == null) return;
@@ -247,7 +246,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  // ---------- Input change (typing + slash commands) ----------
+  // Input change (typing + slash commands) 
 
   void _onTextChanged(String value) {
     _raw = value;
@@ -271,7 +270,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  // ---------- Basic send (text or command) ----------
+  // Basic send (text or command)
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
@@ -329,7 +328,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // ---------- Special send helpers (mini-apps) ----------
+  // Special send helpers (mini-apps) 
 
   Future<void> _sendHelloCommand(ChatCommand cmd) async {
     if (_user == null) return;
@@ -556,7 +555,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
 
-  // ---------- Reactions ----------
+  // Reactions
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
     if (_user == null) return;
@@ -617,7 +616,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // ---------- Images (gallery / camera) ----------
+  //  Images (gallery / camera) 
 
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
@@ -723,7 +722,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ---------- Mini-apps UI helpers ----------
+  //  Mini-apps UI helpers 
 
   void _toggleSlashToolbar() {
     setState(() {
@@ -754,7 +753,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  // ---------- Formatting ----------
+  // Formatting 
 
   String _formatTime(Timestamp? ts) {
     if (ts == null) return "";
@@ -772,7 +771,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return DateFormat('dd MMM yyyy').format(dt);
   }
 
-  // ---------- BUILD ----------
+  // BUILD 
 
   @override
   Widget build(BuildContext context) {
@@ -858,7 +857,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     ],
   ),
   actions: [
-    /// 🟢 AUDIO CALL - PRIVATE
+    ///  AUDIO CALL - PRIVATE
     if (!isGroup && convData != null && !userDeleted)
       IconButton(
         icon: const Icon(Icons.call, color: Colors.white),
@@ -887,14 +886,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 title: widget.title,
                 userId: _user!.uid,
                 userName: _user!.email ?? "User",
-                callType: 'audio', // ✅ صحيح
+                callType: 'audio', 
               ),
             ),
           );
         },
       ),
 
-    /// 🔵 VIDEO CALL - PRIVATE
+    /// VIDEO CALL - PRIVATE
     if (!isGroup && convData != null && !userDeleted)
       IconButton(
         icon: const Icon(Icons.videocam_rounded, color: Colors.white),
@@ -923,13 +922,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 title: widget.title,
                 userId: _user!.uid,
                 userName: _user!.email ?? "User",
-                callType: 'video', // ✅
+                callType: 'video', 
               ),
             ),
           );
         },
       ),
-    /// 🟢 AUDIO CALL - GROUP
+    /// AUDIO CALL GROUP
 if (isGroup && convData != null)
   IconButton(
     icon: const Icon(Icons.call, color: Colors.white),
@@ -943,7 +942,7 @@ if (isGroup && convData != null)
         conversationId: widget.conversationId,
         callerId: _user!.uid,
         members: members,
-        type: 'audio', // 🎧
+        type: 'audio', 
       );
 
       Navigator.push(
@@ -960,7 +959,7 @@ if (isGroup && convData != null)
       );
     },
   ),
-    /// 🔵 VIDEO CALL - GROUP
+    /// VIDEO CALL - GROUP
     if (isGroup && convData != null)
       IconButton(
         icon: const Icon(Icons.videocam, color: Colors.white),
@@ -984,7 +983,7 @@ if (isGroup && convData != null)
                 title: widget.title,
                 userId: _user!.uid,
                 userName: _user!.email ?? "User",
-                callType: 'video', // ✅ مهمّة
+                callType: 'video', 
               ),
             ),
           );

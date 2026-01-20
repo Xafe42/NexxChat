@@ -29,16 +29,22 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen>
-    with WidgetsBindingObserver {
+class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
   final CallService _callService = CallService();
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSub;
 
   bool _ended = false;
 
+  bool _muted = false;
+  bool _speakerOn = false;
+  bool _videoOn = true;
+
   bool get _isAudio => widget.callType == 'audio';
 
-  /* ───────── INIT ───────── */
+  // duration
+  Timer? _timer;
+  int _elapsedSec = 0;
+  int? _callStartMs; // acceptedAtMs from firestore
 
   @override
   void initState() {
@@ -69,12 +75,21 @@ class _CallScreenState extends State<CallScreen>
 
       final status = (data['status'] ?? '').toString();
 
+      //  start duration when acceptedAtMs is available
+      final acceptedAtMs = data['acceptedAtMs'];
+      if (acceptedAtMs is int && _callStartMs == null) {
+        _callStartMs = acceptedAtMs;
+        _startTimerFromAccepted();
+      }
+
       if (!_ended &&
           (status == 'ended' ||
               status == 'cancelled' ||
               status == 'missed' ||
               status == 'declined')) {
         _ended = true;
+
+        _stopTimer();
 
         if (!mounted) return;
         await context.read<CallSession>().end();
@@ -86,11 +101,37 @@ class _CallScreenState extends State<CallScreen>
     });
   }
 
-  /* ───────── ACTIONS ───────── */
+  void _startTimerFromAccepted() {
+    _stopTimer();
+
+    // init elapsed from accepted time
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    _elapsedSec = ((nowMs - (_callStartMs ?? nowMs)) / 1000).floor().clamp(0, 999999);
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _ended) return;
+      setState(() => _elapsedSec++);
+    });
+
+    setState(() {}); // refresh overlay
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  String _fmt(int sec) {
+    final m = (sec ~/ 60).toString().padLeft(2, '0');
+    final s = (sec % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   Future<void> _endCall() async {
     if (_ended) return;
     _ended = true;
+
+    _stopTimer();
 
     if (!mounted) return;
     await context.read<CallSession>().end();
@@ -112,8 +153,8 @@ class _CallScreenState extends State<CallScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
+    // Messenger-like behavior: minimize not end
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
       _minimizeAndPop();
     }
   }
@@ -122,10 +163,9 @@ class _CallScreenState extends State<CallScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _callSub?.cancel();
+    _stopTimer();
     super.dispose();
   }
-
-  /* ───────── UI ───────── */
 
   @override
   Widget build(BuildContext context) {
@@ -139,14 +179,33 @@ class _CallScreenState extends State<CallScreen>
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // 🎥 VIDEO / 🎧 AUDIO VIEW
+            //  VIDEO / AUDIO VIEW
             Positioned.fill(
-              child: _isAudio
-                  ? _buildAudioView()
-                  : widget.engine.buildView(),
+              child: _isAudio ? _buildAudioBackdrop() : widget.engine.buildView(),
             ),
 
-            // ⬇️ TOP BAR
+            // DURATION OVERLAY (top center)
+            Positioned(
+              top: 54,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    _fmt(_elapsedSec),
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+
+            //  TOP BAR
             Positioned(
               top: 48,
               left: 12,
@@ -162,10 +221,7 @@ class _CallScreenState extends State<CallScreen>
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.white,
-                      ),
+                      child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -185,35 +241,12 @@ class _CallScreenState extends State<CallScreen>
               ),
             ),
 
-            // 🔴 END CALL
+            // CONTROLS (audio + video)
             Positioned(
-              bottom: 40,
               left: 0,
               right: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: _endCall,
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black38,
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.call_end,
-                      color: Colors.white,
-                      size: 34,
-                    ),
-                  ),
-                ),
-              ),
+              bottom: 46,
+              child: _buildControls(),
             ),
           ],
         ),
@@ -221,26 +254,15 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  /* ───────── AUDIO UI ───────── */
-
-  Widget _buildAudioView() {
+  Widget _buildAudioBackdrop() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 60,
             backgroundColor: Colors.white24,
-            child: Text(
-              widget.title.isNotEmpty
-                  ? widget.title[0].toUpperCase()
-                  : '?',
-              style: const TextStyle(
-                fontSize: 42,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Icon(Icons.call, size: 48, color: Colors.white),
           ),
           const SizedBox(height: 20),
           Text(
@@ -251,15 +273,98 @@ class _CallScreenState extends State<CallScreen>
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           const Text(
             'Audio call in progress',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    final items = <Widget>[
+      // Mute (audio + video)
+      _roundBtn(
+        icon: _muted ? Icons.mic_off : Icons.mic,
+        active: _muted,
+        onTap: () {
+          setState(() => _muted = !_muted);
+          widget.engine.setMuted(_muted);
+        },
+      ),
+
+      const SizedBox(width: 18),
+
+      //  Speaker (audio + video)
+      _roundBtn(
+        icon: _speakerOn ? Icons.volume_up : Icons.hearing,
+        active: _speakerOn,
+        onTap: () async {
+          setState(() => _speakerOn = !_speakerOn);
+          await widget.engine.setSpeaker(_speakerOn);
+        },
+      ),
+
+      const SizedBox(width: 18),
+
+      //  End
+      _roundBtn(
+        icon: Icons.call_end,
+        red: true,
+        active: true,
+        onTap: _endCall,
+      ),
+    ];
+
+    if (!_isAudio) {
+      // video off +  camera switch for video calls
+      items.insertAll(2, [
+        const SizedBox(width: 18),
+        _roundBtn(
+          icon: _videoOn ? Icons.videocam : Icons.videocam_off,
+          active: !_videoOn,
+          onTap: () {
+            setState(() => _videoOn = !_videoOn);
+            widget.engine.setVideoEnabled(_videoOn);
+          },
+        ),
+        const SizedBox(width: 18),
+        _roundBtn(
+          icon: Icons.cameraswitch,
+          active: false,
+          onTap: () async {
+            await widget.engine.switchCamera();
+          },
+        ),
+      ]);
+    }
+
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: items,
+      ),
+    );
+  }
+
+  Widget _roundBtn({
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+    bool red = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: CircleAvatar(
+        radius: 28,
+        backgroundColor: red
+            ? Colors.red
+            : active
+                ? Colors.teal
+                : Colors.grey[850],
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }

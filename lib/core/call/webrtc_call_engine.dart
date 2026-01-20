@@ -29,7 +29,9 @@ class WebRTCCallEngine implements CallEngine {
   bool _initialized = false;
   bool _ended = false;
 
-  int? _acceptedAtMs;
+  bool _muted = false;
+  bool _speakerOn = false;
+  bool _videoEnabled = true;
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _docSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _candSub;
@@ -37,7 +39,7 @@ class WebRTCCallEngine implements CallEngine {
 
   final Set<String> _seenCandidates = {};
 
-  /* ───────── INIT ───────── */
+  bool get isVideo => callType == 'video';
 
   @override
   Future<void> init({
@@ -50,13 +52,14 @@ class WebRTCCallEngine implements CallEngine {
 
     _callId = callId;
 
-    if (callType == 'video') {
+    if (isVideo) {
       await _localR.initialize();
       await _remoteR.initialize();
     }
 
     await _initMedia();
     await _initPeer();
+    await setSpeaker(false);
 
     if (_isCaller) {
       await _createOffer();
@@ -69,22 +72,16 @@ class WebRTCCallEngine implements CallEngine {
     _listenCallStatus();
   }
 
-  /* ───────── MEDIA ───────── */
-
   Future<void> _initMedia() async {
     _local = await navigator.mediaDevices.getUserMedia({
       'audio': true,
-      'video': callType == 'video'
-          ? {'facingMode': 'user'}
-          : false,
+      'video': isVideo ? {'facingMode': 'user'} : false,
     });
 
-    if (callType == 'video') {
+    if (isVideo) {
       _localR.srcObject = _local;
     }
   }
-
-  /* ───────── PEER ───────── */
 
   Future<void> _initPeer() async {
     _pc = await createPeerConnection({
@@ -100,7 +97,7 @@ class WebRTCCallEngine implements CallEngine {
     _pc!.onTrack = (event) {
       if (event.streams.isNotEmpty) {
         _remote = event.streams.first;
-        if (callType == 'video') {
+        if (isVideo) {
           _remoteR.srcObject = _remote;
         }
       }
@@ -121,8 +118,6 @@ class WebRTCCallEngine implements CallEngine {
     };
   }
 
-  /* ───────── OFFER / ANSWER ───────── */
-
   Future<void> _createOffer() async {
     final offer = await _pc!.createOffer();
     await _pc!.setLocalDescription(offer);
@@ -134,8 +129,7 @@ class WebRTCCallEngine implements CallEngine {
 
   void _listenOfferAndAnswer() {
     _docSub?.cancel();
-    _docSub =
-        _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
+    _docSub = _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
       final data = doc.data();
       if (data == null || data['offer'] == null) return;
       if (_pc?.getRemoteDescription() != null) return;
@@ -147,12 +141,10 @@ class WebRTCCallEngine implements CallEngine {
 
       await _pc!.setRemoteDescription(offer);
 
-      _acceptedAtMs ??= DateTime.now().millisecondsSinceEpoch;
-
       await _db.collection('calls').doc(_callId).set({
         'status': 'accepted',
         'acceptedAt': FieldValue.serverTimestamp(),
-        'acceptedAtMs': _acceptedAtMs,
+        'acceptedAtMs': DateTime.now().millisecondsSinceEpoch,
       }, SetOptions(merge: true));
 
       final answer = await _pc!.createAnswer();
@@ -166,8 +158,7 @@ class WebRTCCallEngine implements CallEngine {
 
   void _listenAnswer() {
     _docSub?.cancel();
-    _docSub =
-        _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
+    _docSub = _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
       final data = doc.data();
       if (data == null || data['answer'] == null) return;
       if (_pc?.getRemoteDescription() != null) return;
@@ -178,12 +169,8 @@ class WebRTCCallEngine implements CallEngine {
       );
 
       await _pc!.setRemoteDescription(answer);
-
-      _acceptedAtMs ??= DateTime.now().millisecondsSinceEpoch;
     });
   }
-
-  /* ───────── ICE ───────── */
 
   void _listenCandidates() {
     final otherRole = _isCaller ? 'callee' : 'caller';
@@ -211,11 +198,8 @@ class WebRTCCallEngine implements CallEngine {
     });
   }
 
-  /* ───────── STATUS ───────── */
-
   void _listenCallStatus() {
-    _statusSub =
-        _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
+    _statusSub = _db.collection('calls').doc(_callId).snapshots().listen((doc) async {
       final status = doc.data()?['status'];
 
       if (_ended) return;
@@ -229,8 +213,6 @@ class WebRTCCallEngine implements CallEngine {
       }
     });
   }
-
-  /* ───────── END ───────── */
 
   @override
   Future<void> endCall() async {
@@ -267,24 +249,54 @@ class WebRTCCallEngine implements CallEngine {
     } catch (_) {}
 
     try {
-      if (callType == 'video') {
+      if (isVideo) {
         await _localR.dispose();
         await _remoteR.dispose();
       }
     } catch (_) {}
   }
 
-  /* ───────── UI ───────── */
+  // CONTROLS 
+
+  @override
+  void setMuted(bool muted) {
+    _muted = muted;
+    for (final track in _local?.getAudioTracks() ?? []) {
+      track.enabled = !muted;
+    }
+  }
+
+  @override
+  Future<void> setSpeaker(bool enabled) async {
+    _speakerOn = enabled;
+    await Helper.setSpeakerphoneOn(enabled);
+  }
+
+  @override
+  Future<void> switchCamera() async {
+    if (!isVideo) return;
+    final tracks = _local?.getVideoTracks() ?? [];
+    if (tracks.isEmpty) return;
+
+    // flutter_webrtc: MediaStreamTrack.switchCamera() is async
+    await tracks.first.switchCamera();
+  }
+
+  @override
+  void setVideoEnabled(bool enabled) {
+    _videoEnabled = enabled;
+    for (final track in _local?.getVideoTracks() ?? []) {
+      track.enabled = enabled;
+    }
+  }
+
+  // UI 
 
   @override
   Widget buildView() {
-    if (callType == 'audio') {
+    if (!isVideo) {
       return const Center(
-        child: Icon(
-          Icons.call,
-          color: Colors.white,
-          size: 120,
-        ),
+        child: Icon(Icons.call, color: Colors.white, size: 120),
       );
     }
 

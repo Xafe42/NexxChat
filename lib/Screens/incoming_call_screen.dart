@@ -38,7 +38,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
       final data = snap.data();
       if (data == null) return;
 
-      // ✅ read call type once
+      // read call type once
       _callType = (data['type'] ?? 'video').toString();
 
       final status = (data['status'] ?? '').toString();
