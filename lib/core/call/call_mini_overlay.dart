@@ -22,6 +22,9 @@ class _CallMiniOverlayState extends State<CallMiniOverlay> {
 
     // ❌ fullscreen open
     if (session.inFullScreen) return const SizedBox.shrink();
+    if (ModalRoute.of(context)?.isCurrent == false) {
+  return const SizedBox.shrink();
+}
 
     return Positioned(
       left: _offset.dx,

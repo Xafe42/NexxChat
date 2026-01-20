@@ -39,7 +39,7 @@ class _CallScreenState extends State<CallScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // ✅ attach / enter fullscreen
+    /// 🔗 Attach call to session + mark fullscreen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -56,7 +56,7 @@ class _CallScreenState extends State<CallScreen>
       session.enterFullScreen();
     });
 
-    // 👂 Listen remote status (other user ends / cancels)
+    /// 👂 Listen for remote end / cancel
     _callSub = _callService.listenCall(widget.callId).listen((snap) async {
       final data = snap.data();
       if (data == null) return;
@@ -80,7 +80,7 @@ class _CallScreenState extends State<CallScreen>
     });
   }
 
-  /// 🔴 Hang up (real end)
+  /// 🔴 End call (real hangup)
   Future<void> _endCall() async {
     if (_ended) return;
     _ended = true;
@@ -93,21 +93,17 @@ class _CallScreenState extends State<CallScreen>
     }
   }
 
-  /// 🟡 Back / minimize only
+  /// 🟡 Back = minimize only
   void _minimize() {
     if (_ended) return;
     if (!mounted) return;
 
     context.read<CallSession>().minimize();
-
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
   }
 
+  /// 📱 App background → minimize (Messenger behavior)
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 📱 Messenger behavior: background => minimize, not end
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _minimize();
@@ -123,19 +119,21 @@ class _CallScreenState extends State<CallScreen>
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (_) => _minimize(),
+    return WillPopScope(
+      onWillPop: () async {
+        _minimize();     // 👈 show mini overlay
+        return true;     // 👈 allow Navigator.pop()
+      },
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // 🎥 Video
+            /// 🎥 Video
             Positioned.fill(
               child: widget.engine.buildView(),
             ),
 
-            // ⬇️ Minimize bar
+            /// ⬇️ Top bar (minimize)
             Positioned(
               top: 48,
               left: 12,
@@ -143,7 +141,10 @@ class _CallScreenState extends State<CallScreen>
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: _minimize,
+                    onTap: () {
+                      _minimize();
+                      Navigator.of(context).pop();
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -174,7 +175,7 @@ class _CallScreenState extends State<CallScreen>
               ),
             ),
 
-            // 🔴 End call
+            /// 🔴 End call button
             Positioned(
               bottom: 40,
               left: 0,
