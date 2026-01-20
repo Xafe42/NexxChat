@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:nexxchat_firebase/core/call/call_session.dart';
 import 'package:provider/provider.dart';
 
 import '../core/call/call_engine.dart';
+import '../core/call/call_session.dart';
 import '../core/services/call_service.dart';
 
 class CallScreen extends StatefulWidget {
@@ -30,8 +30,8 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen>
     with WidgetsBindingObserver {
   final CallService _callService = CallService();
-
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSub;
+
   bool _ended = false;
 
   @override
@@ -39,7 +39,24 @@ class _CallScreenState extends State<CallScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    //  Listen call status (for remote hangup / cancel / missed)
+    // ✅ attach / enter fullscreen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final session = context.read<CallSession>();
+
+      session.start(
+        callId: widget.callId,
+        engine: widget.engine,
+        title: widget.title,
+        userId: widget.userId,
+        userName: widget.userName,
+      );
+
+      session.enterFullScreen();
+    });
+
+    // 👂 Listen remote status (other user ends / cancels)
     _callSub = _callService.listenCall(widget.callId).listen((snap) async {
       final data = snap.data();
       if (data == null) return;
@@ -47,38 +64,53 @@ class _CallScreenState extends State<CallScreen>
       final status = data['status'];
 
       if ((status == 'ended' ||
-           status == 'cancelled' ||
-           status == 'missed') &&
+              status == 'cancelled' ||
+              status == 'missed' ||
+              status == 'declined') &&
           !_ended) {
         _ended = true;
 
-        await widget.engine.endCall();
+        if (!mounted) return;
+        await context.read<CallSession>().end();
 
-        if (mounted && Navigator.of(context).canPop()) {
+        if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
         }
       }
     });
   }
 
-  ///  User presses END CALL
+  /// 🔴 Hang up (real end)
   Future<void> _endCall() async {
     if (_ended) return;
     _ended = true;
 
-    await widget.engine.endCall();
+    if (!mounted) return;
+    await context.read<CallSession>().end();
 
-    if (mounted && Navigator.of(context).canPop()) {
+    if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
   }
 
-  ///  App goes background → end call
+  /// 🟡 Back / minimize only
+  void _minimize() {
+    if (_ended) return;
+    if (!mounted) return;
+
+    context.read<CallSession>().minimize();
+
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 📱 Messenger behavior: background => minimize, not end
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      _endCall();
+      _minimize();
     }
   }
 
@@ -92,20 +124,57 @@ class _CallScreenState extends State<CallScreen>
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: true,
-      onPopInvoked: (_) {
-    context.read<CallSession>().minimize();
-  },
+      canPop: false,
+      onPopInvoked: (_) => _minimize(),
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Video views (remote + local)
+            // 🎥 Video
             Positioned.fill(
               child: widget.engine.buildView(),
             ),
 
-            // End Call Button
+            // ⬇️ Minimize bar
+            Positioned(
+              top: 48,
+              left: 12,
+              right: 12,
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _minimize,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 🔴 End call
             Positioned(
               bottom: 40,
               left: 0,

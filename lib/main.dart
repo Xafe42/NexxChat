@@ -4,19 +4,21 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:nexxchat_firebase/Screens/chat_home_screen.dart';
-import 'package:nexxchat_firebase/Screens/chat_screen.dart';
-import 'package:nexxchat_firebase/Screens/registration_screen.dart';
-import 'package:nexxchat_firebase/Screens/signin_screen.dart';
-import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
-import 'package:nexxchat_firebase/core/Call_listener.dart';
-import 'package:nexxchat_firebase/core/navigation.dart';
+import 'package:provider/provider.dart';
 
+import 'Screens/chat_home_screen.dart';
+import 'Screens/chat_screen.dart';
+import 'Screens/registration_screen.dart';
+import 'Screens/signin_screen.dart';
+import 'Screens/welcome_screens.dart';
+
+import 'core/Call_listener.dart';
+import 'core/call/call_mini_overlay.dart';
+import 'core/call/call_session.dart';
+import 'core/navigation.dart';
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
-import 'package:provider/provider.dart';
-import 'core/call/call_session.dart';
-// NEU: Hintergrund-Handler (ganz oben!)
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -26,113 +28,106 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // NEU: Hintergrund-Handling registrieren
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(
+    _firebaseMessagingBackgroundHandler,
+  );
 
-  // NEU: Kanal für Android Vibration erstellen
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'chat_messages', 
+    'chat_messages',
     'Chat Benachrichtigungen',
-    importance: Importance.max, // Max sorgt für das aufpoppende Banner
+    importance: Importance.max,
     enableVibration: true,
     playSound: true,
   );
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+  final FlutterLocalNotificationsPlugin notifications =
+      FlutterLocalNotificationsPlugin();
+
+  await notifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
   await ChatTheme.loadTheme();
   await ChatTheme.loadThemeMode();
 
   runApp(
-  MultiProvider(
-    providers: [
-      ChangeNotifierProvider(
-        create: (_) => CallSession(),
-      ),
-    ],
-    child: MyApp(),
-  ),
-);
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CallSession()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Instanz von Firebase Auth
-
-  MyApp({super.key}); // Konstruktor, übergibt key an die Superklasse
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Listener für Dark/Light Mode
+    final auth = FirebaseAuth.instance;
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (context, currentMode, child) {
-        
-        // 2. NEU: Listener für Farbänderungen (reloadNotifier)
+      builder: (_, themeMode, __) {
         return ValueListenableBuilder<int>(
-          valueListenable: reloadNotifier, 
-          builder: (context, _, __) {
+          valueListenable: reloadNotifier,
+          builder: (_, __, ___) {
+            final isDark = themeMode == ThemeMode.dark;
 
-            // Optional: Passt die System-Leiste unten (Android Buttons) an
-            final bool isDark = currentMode == ThemeMode.dark;
-            SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-              systemNavigationBarColor: isDark ? const Color(0xFF121212) : Colors.white,
-              systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-            ));
+            SystemChrome.setSystemUIOverlayStyle(
+              SystemUiOverlayStyle(
+                systemNavigationBarColor:
+                    isDark ? const Color(0xFF121212) : Colors.white,
+                systemNavigationBarIconBrightness:
+                    isDark ? Brightness.light : Brightness.dark,
+              ),
+            );
 
-            
+            return GlobalCallListener(
+              child: MaterialApp(
+                navigatorKey: globalNavigatorKey,
+                debugShowCheckedModeBanner: false,
+                title: 'NexxChat',
+                themeMode: themeMode,
 
-return GlobalCallListener(
-  
-  child: MaterialApp(
-    navigatorKey: globalNavigatorKey,
-    title: 'NexxChat',
-    debugShowCheckedModeBanner: false,
+                theme: ThemeData(
+                  useMaterial3: true,
+                  scaffoldBackgroundColor: Colors.white,
+                ),
+                darkTheme: ThemeData(
+                  useMaterial3: true,
+                  scaffoldBackgroundColor: const Color(0xFF121212),
+                ),
 
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: Colors.white,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: ChatTheme.myBubbleColor,
-        brightness: Brightness.light,
-      ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: ChatTheme.myBubbleColor,
-        foregroundColor: Colors.white,
-      ),
-    ),
+                initialRoute: auth.currentUser != null
+                    ? ChatHomeScreen.screenRoute
+                    : WelcomeScreen.screenRoute,
 
-    darkTheme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF121212),
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: ChatTheme.myBubbleColor,
-        brightness: Brightness.dark,
-      ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: ChatTheme.myBubbleColor,
-        foregroundColor: Colors.white,
-      ),
-    ),
+                routes: {
+                  WelcomeScreen.screenRoute: (_) =>
+                      const WelcomeScreen(),
+                  SignInScreen.screenRoute: (_) =>
+                      const SignInScreen(),
+                  RegistrationScreen.screenRoute: (_) =>
+                      const RegistrationScreen(),
+                  ChatScreen.screenRoute: (_) => const ChatScreen(),
+                  ChatHomeScreen.screenRoute: (_) =>
+                      const ChatHomeScreen(),
+                },
 
-    themeMode: currentMode,
-
-    initialRoute: _auth.currentUser != null
-        ? ChatHomeScreen.screenRoute
-        : WelcomeScreen.screenRoute,
-
-    routes: {
-      WelcomeScreen.screenRoute: (context) => const WelcomeScreen(),
-      SignInScreen.screenRoute: (context) => const SignInScreen(),
-      RegistrationScreen.screenRoute: (context) => const RegistrationScreen(),
-      ChatScreen.screenRoute: (context) => const ChatScreen(),
-      ChatHomeScreen.screenRoute: (context) => const ChatHomeScreen(),
-    },
-  ),
-);
-            
+                /// 🔑 THIS IS THE KEY FIX
+                builder: (context, child) {
+                  return Stack(
+                    children: [
+                      child!,
+                      const CallMiniOverlay(), // floating always
+                    ],
+                  );
+                },
+              ),
+            );
           },
         );
       },

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'call_engine.dart';
-
-enum CallViewMode {
-  none,        // no call
-  fullscreen, // CallScreen
-  minimized,  // mini overlay (later)
-}
+import 'package:nexxchat_firebase/Screens/call_screen.dart';
+import '../../core/call/call_engine.dart';
 
 class CallSession extends ChangeNotifier {
+  bool _active = false;
+  bool _inFullScreen = false;
+
   String? callId;
   String? title;
   String? userId;
@@ -15,59 +13,82 @@ class CallSession extends ChangeNotifier {
 
   CallEngine? engine;
 
-  CallViewMode viewMode = CallViewMode.none;
+  /* ───────── GETTERS ───────── */
 
-  bool get hasActiveCall => engine != null && callId != null;
+  bool get isActive => _active;
+  bool get inFullScreen => _inFullScreen;
+
+  /// show mini overlay ?
+  bool get showMiniOverlay => _active && !_inFullScreen;
 
   /* ───────── START CALL ───────── */
 
-  void startCall({
+  /// Attach an already-running call (engine already init)
+  void start({
     required String callId,
+    required CallEngine engine,
     required String title,
     required String userId,
     required String userName,
-    required CallEngine engine,
   }) {
     this.callId = callId;
+    this.engine = engine;
     this.title = title;
     this.userId = userId;
     this.userName = userName;
-    this.engine = engine;
 
-    viewMode = CallViewMode.fullscreen;
+    _active = true;
+    _inFullScreen = true;
+
     notifyListeners();
   }
 
-  /* ───────── MINIMIZE ───────── */
+  /* ───────── UI STATE ───────── */
 
+  /// Call screen opened (hide mini overlay)
+  void enterFullScreen() {
+    if (!_active) return;
+    _inFullScreen = true;
+    notifyListeners();
+  }
+
+  /// User pressed back → show mini overlay
   void minimize() {
-    if (!hasActiveCall) return;
-    viewMode = CallViewMode.minimized;
-    notifyListeners();
-  }
-
-  /* ───────── RESTORE ───────── */
-
-  void restore() {
-    if (!hasActiveCall) return;
-    viewMode = CallViewMode.fullscreen;
+    if (!_active) return;
+    _inFullScreen = false;
     notifyListeners();
   }
 
   /* ───────── END CALL ───────── */
 
-  Future<void> endCall() async {
-    if (engine != null) {
-      await engine!.endCall();
-    }
+  /// End call from anywhere (mini / fullscreen / background)
+  Future<void> end() async {
+    if (!_active) return;
+
+    try {
+      await engine?.endCall();
+    } catch (_) {}
+
+    _active = false;
+    _inFullScreen = false;
 
     callId = null;
     title = null;
     userId = null;
     userName = null;
     engine = null;
-    viewMode = CallViewMode.none;
 
     notifyListeners();
+  }
+
+  /// 🔁 Used by mini overlay
+  Widget buildCallScreen() {
+    return CallScreen(
+      callId: callId!,
+      engine: engine!,
+      title: title!,
+      userId: userId!,
+      userName: userName!,
+    );
   }
 }
