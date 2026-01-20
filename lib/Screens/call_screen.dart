@@ -27,8 +27,7 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen>
-    with WidgetsBindingObserver {
+class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
   final CallService _callService = CallService();
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSub;
 
@@ -39,35 +38,37 @@ class _CallScreenState extends State<CallScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    /// 🔗 Attach call to session + mark fullscreen
+    // ✅ attach session + fullscreen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
       final session = context.read<CallSession>();
 
-      session.start(
-        callId: widget.callId,
-        engine: widget.engine,
-        title: widget.title,
-        userId: widget.userId,
-        userName: widget.userName,
-      );
+      // مهم: ما تعاودش start إذا already active بنفس callId
+      if (!session.isActive || session.callId != widget.callId) {
+        session.start(
+          callId: widget.callId,
+          engine: widget.engine,
+          title: widget.title,
+          userId: widget.userId,
+          userName: widget.userName,
+        );
+      }
 
       session.enterFullScreen();
     });
 
-    /// 👂 Listen for remote end / cancel
+    // 👂 remote end/cancel/missed/declined
     _callSub = _callService.listenCall(widget.callId).listen((snap) async {
       final data = snap.data();
       if (data == null) return;
 
-      final status = data['status'];
+      final status = (data['status'] ?? '').toString();
 
-      if ((status == 'ended' ||
+      if (!_ended &&
+          (status == 'ended' ||
               status == 'cancelled' ||
               status == 'missed' ||
-              status == 'declined') &&
-          !_ended) {
+              status == 'declined')) {
         _ended = true;
 
         if (!mounted) return;
@@ -80,7 +81,6 @@ class _CallScreenState extends State<CallScreen>
     });
   }
 
-  /// 🔴 End call (real hangup)
   Future<void> _endCall() async {
     if (_ended) return;
     _ended = true;
@@ -93,20 +93,24 @@ class _CallScreenState extends State<CallScreen>
     }
   }
 
-  /// 🟡 Back = minimize only
-  void _minimize() {
+  void _minimizeAndPop() {
     if (_ended) return;
     if (!mounted) return;
 
+    // ✅ يظهر mini overlay
     context.read<CallSession>().minimize();
+
+    // ✅ يخرج من CallScreen ويرجع للشاشة اللي قبل
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
-  /// 📱 App background → minimize (Messenger behavior)
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      _minimize();
+    // Messenger behavior: background => minimize (مش end)
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _minimizeAndPop();
     }
   }
 
@@ -119,21 +123,25 @@ class _CallScreenState extends State<CallScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        _minimize();     // 👈 show mini overlay
-        return true;     // 👈 allow Navigator.pop()
+    return PopScope(
+      // ✅ خلي الـ navigator ينجم يعمل pop عادي
+      canPop: true,
+
+      // ✅ وقت يصير pop (back system أو swipe) نعمل minimize
+      onPopInvoked: (didPop) {
+        if (!didPop) return;
+        if (_ended) return;
+        if (!mounted) return;
+        context.read<CallSession>().minimize();
       },
+
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            /// 🎥 Video
-            Positioned.fill(
-              child: widget.engine.buildView(),
-            ),
+            Positioned.fill(child: widget.engine.buildView()),
 
-            /// ⬇️ Top bar (minimize)
+            // ⬇️ Minimize button
             Positioned(
               top: 48,
               left: 12,
@@ -141,10 +149,7 @@ class _CallScreenState extends State<CallScreen>
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      _minimize();
-                      Navigator.of(context).pop();
-                    },
+                    onTap: _minimizeAndPop,
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -152,10 +157,7 @@ class _CallScreenState extends State<CallScreen>
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.white,
-                      ),
+                      child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -175,7 +177,7 @@ class _CallScreenState extends State<CallScreen>
               ),
             ),
 
-            /// 🔴 End call button
+            // 🔴 End button
             Positioned(
               bottom: 40,
               left: 0,
@@ -189,18 +191,9 @@ class _CallScreenState extends State<CallScreen>
                     decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black38,
-                          blurRadius: 10,
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 10)],
                     ),
-                    child: const Icon(
-                      Icons.call_end,
-                      color: Colors.white,
-                      size: 34,
-                    ),
+                    child: const Icon(Icons.call_end, color: Colors.white, size: 34),
                   ),
                 ),
               ),

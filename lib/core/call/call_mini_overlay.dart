@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../call/call_session.dart';
+import '../navigation.dart'; // ✅ globalNavigatorKey
 
 class CallMiniOverlay extends StatefulWidget {
   const CallMiniOverlay({super.key});
@@ -17,46 +18,41 @@ class _CallMiniOverlayState extends State<CallMiniOverlay> {
   Widget build(BuildContext context) {
     final session = context.watch<CallSession>();
 
-    // ❌ no active call
     if (!session.isActive) return const SizedBox.shrink();
-
-    // ❌ fullscreen open
     if (session.inFullScreen) return const SizedBox.shrink();
-    if (ModalRoute.of(context)?.isCurrent == false) {
-  return const SizedBox.shrink();
-}
 
     return Positioned(
       left: _offset.dx,
       top: _offset.dy,
       child: Draggable(
-        feedback: _buildMini(context, session, dragging: true),
+        feedback: _buildMini(session, dragging: true),
         childWhenDragging: const SizedBox.shrink(),
-        onDragEnd: (details) {
-          setState(() {
-            _offset = details.offset;
-          });
-        },
-        child: _buildMini(context, session),
+        onDragEnd: (details) => setState(() => _offset = details.offset),
+        child: _buildMini(session),
       ),
     );
   }
 
-  Widget _buildMini(
-    BuildContext context,
-    CallSession session, {
-    bool dragging = false,
-  }) {
+  Widget _buildMini(CallSession session, {bool dragging = false}) {
     return Material(
       elevation: dragging ? 12 : 6,
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: GestureDetector(
-        onTap: () {
-          // 🔼 open fullscreen
+        onTap: () async {
+          if (!session.isActive) return;
+
+          // ✅ hide mini overlay first
           session.enterFullScreen();
 
-          Navigator.of(context).push(
+          // ✅ push fullscreen using ROOT navigator
+          final nav = globalNavigatorKey.currentState;
+          if (nav == null) {
+            session.minimize(); // fallback
+            return;
+          }
+
+          nav.push(
             MaterialPageRoute(
               builder: (_) => session.buildCallScreen(),
             ),
@@ -69,26 +65,18 @@ class _CallMiniOverlayState extends State<CallMiniOverlay> {
               height: 220,
               child: session.engine!.buildView(),
             ),
-
-            // 🔴 End button
             Positioned(
               top: 6,
               right: 6,
               child: GestureDetector(
-                onTap: () async {
-                  await session.end();
-                },
+                onTap: () async => session.end(),
                 child: Container(
                   padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.call_end,
-                    color: Colors.red,
-                    size: 18,
-                  ),
+                  child: const Icon(Icons.call_end, color: Colors.red, size: 18),
                 ),
               ),
             ),
