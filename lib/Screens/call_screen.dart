@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/core/call/call_session.dart';
+import 'package:provider/provider.dart';
 
 import '../core/call/call_engine.dart';
 import '../core/services/call_service.dart';
@@ -90,8 +92,10 @@ class _CallScreenState extends State<CallScreen>
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
-      onPopInvoked: (_) => _endCall(),
+      canPop: true,
+      onPopInvoked: (_) {
+    context.read<CallSession>().minimize();
+  },
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(

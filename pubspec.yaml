@@ -26,7 +26,7 @@ dependencies:
       ref: main
 
   permission_handler: ^12.0.1
-
+  provider: ^6.0.5 
   # Benachrichtigungen & Auth
   flutter_local_notifications: ^18.0.1
   googleapis_auth: ^1.6.0

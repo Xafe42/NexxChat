@@ -14,7 +14,8 @@ import 'package:nexxchat_firebase/core/navigation.dart';
 
 import 'core/services/chat_theme.dart';
 import 'theme_notifier.dart';
-
+import 'package:provider/provider.dart';
+import 'core/call/call_session.dart';
 // NEU: Hintergrund-Handler (ganz oben!)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -45,7 +46,16 @@ void main() async {
   await ChatTheme.loadTheme();
   await ChatTheme.loadThemeMode();
 
-  runApp(MyApp());
+  runApp(
+  MultiProvider(
+    providers: [
+      ChangeNotifierProvider(
+        create: (_) => CallSession(),
+      ),
+    ],
+    child: MyApp(),
+  ),
+);
 }
 
 class MyApp extends StatelessWidget {
