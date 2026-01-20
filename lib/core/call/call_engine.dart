@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract class CallEngine {
-  void init({
+  Future<void> init({
     required String callId,
     required String userId,
     required String userName,

@@ -1,16 +1,16 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/call_screen.dart';
+import 'package:nexxchat_firebase/core/call/webrtc_call_engine.dart';
 
-import '../Screens/incoming_call_screen.dart';
-import '../Screens/call_screen.dart';
-import '../core/services/call_service.dart';
 import '../core/navigation.dart';
+import '../core/services/call_service.dart';
+import '../Screens/incoming_call_screen.dart';
 
 class GlobalCallListener extends StatefulWidget {
   final Widget child;
-
   const GlobalCallListener({super.key, required this.child});
 
   @override
@@ -18,7 +18,7 @@ class GlobalCallListener extends StatefulWidget {
 }
 
 class _GlobalCallListenerState extends State<GlobalCallListener> {
-  StreamSubscription<QuerySnapshot>? _sub;
+   StreamSubscription<QuerySnapshot>? _sub;
 
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
@@ -27,13 +27,14 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
   bool _incomingOpen = false;
   final Set<String> _blockedCalls = {};
 
+
   @override
   void initState() {
     super.initState();
     _startListening();
   }
 
-  void _startListening() {
+ void _startListening() {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -69,6 +70,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
     });
   }
 
+
  void _openIncoming(String callId, Map<String, dynamic> data) {
   final navigator = globalNavigatorKey.currentState;
   if (navigator == null) return;
@@ -84,15 +86,52 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
       builder: (_) => IncomingCallScreen(
         callId: callId,
         title: title,
-        userId: _auth.currentUser!.uid,
-        userName: _auth.currentUser!.email ?? "User",
+
+        // ✅ ACCEPT
+        onAccept: () async {
+          _blockedCalls.add(callId);
+
+          // 1️⃣ نحدّث status
+          await _callService.acceptCall(callId);
+
+          // 2️⃣ نخلق engine (callee)
+          final engine = WebRTCCallEngine(isCaller: false);
+          await engine.init(
+            callId: callId,
+            userId: _auth.currentUser!.uid,
+            userName: _auth.currentUser!.email ?? "User",
+          );
+
+          // 3️⃣ نمشي للـ CallScreen
+          navigator.pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => CallScreen(
+                callId: callId,
+                engine: engine,
+                title: title,
+                userId: _auth.currentUser!.uid,
+                userName: _auth.currentUser!.email ?? "User",
+              ),
+            ),
+          );
+        },
+
+        // ❌ DECLINE
+        onDecline: () async {
+          _blockedCalls.add(callId);
+          await _callService.declineCall(callId);
+
+          if (navigator.canPop()) {
+            navigator.pop();
+          }
+        },
       ),
     ),
-  )
-      .then((_) {
+  ).then((_) {
     _incomingOpen = false;
   });
 }
+
 
   @override
   void dispose() {

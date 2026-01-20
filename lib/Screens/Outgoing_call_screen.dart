@@ -2,9 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../core/services/call_service.dart';
-import '../core/call/call_engine.dart';
-import '../core/call/zego_call_engine.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
+import '../core/call/webrtc_call_engine.dart';
 import 'call_screen.dart';
 
 class OutgoingCallScreen extends StatefulWidget {
@@ -28,74 +27,97 @@ class OutgoingCallScreen extends StatefulWidget {
 class _OutgoingCallScreenState extends State<OutgoingCallScreen>
     with SingleTickerProviderStateMixin {
   final CallService _callService = CallService();
-  StreamSubscription<DocumentSnapshot>? _sub;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _sub;
 
   late final AnimationController _dotController;
   late final Animation<int> _dotAnimation;
+
+  bool _navigated = false;
+  bool _closed = false;
 
   @override
   void initState() {
     super.initState();
 
+    //  Calling... animation
     _dotController =
         AnimationController(vsync: this, duration: const Duration(seconds: 1))
           ..repeat();
     _dotAnimation = IntTween(begin: 1, end: 3).animate(_dotController);
 
-    _sub = _callService.listenCall(widget.callId).listen((snap) async {
-      final data = snap.data() as Map<String, dynamic>?;
-      if (data == null) return;
+    //  Listen call document
+    _sub = _callService.listenCall(widget.callId).listen(_onCallUpdate);
+  }
 
-      final status = data['status'];
+  void _onCallUpdate(DocumentSnapshot<Map<String, dynamic>> snap) async {
+    final data = snap.data();
+    if (data == null) return;
 
-      if (status == 'accepted') {
-        await _sub?.cancel();
+    final status = (data['status'] ?? '').toString();
 
-        final CallEngine engine = ZegoCallEngine();
-        engine.init(
-          callId: widget.callId,
-          userId: widget.userId,
-          userName: widget.userName,
-        );
+    //  Call accepted → open CallScreen
+    if (status == 'accepted' && !_navigated) {
+      _navigated = true;
 
-        if (!mounted) return;
+      final engine = WebRTCCallEngine(isCaller: true);
+      await engine.init(
+        callId: widget.callId,
+        userId: widget.userId,
+        userName: widget.userName,
+      );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CallScreen(
-              callID: widget.callId,
-              userID: widget.userId,
-              userName: widget.userName,
-              engine: engine,
-            ),
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CallScreen(
+            callId: widget.callId,
+            engine: engine,
+            title: widget.title,
+            userId: widget.userId,
+            userName: widget.userName,
           ),
-        );
-      }
+        ),
+      );
+      return;
+    }
 
-      if (status == 'declined' || status == 'missed' || status == 'ended') {
-        await _sub?.cancel();
-        if (mounted) Navigator.pop(context);
-      }
-    });
+    // Call ended before accept
+    if (status == 'declined' ||
+        status == 'missed' ||
+        status == 'ended' ||
+        status == 'cancelled') {
+      _safeClose();
+    }
+  }
+
+  Future<void> _cancelCall() async {
+    if (_closed) return;
+    _closed = true;
+
+    await _callService.cancelCall(widget.callId);
+
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _safeClose() {
+    if (_closed) return;
+    _closed = true;
+
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   void dispose() {
-    _dotController.dispose();
     _sub?.cancel();
+    _dotController.dispose();
     super.dispose();
-  }
-
-  Future<void> _cancelCall() async {
-    await _callService.endCall(widget.callId);
-    await _callService.logCallMessage(
-      conversationId: widget.callId.split("_").first,
-      callId: widget.callId,
-      type: "video",
-      status: "cancelled",
-    );
-    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -120,6 +142,8 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SizedBox(height: 40),
+
+              //  Avatar + Name
               Column(
                 children: [
                   CircleAvatar(
@@ -146,6 +170,8 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  //  Calling...
                   AnimatedBuilder(
                     animation: _dotAnimation,
                     builder: (_, __) {
@@ -160,6 +186,8 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
                   ),
                 ],
               ),
+
+              // Cancel button
               Padding(
                 padding: const EdgeInsets.only(bottom: 50),
                 child: GestureDetector(

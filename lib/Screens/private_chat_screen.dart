@@ -10,9 +10,7 @@ import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 // Local Imports (Bitte Pfade anpassen falls nötig)
-import 'package:nexxchat_firebase/Screens/call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
-import 'package:nexxchat_firebase/Screens/incoming_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
@@ -57,8 +55,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _scrollCtrl = ScrollController();
   final _picker = ImagePicker();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _callSub;
-  final Set<String> _handledCallIds = {};
+
 
   final Set<String> _handledScheduledCalls = {};
   User? _user;
@@ -82,7 +79,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _user = _auth.currentUser;
     _loadTheme();
     _loadOtherUser();
-    _listenIncomingCalls();
     _listenScheduledCalls();
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
@@ -105,7 +101,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _ctrl.dispose();
     _scrollCtrl.dispose();
     _scheduledCallSub?.cancel();
-    _callSub?.cancel();
     super.dispose();
   }
 
@@ -201,27 +196,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ---------- Send Call ----------
 
-  Future<void> _sendCallSummary(Map<String, dynamic> call) async {
-    final convRef = _db.collection('conversations').doc(widget.conversationId);
-    final msgRef = convRef.collection('messages').doc();
-
-    await msgRef.set({
-      'id': msgRef.id,
-      'type': 'call',
-      'senderId': _user!.uid,
-      'timestamp': FieldValue.serverTimestamp(),
-      'callType': call['type'],
-      'status': call['status'],
-      'duration': call['duration'],
-    });
-
-    await convRef.update({
-      'lastMessage': call['status'] == 'missed'
-          ? '📞 Verpasster Videoanruf'
-          : '📞 Videoanruf beendet',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    });
-  }
 
   // ---------- Typing indicator ----------
 
@@ -581,83 +555,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  void _listenIncomingCalls() {
-    final uid = _user?.uid;
-    if (uid == null) return;
 
-    _callSub?.cancel();
-
-    _callSub = FirebaseFirestore.instance
-        .collection("calls")
-        .where("status", isEqualTo: "ringing")
-        .snapshots()
-        .listen((snap) {
-      for (final doc in snap.docs) {
-        final data = doc.data();
-        final callId = doc.id;
-
-        if (data["callerId"] == uid) continue;
-
-        if (_handledCallIds.contains(callId)) continue;
-
-        final isGroup = data["isGroup"] == true;
-        bool shouldShow = false;
-
-        if (!isGroup && data["receiverId"] == uid) {
-          shouldShow = true;
-        }
-
-        if (isGroup && (data["members"] as List).contains(uid)) {
-          shouldShow = true;
-        }
-
-        if (shouldShow) {
-          _handledCallIds.add(callId);
-          _handleIncomingCall(callId, data);
-        }
-      }
-    });
-  }
-
-Future<void> _handleIncomingCall(
-  String callId,
-  Map<String, dynamic> data,
-) async {
-  if (!mounted) return;
-
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => IncomingCallScreen(
-        callId: callId,
-        title: "Incoming Call",
-        userId: _user!.uid,
-        userName: _user!.email ?? "User",
-      ),
-    ),
-  );
-}
- void _openIncomingCall(String callId, Map<String, dynamic> data) async {
-  if (!mounted) return;
-
-  final isGroup = data["isGroup"] == true;
-  final title =
-      isGroup ? widget.title : (data["callerId"] ?? "Incoming call");
-
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => IncomingCallScreen(
-        callId: callId,
-        title: title,
-        userId: _user!.uid,
-        userName: _user!.email ?? "User",
-      ),
-    ),
-  );
-}
   // ---------- Reactions ----------
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -709,7 +607,7 @@ Future<void> _handleIncomingCall(
 
     Map<String, dynamic> updates = {};
     reactions.forEach((emoji, userList) {
-      if (userList is List && (userList as List).contains(myUid)) {
+      if (userList is List && (userList).contains(myUid)) {
         updates['reactions.$emoji'] = FieldValue.arrayRemove([myUid]);
       }
     });

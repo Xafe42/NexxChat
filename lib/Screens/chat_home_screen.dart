@@ -68,37 +68,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     ;
   }
 
- Future<void> _handleIncomingCall(
-  String callId,
-  Map<String, dynamic> data,
-) async {
-  if (!mounted) return;
-  if (_incomingDialogOpen) return;
-  if (_handledCallIds.contains(callId)) return;
-  if (data["status"] != "ringing") return;
-
-  _handledCallIds.add(callId);
-  _incomingDialogOpen = true;
-
-  final isGroup = data["isGroup"] == true;
-  final title =
-      isGroup ? "Group Call" : (data["callerName"] ?? "Incoming Call");
-
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => IncomingCallScreen(
-        callId: callId,
-        title: title,
-        userId: currentUser!.uid,
-        userName: currentUser!.email ?? "User",
-      ),
-    ),
-  );
-
-  _incomingDialogOpen = false;
-}
+ 
 
   Future<void> _saveFcmToken() async {
     String? token = await FirebaseMessaging.instance.getToken();

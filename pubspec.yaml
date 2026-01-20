@@ -20,13 +20,18 @@ dependencies:
   firebase_storage: ^12.3.0
   firebase_messaging: ^15.2.0
 
+  flutter_webrtc:
+    git:
+      url: https://github.com/flutter-webrtc/flutter-webrtc.git
+      ref: main
+
+  permission_handler: ^12.0.1
+
   # Benachrichtigungen & Auth
   flutter_local_notifications: ^18.0.1
   googleapis_auth: ^1.6.0
   http: ^1.2.2
 
-  # Zego (Aktuelle stabile Version, die Firebase 3+ erlaubt)
-  zego_uikit_prebuilt_call: ^4.22.2
   
   # Weitere Tools
   cupertino_icons: ^1.0.8

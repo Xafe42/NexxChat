@@ -1,19 +1,24 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:nexxchat_firebase/core/call/call_engine.dart';
-import 'package:nexxchat_firebase/core/services/Call_service.dart';
+
+import '../core/call/call_engine.dart';
+import '../core/services/call_service.dart';
 
 class CallScreen extends StatefulWidget {
-  final String callID;
-  final String userID;
-  final String userName;
+  final String callId;
   final CallEngine engine;
+  final String title;
+  final String userId;
+  final String userName;
 
   const CallScreen({
     super.key,
-    required this.callID,
-    required this.userID,
-    required this.userName,
+    required this.callId,
     required this.engine,
+    required this.title,
+    required this.userId,
+    required this.userName,
   });
 
   @override
@@ -23,56 +28,112 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen>
     with WidgetsBindingObserver {
   final CallService _callService = CallService();
-  late int _startTime;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _callSub;
   bool _ended = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startTime = DateTime.now().millisecondsSinceEpoch;
 
-    widget.engine.init(
-      callId: widget.callID,
-      userId: widget.userID,
-      userName: widget.userName,
-    );
+    //  Listen call status (for remote hangup / cancel / missed)
+    _callSub = _callService.listenCall(widget.callId).listen((snap) async {
+      final data = snap.data();
+      if (data == null) return;
+
+      final status = data['status'];
+
+      if ((status == 'ended' ||
+           status == 'cancelled' ||
+           status == 'missed') &&
+          !_ended) {
+        _ended = true;
+
+        await widget.engine.endCall();
+
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      }
+    });
+  }
+
+  ///  User presses END CALL
+  Future<void> _endCall() async {
+    if (_ended) return;
+    _ended = true;
+
+    await widget.engine.endCall();
+
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  ///  App goes background → end call
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _endCall();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.engine.dispose();
+    _callSub?.cancel();
     super.dispose();
-  }
-
-  Future<void> _endCall() async {
-    if (_ended) return;
-    _ended = true;
-
-    final end = DateTime.now().millisecondsSinceEpoch;
-    final duration = ((end - _startTime) / 1000).round();
-
-    try {
-      await widget.engine.endCall();
-      await _callService.finalizeCall(
-        callId: widget.callID,
-        status: "accepted",
-        duration: duration,
-      );
-    } catch (_) {}
-
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (_, __) => _endCall(),
-      child: widget.engine.buildView(),
+      onPopInvoked: (_) => _endCall(),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // Video views (remote + local)
+            Positioned.fill(
+              child: widget.engine.buildView(),
+            ),
+
+            // End Call Button
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _endCall,
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black38,
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.call_end,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

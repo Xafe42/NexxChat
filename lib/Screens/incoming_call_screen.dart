@@ -1,23 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-
 import '../core/services/call_service.dart';
-import '../core/call/call_engine.dart';
-import '../core/call/zego_call_engine.dart';
-import 'call_screen.dart';
 
 class IncomingCallScreen extends StatefulWidget {
   final String callId;
   final String title;
-  final String userId;
-  final String userName;
+  final Future<void> Function() onAccept;
+  final Future<void> Function() onDecline;
 
   const IncomingCallScreen({
     super.key,
     required this.callId,
     required this.title,
-    required this.userId,
-    required this.userName,
+    required this.onAccept,
+    required this.onDecline,
   });
 
   @override
@@ -34,48 +30,18 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     super.initState();
 
     _sub = _callService.listenCall(widget.callId).listen((snap) {
-      final data = snap.data() as Map<String, dynamic>?;
+      final data = snap.data();
       if (data == null) return;
 
-      final status = data['status'];
+      final status = data["status"];
 
-      if (status == 'ended' ||
-          status == 'declined' ||
-          status == 'missed' ||
-          status == 'cancelled') {
+      if (status == "ended" ||
+          status == "declined" ||
+          status == "missed" ||
+          status == "cancelled") {
         _safeClose();
       }
     });
-  }
-
-  Future<void> _accept() async {
-    await _callService.acceptCall(widget.callId);
-
-    final CallEngine engine = ZegoCallEngine();
-    engine.init(
-      callId: widget.callId,
-      userId: widget.userId,
-      userName: widget.userName,
-    );
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CallScreen(
-          callID: widget.callId,
-          userID: widget.userId,
-          userName: widget.userName,
-          engine: engine,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _decline() async {
-    await _callService.declineCall(widget.callId);
-    _safeClose();
   }
 
   void _safeClose() {
@@ -115,6 +81,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SizedBox(height: 40),
+
               Column(
                 children: [
                   CircleAvatar(
@@ -151,13 +118,17 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                   ),
                 ],
               ),
+
               Padding(
                 padding: const EdgeInsets.only(bottom: 50),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     GestureDetector(
-                      onTap: _decline,
+                      onTap: () async {
+                        await widget.onDecline();
+                        _safeClose();
+                      },
                       child: Container(
                         width: 72,
                         height: 72,
@@ -180,7 +151,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: _accept,
+                      onTap: () async {
+                        await widget.onAccept();
+                      },
                       child: Container(
                         width: 72,
                         height: 72,
