@@ -20,7 +20,6 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-
   final List<Map<String, dynamic>> _messages = [
     {
       'role': 'ai',
@@ -44,13 +43,11 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
-
   //Upload Bild zu Firebase
   Future<String?> _uploadToFirebase(Uint8List bytes) async {
     try {
       final fileName = "ai_${DateTime.now().millisecondsSinceEpoch}.png";
-      final ref =
-          FirebaseStorage.instance.ref().child("chat_images/$fileName");
+      final ref = FirebaseStorage.instance.ref().child("chat_images/$fileName");
 
       await ref.putData(
         bytes,
@@ -64,53 +61,51 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   }
 
-
   // Generiere Bild mit Pollinations
 
-Future<dynamic> _generateImage(String prompt) async {
-  
-  const String myApiKey = "sk_OsgzUPABqx04kQQ2GIeEZwKKX4XtswXd"; 
+  Future<dynamic> _generateImage(String prompt) async {
+    const String myApiKey = "sk_OsgzUPABqx04kQQ2GIeEZwKKX4XtswXd";
 
-  try {
-    final encodedPrompt = Uri.encodeComponent(prompt.trim());
-    final int seed = Random().nextInt(1000000); 
-    
-    
-    const String model = "flux"; 
+    try {
+      final encodedPrompt = Uri.encodeComponent(prompt.trim());
+      final int seed = Random().nextInt(1000000);
 
-    final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
-                       "?width=1024"
-                       "&height=1024"
-                       "&nologo=true"
-                       "&seed=$seed"
-                       "&model=$model";
+      const String model = "flux";
 
-    print("DEBUG: Sende Anfrage an: $url");
+      final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
+          "?width=1024"
+          "&height=1024"
+          "&nologo=true"
+          "&seed=$seed"
+          "&model=$model";
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        "Authorization": "Bearer $myApiKey", 
-      },
-    ).timeout(const Duration(seconds: 40));
+      print("DEBUG: Sende Anfrage an: $url");
 
-    if (response.statusCode == 200) {
-      if (response.bodyBytes.length > 20000) {
-        return response.bodyBytes;
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $myApiKey",
+        },
+      ).timeout(const Duration(seconds: 40));
+
+      if (response.statusCode == 200) {
+        if (response.bodyBytes.length > 20000) {
+          return response.bodyBytes;
+        }
+        return "FEHLER: Bilddaten zu klein.";
+      } else if (response.statusCode == 429) {
+        // Falls das Limit deines Accounts doch erreicht wird:
+        return "Dein Account-Limit wurde erreicht. Bitte kurz warten. ⏳";
+      } else {
+        print(
+            "API FEHLER: ${response.statusCode} - Nachricht: ${response.body}");
+        return "Fehler: ${response.statusCode}. Bitte prüfe deinen API Key.";
       }
-      return "FEHLER: Bilddaten zu klein.";
-    } else if (response.statusCode == 429) {
-      // Falls das Limit deines Accounts doch erreicht wird:
-      return "Dein Account-Limit wurde erreicht. Bitte kurz warten. ⏳";
-    } else {
-      print("API FEHLER: ${response.statusCode} - Nachricht: ${response.body}");
-      return "Fehler: ${response.statusCode}. Bitte prüfe deinen API Key.";
+    } catch (e) {
+      print("Netzwerkfehler: $e");
+      return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
     }
-  } catch (e) {
-    print("Netzwerkfehler: $e");
-    return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
   }
-}
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -124,9 +119,8 @@ Future<dynamic> _generateImage(String prompt) async {
     });
   }
 
-
   //  Nachricht senden
- 
+
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -155,28 +149,24 @@ Future<dynamic> _generateImage(String prompt) async {
           });
         } else {
           // Zeige Fehlermeldung direkt im Chat
-          _messages.add({
-            'role': 'ai',
-            'text': result.toString(),
-            'type': 'text'
-          });
+          _messages
+              .add({'role': 'ai', 'text': result.toString(), 'type': 'text'});
         }
       });
       _scrollToBottom();
     }
   }
 
-  
   // UI (Unverändert übernommen)
- 
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+    final accentColor = ChatTheme.myBubbleColor;
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.pink[800],
+        backgroundColor: accentColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context, null),
@@ -203,18 +193,18 @@ Future<dynamic> _generateImage(String prompt) async {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
-                    crossAxisAlignment:
-                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       Text(
                         isMe ? "Dein Prompt" : "KI Bot",
                         style: TextStyle(
-                            color: Colors.pink[800],
+                            color: accentColor,
                             fontSize: 12,
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-
                       if (isImage)
                         Column(
                           children: [
@@ -224,7 +214,8 @@ Future<dynamic> _generateImage(String prompt) async {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => FullScreenImagePage(imageBytes: msg['data']),
+                                    builder: (_) => FullScreenImagePage(
+                                        imageBytes: msg['data']),
                                   ),
                                 );
                               },
@@ -241,27 +232,33 @@ Future<dynamic> _generateImage(String prompt) async {
 
                             // Send to Chat Button
                             ElevatedButton.icon(
-                              onPressed: _isUploading ? null : () async {
-                                setState(() => _isUploading = true);
+                              onPressed: _isUploading
+                                  ? null
+                                  : () async {
+                                      setState(() => _isUploading = true);
 
-                                final url =
-                                    await _uploadToFirebase(msg['data']);
+                                      final url =
+                                          await _uploadToFirebase(msg['data']);
 
-                                if (url != null) {
-                                  Navigator.pop(context, url);
-                                }
-                                
-                                if (mounted) setState(() => _isUploading = false);
-                              },
-                              icon: _isUploading 
-                                ? const SizedBox(
-                                    width: 18, 
-                                    height: 18, 
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.send),
-                              label: Text(_isUploading ? "Wird gesendet..." : "Send to Chat"),
+                                      if (url != null) {
+                                        Navigator.pop(context, url);
+                                      }
+
+                                      if (mounted)
+                                        setState(() => _isUploading = false);
+                                    },
+                              icon: _isUploading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
+                                  : const Icon(Icons.send),
+                              label: Text(_isUploading
+                                  ? "Wird gesendet..."
+                                  : "Send to Chat"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.pink[700],
+                                backgroundColor: accentColor,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 30, vertical: 12),
@@ -276,9 +273,8 @@ Future<dynamic> _generateImage(String prompt) async {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isMe
-                                ? ChatTheme.myBubbleColor
-                                : Colors.white,
+                            color:
+                                isMe ? ChatTheme.myBubbleColor : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -300,16 +296,18 @@ Future<dynamic> _generateImage(String prompt) async {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
-                children: [
-                  const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.pink)),
+                children:[
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     "Bild wird generiert...",
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black),
                   )
                 ],
               ),
@@ -328,8 +326,9 @@ Future<dynamic> _generateImage(String prompt) async {
                       decoration: InputDecoration(
                         hintText: "Beschreibe ein Bild...",
                         filled: true,
-                        fillColor:
-                            isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
+                        fillColor: isDarkMode
+                            ? Colors.grey[800]
+                            : const Color(0xFFF2F2F2),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(30),
                           borderSide: BorderSide.none,
@@ -342,7 +341,7 @@ Future<dynamic> _generateImage(String prompt) async {
                   const SizedBox(width: 8),
                   FloatingActionButton(
                     onPressed: _isLoading ? null : _sendMessage,
-                    backgroundColor: Colors.pink[700],
+                    backgroundColor: accentColor,
                     child: const Icon(Icons.brush_rounded, color: Colors.white),
                   ),
                 ],

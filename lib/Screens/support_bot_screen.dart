@@ -1,9 +1,8 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/services/chat_theme.dart'; 
+import '../core/services/chat_theme.dart';
 
 class SupportBotScreen extends StatefulWidget {
   static const String screenRoute = "support_bot_screen";
@@ -14,26 +13,24 @@ class SupportBotScreen extends StatefulWidget {
 }
 
 class _SupportBotScreenState extends State<SupportBotScreen> {
-  // Controller für das Textfeld und das automatische Scrollen
   final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController(); 
+  final ScrollController _scrollController = ScrollController();
 
-  // Liste der Chat-Nachrichten. Hier wird der Verlauf gespeichert.
   final List<Map<String, String>> _messages = [
-    {'role': 'ai', 'text': 'Hallo! Ich bin dein Support Bot. Wie kann ich helfen?'}
+    {
+      'role': 'ai',
+      'text': '👋 Hi!\nIch bin dein Support Bot.\nWie kann ich dir helfen?'
+    }
   ];
-  
-  bool _isLoading = false; // Zeigt an, ob die KI gerade "denkt"
 
-  // --- API KONFIGURATION ---
-  // Hier werden die Schlüssel und die URL für Gemini definiert
-  static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
-  static const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
-  static const String geminiApiUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';
+  bool _isLoading = false;
 
-  // --- THEME LOGIK ---
-  // Lädt beim Start die gespeicherten Farben aus dem Speicher
+  //Gemini Config
+  static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
+  static const String model = 'gemini-2.5-flash-preview-09-2025';
+  static const String apiUrl =
+      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
+
   @override
   void initState() {
     super.initState();
@@ -44,14 +41,11 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     await ChatTheme.loadTheme();
     if (mounted) setState(() {});
   }
-  // -------------------------------
 
-  // --- GEMINI KI LOGIK ---
-  // Diese Funktion sendet den Chatverlauf an Google und holt die Antwort
+  //AI CALL
   Future<String> _fetchAiResponse() async {
     try {
-      // 1. Verlauf für die API formatieren (User & Model Rollen)
-      List<Map<String, dynamic>> apiHistory = _messages.map((msg) {
+      final history = _messages.map((msg) {
         return {
           'role': msg['role'] == 'user' ? 'user' : 'model',
           'parts': [
@@ -60,170 +54,142 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
         };
       }).toList();
 
-      // 2. Datenpaket schnüren (Verlauf + Systemanweisung)
       final payload = {
-        'contents': apiHistory,
+        'contents': history,
         'systemInstruction': {
-          'parts': [{'text': "Du bist ein hilfreicher Bot der alle Fragen zu Themen knapp und Hilfreich beantwortet."}],
-        },
+          'parts': [
+            {
+              'text':
+                  'Du bist ein hilfreicher Support Bot. Antworte kurz, klar und hilfreich.'
+            }
+          ]
+        }
       };
 
-      // 3. Anfrage an den Google Server senden
-      final response = await http.post(
-        Uri.parse(geminiApiUrl),
+      final res = await http.post(
+        Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
 
-      // 4. Antwort auswerten
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        // Den Text aus der verschachtelten JSON-Antwort herausfischen
-        return result['candidates']?[0]['content']?['parts']?[0]['text'] ?? "Keine Antwort.";
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['candidates']?[0]['content']?['parts']?[0]['text'] ??
+            "Keine Antwort.";
       }
-      return "Fehler: ${response.statusCode}";
+      return "⚠️ Fehler ${res.statusCode}";
     } catch (e) {
-      return "Verbindungsfehler: $e";
+      return "🌐 Verbindungsfehler";
     }
   }
 
-  // Scrollt die Liste automatisch ganz nach unten
-  void _scrollToBottom() {
+  //SEND 
+  void _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _isLoading) return;
+
+    setState(() {
+      _messages.add({'role': 'user', 'text': text});
+      _isLoading = true;
+    });
+
+    _controller.clear();
+    _scrollDown();
+
+    final reply = await _fetchAiResponse();
+
+    if (!mounted) return;
+
+    setState(() {
+      _messages.add({'role': 'ai', 'text': reply});
+      _isLoading = false;
+    });
+
+    _scrollDown();
+  }
+
+  void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  // Wird ausgeführt, wenn der Senden-Button gedrückt wird
-  void _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    // 1. Eigene Nachricht anzeigen & Ladezustand aktivieren
-    setState(() {
-      _messages.add({'role': 'user', 'text': text});
-      _isLoading = true;
-    });
-    _controller.clear();
-    _scrollToBottom();
-
-    // 2. Auf Antwort der KI warten
-    final response = await _fetchAiResponse();
-
-    // 3. Antwort anzeigen & Ladezustand beenden
-    if (mounted) {
-      setState(() {
-        _messages.add({'role': 'ai', 'text': response});
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
-  }
-
+  // UI
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // Hintergrundfarbe wird aus den Chat-Einstellungen geladen
       backgroundColor: ChatTheme.backgroundColor,
-      
-      // --- APP BAR ---
-      // Spezielles Design für den Support Bot (Orange/Gelb)
+
+      //  APP BAR 
       appBar: AppBar(
-        backgroundColor: Colors.yellow[900],
+        backgroundColor: ChatTheme.myBubbleColor,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        titleSpacing: 0,
         title: Row(
-          children: [
-            // Das Roboter-Logo im Kreis
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.purple,
-                size: 24,
-              ),
+          children: const [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.support_agent,
+                  size: 18, color: Colors.black),
             ),
-            const SizedBox(width: 10),
-            const Text(
+            SizedBox(width: 10),
+            Text(
               "Support Bot",
-              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
-      
-      // --- HAUPTINHALT ---
+
       body: Column(
         children: [
-          // 1. Die Liste der Nachrichten
+          // CHAT 
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+              padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
+              itemBuilder: (_, i) {
+                final msg = _messages[i];
                 final isMe = msg['role'] == 'user';
-                
-                // Bubble Design
+
                 return Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    // Nachricht rechts (User) oder links (Bot) ausrichten
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    mainAxisAlignment:
+                        isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        isMe ? "Du" : "Support Bot",
-                        style: TextStyle(fontSize: 12, color: Colors.yellow[900]),
-                      ),
-                      const SizedBox(height: 2),
-                      Material(
-                        elevation: 5,
-                        // Runde Ecken anpassen je nach Sender
-                        borderRadius: isMe
-                            ? const BorderRadius.only(
-                                topLeft: Radius.circular(30),
-                                bottomLeft: Radius.circular(30),
-                                bottomRight: Radius.circular(30),
-                              )
-                            : const BorderRadius.only(
-                                topRight: Radius.circular(30),
-                                bottomLeft: Radius.circular(30),
-                                bottomRight: Radius.circular(30),
-                              ),
-                        // Farbe aus Theme laden
-                        color: isMe ? ChatTheme.myBubbleColor : Colors.white,
-                        
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                          child: Text(
-                            msg['text'] ?? "",
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: isMe ? Colors.white : Colors.black54,
-                            ),
-                          ),
+                      if (!isMe)
+                        const CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.smart_toy,
+                              size: 18, color: Colors.black),
+                        ),
+                      if (!isMe) const SizedBox(width: 8),
+
+                      Flexible(
+                        child: _bubble(
+                          text: msg['text'] ?? "",
+                          isMe: isMe,
+                          isDark: isDark,
                         ),
                       ),
                     ],
@@ -233,80 +199,102 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             ),
           ),
 
-          // 2. Lade-Indikator ("Schreibt...")
+          // TYPING 
           if (_isLoading)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
+              padding: const EdgeInsets.only(left: 18, bottom: 8),
+              child: Row(
+                children: const [
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.smart_toy, size: 12),
                   ),
-                  child: const Text("Schreibt...", style: TextStyle(color: Colors.grey)),
-                ),
+                  SizedBox(width: 8),
+                  Text(
+                    "Support Bot schreibt…",
+                    style: TextStyle(
+                        fontSize: 13, fontStyle: FontStyle.italic),
+                  ),
+                ],
               ),
             ),
 
-          // 3. Eingabefeld unten
+          //INPUT
           Container(
-            // Passt Hintergrundfarbe an Dark Mode an
-            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white, 
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: SafeArea(
               top: false,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.orange, width: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: "Schreibe eine Frage…",
+                        filled: true,
+                        fillColor:
+                            isDark ? Colors.grey[800] : Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    // Das Textfeld
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: null,
-                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                        decoration: InputDecoration(
-                          hintText: "Frag mich was du möchtest",
-                          hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
-                          filled: true,
-                          fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        ),
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Senden Button
-                    ElevatedButton(
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: ChatTheme.myBubbleColor,
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
                       onPressed: _isLoading ? null : _sendMessage,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ChatTheme.myBubbleColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                      child: const Text(
-                        "Senden",
-                        style: TextStyle(color: Colors.white),
-                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // BUBBLE
+  Widget _bubble({
+    required String text,
+    required bool isMe,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isMe
+            ? ChatTheme.myBubbleColor
+            : (isDark ? Colors.grey[850] : Colors.white),
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(18),
+          topRight: const Radius.circular(18),
+          bottomLeft: Radius.circular(isMe ? 18 : 4),
+          bottomRight: Radius.circular(isMe ? 4 : 18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isMe ? Colors.white : Colors.black87,
+          fontSize: 15,
+        ),
       ),
     );
   }
