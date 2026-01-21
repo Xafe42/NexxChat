@@ -462,6 +462,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
             if (isGroup) {
               final groupName = convData['name'] ?? "Gruppe";
+              final groupPhotoUrl = convData['groupPhotoURL'];
               final storedColor = convData['color'] != null
                   ? Color(convData['color'])
                   : accentColor;
@@ -470,7 +471,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 "name": groupName,
                 "message": lastMsg,
                 "time": timeStr,
-                "avatar": null,
+                "avatar": groupPhotoUrl,
                 "icon": Icons.groups_rounded,
                 "isGroup": true,
                 "unread": 0,
@@ -647,16 +648,19 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
 Widget _buildAvatarContent(Map<String, dynamic> chat) {
-  // Icon (groups, bots)
-  if (chat['icon'] != null) {
-    return Icon(
-      chat['icon'] as IconData,
-      color: Colors.white,
-      size: 28,
+  // GROUP IMAGE (from Firebase)
+  final groupAvatar = chat['avatar'];
+  if (groupAvatar != null &&
+      groupAvatar.toString().isNotEmpty &&
+      groupAvatar.toString().startsWith('http')) {
+    return Image.network(
+      groupAvatar,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildInitial(chat),
     );
   }
 
-  //  Network profile image
+  //  USER PROFILE IMAGE
   final avatarUrl = chat['avatarUrl'];
   if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
     return Image.network(
@@ -666,15 +670,16 @@ Widget _buildAvatarContent(Map<String, dynamic> chat) {
     );
   }
 
-  // Asset image (static bots)
-  if (chat['avatar'] != null) {
-    return Image.asset(
-      chat['avatar'],
-      fit: BoxFit.cover,
+  //  ICON (groups without image / bots)
+  if (chat['icon'] != null) {
+    return Icon(
+      chat['icon'] as IconData,
+      color: Colors.white,
+      size: 28,
     );
   }
 
-  // Fallback letter
+  //  FALLBACK LETTER
   return _buildInitial(chat);
 }
 

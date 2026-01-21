@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:nexxchat_firebase/widgets/full_screen_image_page.dart';
 
 class GroupSettingsSheet extends StatefulWidget {
   final String conversationId;
@@ -17,10 +21,25 @@ class GroupSettingsSheet extends StatefulWidget {
 class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  late TextEditingController nameCtrl;
+  bool _uploadingImage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    nameCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    nameCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Prüfen für Dark/Light Mode Farben
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sheetColor = isDark ? Colors.grey[900] : Colors.white;
 
@@ -30,21 +49,30 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
           .doc(widget.conversationId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const SizedBox(
-              height: 300, child: Center(child: CircularProgressIndicator()));
-        if (!snapshot.data!.exists)
-          return const SizedBox(
-              height: 300,
-              child: Center(child: Text("Gruppe existiert nicht mehr")));
+            height: 300,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-        final updatedData = snapshot.data!.data() as Map<String, dynamic>;
-        final members = List<String>.from(updatedData['members'] ?? []);
-        final adminUid = updatedData['admin'];
-        final groupName = updatedData['name'] ?? "Gruppe";
+        if (!snapshot.data!.exists) {
+          return const SizedBox(
+            height: 300,
+            child: Center(child: Text("Gruppe existiert nicht mehr")),
+          );
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final members = List<String>.from(data['members'] ?? []);
+        final adminUid = data['admin'];
+        final groupName = data['name'] ?? "Gruppe";
         final currentUid = _auth.currentUser?.uid;
 
-        final nameCtrl = TextEditingController(text: groupName);
+        
+        if (nameCtrl.text != groupName) {
+          nameCtrl.text = groupName;
+        }
 
         return DraggableScrollableSheet(
           expand: false,
@@ -52,7 +80,6 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
           minChildSize: 0.5,
           maxChildSize: 0.95,
           builder: (_, scrollController) {
-            // Container gegen Farbstich
             return Container(
               decoration: BoxDecoration(
                 color: sheetColor,
@@ -69,139 +96,135 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
                 child: ListView(
                   controller: scrollController,
                   children: [
-                    const Text("Gruppen Einstellungen",
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center),
+                    const Text(
+                      "Gruppen Einstellungen",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 20),
 
-                    // --- 1. NAME ÄNDERN ---
+                    /// GROUP IMAGE
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          final url = data['groupPhotoURL'];
+                          if (url != null && url.toString().isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    FullScreenImagePage(imageUrl: url),
+                              ),
+                            );
+                          }
+                        },
+                        onLongPress:
+                            currentUid == adminUid ? _showGroupImageActions : null,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.grey[400],
+                              backgroundImage:
+                                  data['groupPhotoURL'] != null &&
+                                          data['groupPhotoURL']
+                                              .toString()
+                                              .isNotEmpty
+                                      ? NetworkImage(data['groupPhotoURL'])
+                                      : null,
+                              child: (data['groupPhotoURL'] == null ||
+                                      data['groupPhotoURL']
+                                          .toString()
+                                          .isEmpty)
+                                  ? const Icon(Icons.groups,
+                                      size: 36, color: Colors.white)
+                                  : null,
+                            ),
+                            if (currentUid == adminUid)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.blue,
+                                  child: _uploadingImage
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.camera_alt,
+                                          size: 16, color: Colors.white),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    /// GROUP NAME
                     TextField(
                       controller: nameCtrl,
                       decoration: InputDecoration(
                         labelText: "Gruppenname",
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.save),
                           onPressed: () async {
-                            if (nameCtrl.text.trim().isNotEmpty) {
-                              await _db
-                                  .collection('conversations')
-                                  .doc(widget.conversationId)
-                                  .update({'name': nameCtrl.text.trim()});
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text("Name gespeichert!")));
-                                FocusScope.of(context).unfocus();
-                              }
+                            final value = nameCtrl.text.trim();
+                            if (value.isEmpty) return;
+
+                            await _db
+                                .collection('conversations')
+                                .doc(widget.conversationId)
+                                .update({'name': value});
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Name gespeichert!")),
+                              );
+                              FocusScope.of(context).unfocus();
                             }
                           },
                         ),
                       ),
                     ),
-                    const SizedBox(height: 30),
 
-                    // --- 2. TEILNEHMER LISTE ---
+                    const SizedBox(height: 30),
+                    const Divider(),
+
+                    /// MEMBERS
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Teilnehmer (${members.length})",
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(
+                          "Teilnehmer (${members.length})",
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                         IconButton(
-                          icon:
-                              const Icon(Icons.person_add, color: Colors.blue),
+                          icon: const Icon(Icons.person_add, color: Colors.blue),
                           onPressed: () =>
                               _showAddMemberDialog(context, members),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
 
-                    if (members.isNotEmpty)
-                      StreamBuilder<QuerySnapshot>(
-                        stream: _db
-                            .collection('users')
-                            .where(FieldPath.documentId, whereIn: members)
-                            .snapshots(),
-                        builder: (context, userSnapshot) {
-                          if (!userSnapshot.hasData)
-                            return const Center(
-                                child: CircularProgressIndicator());
+                    const SizedBox(height: 20),
 
-                          final userDocs = userSnapshot.data!.docs;
-
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: userDocs.length,
-                            itemBuilder: (context, index) {
-                              final userData = userDocs[index].data()
-                                  as Map<String, dynamic>;
-                              final uid = userDocs[index].id;
-                              final name = userData['fullName'] ?? "Unbekannt";
-                              final isAdmin = uid == adminUid;
-
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: Colors.teal,
-                                  backgroundImage:
-                                      userData['photoURL'] != null &&
-                                              userData['photoURL']
-                                                  .toString()
-                                                  .isNotEmpty
-                                          ? NetworkImage(userData['photoURL'])
-                                          : null,
-                                  child: (userData['photoURL'] == null ||
-                                          userData['photoURL']
-                                              .toString()
-                                              .isEmpty)
-                                      ? Text(
-                                          name.isNotEmpty
-                                              ? name[0].toUpperCase()
-                                              : "?",
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                title: Text(
-                                    name + (uid == currentUid ? " (Du)" : "")),
-                                subtitle: isAdmin
-                                    ? const Text(
-                                        "Admin",
-                                        style: TextStyle(
-                                            color: Colors.green, fontSize: 12),
-                                      )
-                                    : null,
-                                trailing: (currentUid == adminUid &&
-                                        uid != currentUid)
-                                    ? IconButton(
-                                        icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                            color: Colors.red),
-                                        onPressed: () =>
-                                            _removeMember(uid, name),
-                                      )
-                                    : null,
-                              );
-                            },
-                          );
-                        },
-                      ),
-
-                    const SizedBox(height: 30),
-                    const Divider(),
-
-                    // --- 3. AKTIONEN ---
+                    /// ACTIONS
                     ListTile(
-                      leading:
-                          const Icon(Icons.exit_to_app, color: Colors.orange),
+                      leading: const Icon(Icons.exit_to_app,
+                          color: Colors.orange),
                       title: const Text("Gruppe verlassen",
                           style: TextStyle(color: Colors.orange)),
                       onTap: () => _leaveGroup(currentUid!, members),
@@ -209,8 +232,8 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
 
                     if (currentUid == adminUid)
                       ListTile(
-                        leading:
-                            const Icon(Icons.delete_forever, color: Colors.red),
+                        leading: const Icon(Icons.delete_forever,
+                            color: Colors.red),
                         title: const Text("Gruppe löschen",
                             style: TextStyle(color: Colors.red)),
                         onTap: () => _deleteGroup(context),
@@ -225,6 +248,72 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
         );
       },
     );
+  }
+
+  // IMAGE ACTIONS 
+  void _showGroupImageActions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text("Galerie"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickGroupImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Camera"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickGroupImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text("Bild entfernen",
+                  style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                await _db
+                    .collection('conversations')
+                    .doc(widget.conversationId)
+                    .update({'groupPhotoURL': FieldValue.delete()});
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickGroupImage(ImageSource source) async {
+    final XFile? picked =
+        await _picker.pickImage(source: source, imageQuality: 70);
+    if (picked == null) return;
+
+    setState(() => _uploadingImage = true);
+
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('group_avatars/${widget.conversationId}.jpg');
+
+      await ref.putFile(File(picked.path));
+      final url = await ref.getDownloadURL();
+
+      await _db
+          .collection('conversations')
+          .doc(widget.conversationId)
+          .update({'groupPhotoURL': url});
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
   }
 
   void _showAddMemberDialog(BuildContext context, List<String> currentMembers) {
@@ -331,6 +420,33 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
       },
     );
   }
+  Future<void> _changeGroupPhoto() async {
+  final XFile? picked =
+      await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+
+  if (picked == null) return;
+
+  setState(() => _uploadingImage = true);
+
+  try {
+    final file = File(picked.path);
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('group_avatars/${widget.conversationId}.jpg');
+
+    await ref.putFile(file);
+    final url = await ref.getDownloadURL();
+
+    await _db.collection('conversations').doc(widget.conversationId).update({
+      'groupPhotoURL': url,
+    });
+  } catch (e) {
+    debugPrint("Error uploading group photo: $e");
+  } finally {
+    if (mounted) setState(() => _uploadingImage = false);
+  }
+}
 
   Future<void> _removeMember(String uid, String name) async {
     final confirm = await showDialog<bool>(

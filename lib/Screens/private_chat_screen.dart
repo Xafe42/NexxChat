@@ -55,8 +55,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _scrollCtrl = ScrollController();
   final _picker = ImagePicker();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
-
-
+  String? otherUserPhotoUrl;
   final Set<String> _handledScheduledCalls = {};
   User? _user;
 
@@ -64,7 +63,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _lastTypingState = false;
   bool _showScrollBtn = false;
 
-  // Mini-apps state 
+  // Mini-apps state
   // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
@@ -104,7 +103,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // Load Other User 
+  // Load Other User
   Future<void> _loadOtherUser() async {
     try {
       final convDoc = await _db
@@ -131,6 +130,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         final userDoc = await _db.collection("users").doc(otherUserId!).get();
         if (!userDoc.exists) {
           if (mounted) setState(() => userDeleted = true);
+        } else {
+          if (mounted) {
+            setState(() {
+              otherUserPhotoUrl = userDoc.data()?['photoURL'];
+            });
+          }
         }
       }
     } catch (e) {
@@ -138,7 +143,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  //  Notification 
+  //  Notification
   Future<void> _sendV1Notification(
       String partnerToken, String messageText) async {
     final serviceAccountJson = {
@@ -194,9 +199,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-
-
-  // - Typing indicator 
+  // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
     if (_user == null) return;
@@ -246,7 +249,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  // Input change (typing + slash commands) 
+  // Input change (typing + slash commands)
 
   void _onTextChanged(String value) {
     _raw = value;
@@ -328,7 +331,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // Special send helpers (mini-apps) 
+  // Special send helpers (mini-apps)
 
   Future<void> _sendHelloCommand(ChatCommand cmd) async {
     if (_user == null) return;
@@ -554,7 +557,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-
   // Reactions
 
   Future<void> _toggleReaction(String messageId, String emoji) async {
@@ -616,7 +618,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  //  Images (gallery / camera) 
+  //  Images (gallery / camera)
 
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
@@ -722,7 +724,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  //  Mini-apps UI helpers 
+  //  Mini-apps UI helpers
 
   void _toggleSlashToolbar() {
     setState(() {
@@ -753,7 +755,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  // Formatting 
+  // Formatting
 
   String _formatTime(Timestamp? ts) {
     if (ts == null) return "";
@@ -771,7 +773,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return DateFormat('dd MMM yyyy').format(dt);
   }
 
-  // BUILD 
+  // BUILD
 
   @override
   Widget build(BuildContext context) {
@@ -800,222 +802,206 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           return Scaffold(
             backgroundColor: ChatTheme.backgroundColor,
             appBar: AppBar(
-  backgroundColor: isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
-  elevation: 0,
-  automaticallyImplyLeading: false,
-  titleSpacing: 0,
-  title: Row(
-    children: [
-      IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-      ),
-      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-  stream: !isGroup && otherUserId != null
-      ? _db.collection('users').doc(otherUserId).snapshots()
-      : null,
-  builder: (context, snap) {
-    String? photoUrl;
-    String name = displayTitle;
-
-    if (snap.hasData && snap.data!.data() != null) {
-      final data = snap.data!.data()!;
-      photoUrl = data['photoURL'];
-      name = data['name'] ?? displayTitle;
-    }
-
-    return CircleAvatar(
-      radius: 20,
-      backgroundColor: Colors.teal,
-      backgroundImage:
-          photoUrl != null && photoUrl.isNotEmpty
-              ? NetworkImage(photoUrl)
-              : null,
-      child: (photoUrl == null || photoUrl.isEmpty)
-          ? (isGroup
-              ? const Icon(Icons.groups, color: Colors.white, size: 20)
-              : Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              backgroundColor:
+                  isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                ))
-          : null,
-    );
-  },
-),
-      const SizedBox(width: 10),
-      Expanded(
-        child: InkWell(
-          onTap: (isGroup && convData != null)
-              ? () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => GroupSettingsSheet(
-                      conversationId: widget.conversationId,
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor:
+                        isGroup ? ChatTheme.myBubbleColor : Colors.white24,
+                    child: ClipOval(
+                      child: isGroup
+                          ? _buildGroupAvatar(convData)
+                          : _buildPrivateAvatar(displayTitle),
                     ),
-                  );
-                }
-              : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayTitle,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: (isGroup && convData != null)
+                          ? () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                useSafeArea: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => GroupSettingsSheet(
+                                  conversationId: widget.conversationId,
+                                ),
+                              );
+                            }
+                          : null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayTitle,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 18),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (isGroup)
+                            const Text(
+                              "Tippen für Infos",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              if (isGroup)
-                const Text(
-                  "Tippen für Infos",
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  ),
-  actions: [
-    ///  AUDIO CALL - PRIVATE
-    if (!isGroup && convData != null && !userDeleted)
-      IconButton(
-        icon: const Icon(Icons.call, color: Colors.white),
-        onPressed: () async {
-          if (_user == null) return;
+              actions: [
+                ///  AUDIO CALL - PRIVATE
+                if (!isGroup && convData != null && !userDeleted)
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
 
-          final members = List<String>.from(convData!['members'] ?? []);
-          final otherUserId = members.firstWhere(
-            (m) => m != _user!.uid,
-            orElse: () => "",
-          );
-          if (otherUserId.isEmpty) return;
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      final otherUserId = members.firstWhere(
+                        (m) => m != _user!.uid,
+                        orElse: () => "",
+                      );
+                      if (otherUserId.isEmpty) return;
 
-          final callId = await CallService().startPrivateCall(
-            conversationId: widget.conversationId,
-            callerId: _user!.uid,
-            receiverId: otherUserId,
-            type: 'audio',
-          );
+                      final callId = await CallService().startPrivateCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        receiverId: otherUserId,
+                        type: 'audio',
+                      );
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OutgoingCallScreen(
-                callId: callId,
-                title: widget.title,
-                userId: _user!.uid,
-                userName: _user!.email ?? "User",
-                callType: 'audio', 
-              ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'audio',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                /// VIDEO CALL - PRIVATE
+                if (!isGroup && convData != null && !userDeleted)
+                  IconButton(
+                    icon:
+                        const Icon(Icons.videocam_rounded, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
+
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      final otherUserId = members.firstWhere(
+                        (m) => m != _user!.uid,
+                        orElse: () => "",
+                      );
+                      if (otherUserId.isEmpty) return;
+
+                      final callId = await CallService().startPrivateCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        receiverId: otherUserId,
+                        type: 'video',
+                      );
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'video',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                /// AUDIO CALL GROUP
+                if (isGroup && convData != null)
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
+
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      if (members.isEmpty) return;
+
+                      final callId = await CallService().startGroupCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        members: members,
+                        type: 'audio',
+                      );
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'audio', // 🎧
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                /// VIDEO CALL - GROUP
+                if (isGroup && convData != null)
+                  IconButton(
+                    icon: const Icon(Icons.videocam, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
+
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      if (members.isEmpty) return;
+
+                      final callId = await CallService().startGroupCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        members: members,
+                      );
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'video',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
-          );
-        },
-      ),
-
-    /// VIDEO CALL - PRIVATE
-    if (!isGroup && convData != null && !userDeleted)
-      IconButton(
-        icon: const Icon(Icons.videocam_rounded, color: Colors.white),
-        onPressed: () async {
-          if (_user == null) return;
-
-          final members = List<String>.from(convData!['members'] ?? []);
-          final otherUserId = members.firstWhere(
-            (m) => m != _user!.uid,
-            orElse: () => "",
-          );
-          if (otherUserId.isEmpty) return;
-
-          final callId = await CallService().startPrivateCall(
-            conversationId: widget.conversationId,
-            callerId: _user!.uid,
-            receiverId: otherUserId,
-            type: 'video',
-          );
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OutgoingCallScreen(
-                callId: callId,
-                title: widget.title,
-                userId: _user!.uid,
-                userName: _user!.email ?? "User",
-                callType: 'video', 
-              ),
-            ),
-          );
-        },
-      ),
-    /// AUDIO CALL GROUP
-if (isGroup && convData != null)
-  IconButton(
-    icon: const Icon(Icons.call, color: Colors.white),
-    onPressed: () async {
-      if (_user == null) return;
-
-      final members = List<String>.from(convData!['members'] ?? []);
-      if (members.isEmpty) return;
-
-      final callId = await CallService().startGroupCall(
-        conversationId: widget.conversationId,
-        callerId: _user!.uid,
-        members: members,
-        type: 'audio', 
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OutgoingCallScreen(
-            callId: callId,
-            title: widget.title,
-            userId: _user!.uid,
-            userName: _user!.email ?? "User",
-            callType: 'audio', // 🎧
-          ),
-        ),
-      );
-    },
-  ),
-    /// VIDEO CALL - GROUP
-    if (isGroup && convData != null)
-      IconButton(
-        icon: const Icon(Icons.videocam, color: Colors.white),
-        onPressed: () async {
-          if (_user == null) return;
-
-          final members = List<String>.from(convData!['members'] ?? []);
-          if (members.isEmpty) return;
-
-          final callId = await CallService().startGroupCall(
-            conversationId: widget.conversationId,
-            callerId: _user!.uid,
-            members: members,
-          );
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OutgoingCallScreen(
-                callId: callId,
-                title: widget.title,
-                userId: _user!.uid,
-                userName: _user!.email ?? "User",
-                callType: 'video', 
-              ),
-            ),
-          );
-        },
-      ),
-  ],
-            ),
-                 
             body: Stack(
               children: [
                 Column(
@@ -1271,80 +1257,126 @@ if (isGroup && convData != null)
           );
         });
   }
-void _openImageActions({
-  required String messageId,
-  required bool isMe,
-}) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (_) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[900]
-              : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            //  EMOJI ROW
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: ['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _toggleReaction(messageId, emoji);
-                  },
-                  child: Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 26),
-                  ),
-                );
-              }).toList(),
-            ),
 
-            const SizedBox(height: 16),
-            const Divider(),
-
-            //  DELETE IMAGE 
-            if (isMe)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text(
-                  'Delete image',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _deleteImageMessage(messageId);
-                },
+  void _openImageActions({
+    required String messageId,
+    required bool isMe,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[900]
+                : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              //  EMOJI ROW
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _toggleReaction(messageId, emoji);
+                    },
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 26),
+                    ),
+                  );
+                }).toList(),
               ),
-          ],
-        ),
-      );
-    },
-  );
-}
 
-Future<void> _deleteImageMessage(String messageId) async {
-  await FirebaseFirestore.instance
-      .collection('conversations')
-      .doc(widget.conversationId)
-      .collection('messages')
-      .doc(messageId)
-      .update({
-    'type': 'deleted',
-    'content': '🗑 Image deleted',
-    'payload': {},
-  });
-}
+              const SizedBox(height: 16),
+              const Divider(),
+
+              //  DELETE IMAGE
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'Delete image',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _deleteImageMessage(messageId);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteImageMessage(String messageId) async {
+    await FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .update({
+      'type': 'deleted',
+      'content': '🗑 Image deleted',
+      'payload': {},
+    });
+  }
+
+  Widget _buildPrivateAvatar(String name) {
+    if (otherUserPhotoUrl != null && otherUserPhotoUrl!.isNotEmpty) {
+      return Image.network(
+        otherUserPhotoUrl!,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _privateFallback(name),
+      );
+    }
+
+    return _privateFallback(name);
+  }
+
+  Widget _privateFallback(String name) {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupAvatar(Map<String, dynamic>? convData) {
+    final url = convData?['groupPhotoURL'];
+
+    if (url != null && url.toString().isNotEmpty) {
+      return Image.network(
+        url,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return const Icon(Icons.groups, color: Colors.white, size: 20);
+        },
+      );
+    }
+
+    return const Icon(Icons.groups, color: Colors.white, size: 20);
+  }
 
   Widget _buildMessageBubble({
     required Map<String, dynamic> msg,
@@ -1383,7 +1415,8 @@ Future<void> _deleteImageMessage(String messageId) async {
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           GestureDetector(
-            onLongPress: () => _openImageActions(messageId: messageId, isMe: isMe),
+            onLongPress: () =>
+                _openImageActions(messageId: messageId, isMe: isMe),
             child: _ImageBubble(
               imageUrl: url,
               time: time,
@@ -1395,52 +1428,51 @@ Future<void> _deleteImageMessage(String messageId) async {
         ],
       );
     }
-  if (type == 'deleted') {
-  return _Bubble(
-    isMe: isMe,
-    bubbleColor: bubbleColor.withOpacity(0.5),
-    textColor: Colors.grey,
-    time: time,
-    onLongPress: () {},
-    child: const Text(
-      '🗑 Image deleted',
-      style: TextStyle(fontStyle: FontStyle.italic),
-    ),
-  );
-}
-  if (type == 'call') {
-  final status = msg['status'];
-  final duration = msg['duration'] ?? 0;
-  final callType = msg['callType'] ?? 'video'; 
-  final isAudio = callType == 'audio';
+    if (type == 'deleted') {
+      return _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor.withOpacity(0.5),
+        textColor: Colors.grey,
+        time: time,
+        onLongPress: () {},
+        child: const Text(
+          '🗑 Image deleted',
+          style: TextStyle(fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+    if (type == 'call') {
+      final status = msg['status'];
+      final duration = msg['duration'] ?? 0;
+      final callType = msg['callType'] ?? 'video';
+      final isAudio = callType == 'audio';
 
-  late String text;
+      late String text;
 
-  if (status == "missed") {
-    text = isAudio
-        ? "📞 Verpasster Audioanruf"
-        : "🎥 Verpasster Videoanruf";
-  } else {
-    final mm = (duration ~/ 60).toString().padLeft(2, '0');
-    final ss = (duration % 60).toString().padLeft(2, '0');
+      if (status == "missed") {
+        text =
+            isAudio ? "📞 Verpasster Audioanruf" : "🎥 Verpasster Videoanruf";
+      } else {
+        final mm = (duration ~/ 60).toString().padLeft(2, '0');
+        final ss = (duration % 60).toString().padLeft(2, '0');
 
-    text = isAudio
-        ? "📞 Audioanruf beendet – Dauer: $mm:$ss"
-        : "🎥 Videoanruf beendet – Dauer: $mm:$ss";
-  }
+        text = isAudio
+            ? "📞 Audioanruf beendet – Dauer: $mm:$ss"
+            : "🎥 Videoanruf beendet – Dauer: $mm:$ss";
+      }
 
-  bubbleWidget = _Bubble(
-    isMe: isMe,
-    bubbleColor: bubbleColor,
-    textColor: textColor,
-    time: time,
-    onLongPress: () => _openReactionPicker(messageId),
-    child: Text(
-      text,
-      style: TextStyle(color: textColor, fontSize: 16),
-    ),
-  );
-} else if (type == 'app') {
+      bubbleWidget = _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        textColor: textColor,
+        time: time,
+        onLongPress: () => _openReactionPicker(messageId),
+        child: Text(
+          text,
+          style: TextStyle(color: textColor, fontSize: 16),
+        ),
+      );
+    } else if (type == 'app') {
       final appName = (payload?['app'] ?? '').toString();
       Widget child;
 
