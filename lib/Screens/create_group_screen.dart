@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../core/services/chat_theme.dart'; // WICHTIG
+import '../core/services/chat_theme.dart'; 
 import 'private_chat_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -73,7 +73,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         'icon': null,
         // FIX: .value ist veraltet, .toARGB32() ist der neue Standard
         'color': ChatTheme.myBubbleColor
-            .toARGB32(), // 🔥 Speichert die aktuelle Theme Farbe für die Gruppe
+            .toARGB32(), // Speichert die aktuelle Theme Farbe für die Gruppe
         'typingUsers': [],
       });
 
@@ -118,7 +118,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               child: ElevatedButton(
                 onPressed: _isCreating ? null : _createGroup,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor, // 🔥 Personalisiert
+                  backgroundColor: accentColor, // Personalisiert
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: const StadiumBorder(),
@@ -149,10 +149,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   decoration: BoxDecoration(
                       // FIX: withOpacity ist veraltet, use withValues()
                       color: accentColor.withValues(
-                          alpha: 0.1), // 🔥 Personalisiert
+                          alpha: 0.1), // Personalisiert
                       shape: BoxShape.circle),
                   child: Icon(Icons.camera_alt_rounded,
-                      color: accentColor, size: 30), // 🔥 Personalisiert
+                      color: accentColor, size: 30), //  Personalisiert
                 ),
                 const SizedBox(width: 20),
                 Expanded(
@@ -302,11 +302,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                       color: isSelected
                                           ? accentColor
                                           : Colors
-                                              .grey[400]!, // 🔥 Personalisiert
+                                              .grey[400]!, // Personalisiert
                                       width: 2),
                                   color: isSelected
                                       ? accentColor
-                                      : Colors.transparent // 🔥 Personalisiert
+                                      : Colors.transparent // Personalisiert
                                   ),
                               child: isSelected
                                   ? const Icon(Icons.check,
