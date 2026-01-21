@@ -1247,6 +1247,80 @@ if (isGroup && convData != null)
           );
         });
   }
+void _openImageActions({
+  required String messageId,
+  required bool isMe,
+}) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (_) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[900]
+              : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            //  EMOJI ROW
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: ['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) {
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _toggleReaction(messageId, emoji);
+                  },
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(),
+
+            //  DELETE IMAGE 
+            if (isMe)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text(
+                  'Delete image',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _deleteImageMessage(messageId);
+                },
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Future<void> _deleteImageMessage(String messageId) async {
+  await FirebaseFirestore.instance
+      .collection('conversations')
+      .doc(widget.conversationId)
+      .collection('messages')
+      .doc(messageId)
+      .update({
+    'type': 'deleted',
+    'content': '🗑 Image deleted',
+    'payload': {},
+  });
+}
 
   Widget _buildMessageBubble({
     required Map<String, dynamic> msg,
@@ -1285,7 +1359,7 @@ if (isGroup && convData != null)
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           GestureDetector(
-            onLongPress: () => _openReactionPicker(messageId),
+            onLongPress: () => _openImageActions(messageId: messageId, isMe: isMe),
             child: _ImageBubble(
               imageUrl: url,
               time: time,
@@ -1297,11 +1371,23 @@ if (isGroup && convData != null)
         ],
       );
     }
-
+  if (type == 'deleted') {
+  return _Bubble(
+    isMe: isMe,
+    bubbleColor: bubbleColor.withOpacity(0.5),
+    textColor: Colors.grey,
+    time: time,
+    onLongPress: () {},
+    child: const Text(
+      '🗑 Image deleted',
+      style: TextStyle(fontStyle: FontStyle.italic),
+    ),
+  );
+}
   if (type == 'call') {
   final status = msg['status'];
   final duration = msg['duration'] ?? 0;
-  final callType = msg['callType'] ?? 'video'; // 👈 المهم
+  final callType = msg['callType'] ?? 'video'; 
   final isAudio = callType == 'audio';
 
   late String text;
