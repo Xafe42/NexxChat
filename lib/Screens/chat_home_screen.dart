@@ -497,12 +497,13 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                   final userData =
                       userSnap.data!.data() as Map<String, dynamic>?;
                   final name = userData?['fullName'] ?? "Unbekannt";
+                  final photoUrl = userData?['photoURL'];
 
                   final chatMap = {
                     "name": name,
                     "message": lastMsg,
                     "time": timeStr,
-                    "avatar": null,
+                    "avatarUrl": photoUrl,
                     "icon": null,
                     "isGroup": false,
                     "unread": 0,
@@ -645,31 +646,50 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     );
   }
 
-  Widget _buildAvatarContent(Map<String, dynamic> chat) {
-    if (chat['icon'] != null) {
-      return Icon(
-        chat['icon'] as IconData,
-        color: Colors.white,
-        size: 28,
-      );
-    }
-    if (chat['avatar'] != null) {
-      return Image.asset(
-        chat['avatar'],
-        fit: BoxFit.cover,
-      );
-    }
-    return Center(
-      child: Text(
-        (chat['name'] as String).isNotEmpty
-            ? (chat['name'] as String)[0].toUpperCase()
-            : "?",
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
-        ),
-      ),
+Widget _buildAvatarContent(Map<String, dynamic> chat) {
+  // Icon (groups, bots)
+  if (chat['icon'] != null) {
+    return Icon(
+      chat['icon'] as IconData,
+      color: Colors.white,
+      size: 28,
     );
   }
+
+  //  Network profile image
+  final avatarUrl = chat['avatarUrl'];
+  if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
+    return Image.network(
+      avatarUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildInitial(chat),
+    );
+  }
+
+  // Asset image (static bots)
+  if (chat['avatar'] != null) {
+    return Image.asset(
+      chat['avatar'],
+      fit: BoxFit.cover,
+    );
+  }
+
+  // Fallback letter
+  return _buildInitial(chat);
+}
+
+Widget _buildInitial(Map<String, dynamic> chat) {
+  return Center(
+    child: Text(
+      (chat['name'] as String).isNotEmpty
+          ? (chat['name'] as String)[0].toUpperCase()
+          : "?",
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 22,
+      ),
+    ),
+  );
+}
 }

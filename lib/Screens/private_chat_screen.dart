@@ -810,17 +810,41 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         onPressed: () => Navigator.pop(context),
         icon: const Icon(Icons.arrow_back, color: Colors.white),
       ),
-      CircleAvatar(
-        backgroundColor: Colors.teal,
-        child: isGroup
-            ? const Icon(Icons.groups, color: Colors.white, size: 20)
-            : Text(
-                displayTitle.isNotEmpty
-                    ? displayTitle[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(color: Colors.white),
-              ),
-      ),
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+  stream: !isGroup && otherUserId != null
+      ? _db.collection('users').doc(otherUserId).snapshots()
+      : null,
+  builder: (context, snap) {
+    String? photoUrl;
+    String name = displayTitle;
+
+    if (snap.hasData && snap.data!.data() != null) {
+      final data = snap.data!.data()!;
+      photoUrl = data['photoURL'];
+      name = data['name'] ?? displayTitle;
+    }
+
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: Colors.teal,
+      backgroundImage:
+          photoUrl != null && photoUrl.isNotEmpty
+              ? NetworkImage(photoUrl)
+              : null,
+      child: (photoUrl == null || photoUrl.isEmpty)
+          ? (isGroup
+              ? const Icon(Icons.groups, color: Colors.white, size: 20)
+              : Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ))
+          : null,
+    );
+  },
+),
       const SizedBox(width: 10),
       Expanded(
         child: InkWell(

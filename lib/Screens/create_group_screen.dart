@@ -15,10 +15,10 @@ class CreateGroupScreen extends StatefulWidget {
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
-  
+
   final TextEditingController _groupNameCtrl = TextEditingController();
-  final Set<String> _selectedUids = {}; 
-  
+  final Set<String> _selectedUids = {};
+
   bool _isCreating = false;
   String _search = '';
 
@@ -30,7 +30,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
   void _loadTheme() async {
     await ChatTheme.loadTheme();
-    if(mounted) setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -42,13 +42,17 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Future<void> _createGroup() async {
     FocusScope.of(context).unfocus();
     final groupName = _groupNameCtrl.text.trim();
-    
+
     if (groupName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bitte gib einen Gruppennamen ein!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Bitte gib einen Gruppennamen ein!"),
+          backgroundColor: Colors.red));
       return;
     }
     if (_selectedUids.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wähle mindestens einen Teilnehmer aus!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Wähle mindestens einen Teilnehmer aus!"),
+          backgroundColor: Colors.red));
       return;
     }
 
@@ -68,17 +72,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         'createdBy': _auth.currentUser!.email,
         'icon': null,
         // FIX: .value ist veraltet, .toARGB32() ist der neue Standard
-        'color': ChatTheme.myBubbleColor.toARGB32(), // 🔥 Speichert die aktuelle Theme Farbe für die Gruppe
-        'typingUsers': [], 
+        'color': ChatTheme.myBubbleColor
+            .toARGB32(), // 🔥 Speichert die aktuelle Theme Farbe für die Gruppe
+        'typingUsers': [],
       });
 
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PrivateChatScreen(conversationId: ref.id, title: groupName)));
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => PrivateChatScreen(
+                    conversationId: ref.id, title: groupName)));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isCreating = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Fehler: $e")));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Fehler: $e")));
       }
     }
   }
@@ -89,14 +99,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    
+
     // 🔥 PERSONALISIERTE FARBE
     final accentColor = ChatTheme.myBubbleColor;
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text("Neue Gruppe", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        title: Text("Neue Gruppe",
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
@@ -105,17 +116,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: ElevatedButton(
-                onPressed: _isCreating ? null : _createGroup, 
+                onPressed: _isCreating ? null : _createGroup,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor, // 🔥 Personalisiert
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
-                child: _isCreating 
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text("Erstellen", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: _isCreating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text("Erstellen",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           )
@@ -130,18 +147,22 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 Container(
                   width: 60, height: 60,
                   decoration: BoxDecoration(
-                    // FIX: withOpacity ist veraltet, use withValues()
-                    color: accentColor.withValues(alpha: 0.1), // 🔥 Personalisiert
-                    shape: BoxShape.circle
-                  ),
-                  child: Icon(Icons.camera_alt_rounded, color: accentColor, size: 30), // 🔥 Personalisiert
+                      // FIX: withOpacity ist veraltet, use withValues()
+                      color: accentColor.withValues(
+                          alpha: 0.1), // 🔥 Personalisiert
+                      shape: BoxShape.circle),
+                  child: Icon(Icons.camera_alt_rounded,
+                      color: accentColor, size: 30), // 🔥 Personalisiert
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: TextField(
                     controller: _groupNameCtrl,
-                    onChanged: (v) => setState(() {}), 
-                    style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w500),
+                    onChanged: (v) => setState(() {}),
+                    style: TextStyle(
+                        color: textColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       hintText: "Gruppenname",
                       hintStyle: TextStyle(color: Colors.grey[400]),
@@ -152,9 +173,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               ],
             ),
           ),
-
           Divider(height: 1, color: Colors.grey[200]),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             child: Container(
@@ -167,29 +186,30 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 onChanged: (v) => setState(() => _search = v.toLowerCase()),
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
-                  hintText: "Teilnehmer suchen...",
-                  hintStyle: TextStyle(color: Colors.grey[500]),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 15)
-                ),
+                    prefixIcon:
+                        const Icon(Icons.search_rounded, color: Colors.grey),
+                    hintText: "Teilnehmer suchen...",
+                    hintStyle: TextStyle(color: Colors.grey[500]),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15)),
               ),
             ),
           ),
-
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore.collection('users').snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator(color: accentColor));
+                  return Center(
+                      child: CircularProgressIndicator(color: accentColor));
                 }
 
                 final users = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final uid = doc.id;
-                  final name = (data['fullName'] ?? '').toString().toLowerCase();
-                  
+                  final name =
+                      (data['fullName'] ?? '').toString().toLowerCase();
+
                   // FIX: Curly braces added for flow control structures
                   if (uid == currentUid) {
                     return false;
@@ -210,6 +230,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     final userDoc = users[index];
                     final userData = userDoc.data() as Map<String, dynamic>;
                     final fullName = userData['fullName'] ?? "Unbekannt";
+                    final photoUrl = (userData['photoURL'] ?? '').toString();
                     final uid = userDoc.id;
                     final isSelected = _selectedUids.contains(uid);
 
@@ -224,7 +245,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         });
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
                         child: Row(
                           children: [
                             Stack(
@@ -232,48 +254,64 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                 CircleAvatar(
                                   radius: 24,
                                   backgroundColor: Colors.grey[300],
-                                  child: Text(
-                                    fullName.isNotEmpty ? fullName[0].toUpperCase() : "?",
-                                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold),
-                                  ),
+                                  backgroundImage: photoUrl.isNotEmpty
+                                      ? NetworkImage(photoUrl)
+                                      : null,
+                                  child: photoUrl.isEmpty
+                                      ? Text(
+                                          fullName.isNotEmpty
+                                              ? fullName[0].toUpperCase()
+                                              : "?",
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
                                 ),
                                 if (isSelected)
                                   Positioned(
-                                    bottom: 0, right: 0,
+                                    bottom: 0,
+                                    right: 0,
                                     child: CircleAvatar(
                                       radius: 10,
-                                      backgroundColor: accentColor, // 🔥 Personalisiert
-                                      child: const Icon(Icons.check, size: 12, color: Colors.white),
+                                      backgroundColor:
+                                          accentColor, // Personalisiert
+                                      child: const Icon(Icons.check,
+                                          size: 12, color: Colors.white),
                                     ),
                                   )
                               ],
                             ),
                             const SizedBox(width: 15),
-                            
                             Expanded(
                               child: Text(
                                 fullName,
                                 style: TextStyle(
-                                  color: textColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16
-                                ),
+                                    color: textColor,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16),
                               ),
                             ),
-
                             Container(
-                              width: 24, height: 24,
+                              width: 24,
+                              height: 24,
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected ? accentColor : Colors.grey[400]!, // 🔥 Personalisiert
-                                  width: 2
-                                ),
-                                color: isSelected ? accentColor : Colors.transparent // 🔥 Personalisiert
-                              ),
-                              child: isSelected 
-                                ? const Icon(Icons.check, size: 16, color: Colors.white) 
-                                : null,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: isSelected
+                                          ? accentColor
+                                          : Colors
+                                              .grey[400]!, // 🔥 Personalisiert
+                                      width: 2),
+                                  color: isSelected
+                                      ? accentColor
+                                      : Colors.transparent // 🔥 Personalisiert
+                                  ),
+                              child: isSelected
+                                  ? const Icon(Icons.check,
+                                      size: 16, color: Colors.white)
+                                  : null,
                             )
                           ],
                         ),
