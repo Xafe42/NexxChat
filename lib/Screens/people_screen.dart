@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/services/chat_service.dart';
-import '../core/services/chat_theme.dart'; // WICHTIG
+import '../core/services/chat_theme.dart'; 
 import 'create_group_screen.dart';
 import 'private_chat_screen.dart';
 
@@ -113,8 +113,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
                       (data['fullName'] ?? '').toString().toLowerCase();
 
                   if (uid == currentUid) return false;
-                  if (_search.isNotEmpty && !name.contains(_search))
+                  if (_search.isNotEmpty && !name.contains(_search)) {
                     return false;
+                  }
 
                   return true;
                 }).toList();
@@ -123,7 +124,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: users.length + 1,
                   itemBuilder: (context, index) {
-                    // --- NEUE GRUPPE BUTTON ---
+                    // NEUE GRUPPE BUTTON 
                     if (index == 0) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 20),
@@ -143,7 +144,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                                     colors: [
                                       accentColor.withValues(alpha: 0.8),
                                       accentColor
-                                    ], // 🔥 Personalisiert
+                                    ], //  Personalisiert
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight),
                                 borderRadius: BorderRadius.circular(18),
@@ -244,7 +245,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                               shape: BoxShape.circle),
                           child: Icon(Icons.chat_bubble_outline_rounded,
                               size: 18,
-                              color: accentColor), // 🔥 Personalisiert
+                              color: accentColor), //  Personalisiert
                         ),
                       ),
                     );

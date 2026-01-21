@@ -42,7 +42,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
       if (_incomingOpen) return;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final callId = doc.id;
         final status = data["status"];
 
@@ -87,7 +87,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         callId: callId,
         title: title,
 
-        // ✅ ACCEPT
+        // ACCEPT
         onAccept: () async {
           _blockedCalls.add(callId);
 
@@ -105,7 +105,7 @@ final engine = WebRTCCallEngine(
             userName: _auth.currentUser!.email ?? "User",
           );
 
-          // 3️⃣ نمشي للـ CallScreen
+          // GO TO CallScreen
           navigator.pushReplacement(
             MaterialPageRoute(
               builder: (_) => CallScreen(
@@ -120,7 +120,7 @@ final engine = WebRTCCallEngine(
           );
         },
 
-        // ❌ DECLINE
+        // DECLINE
         onDecline: () async {
           _blockedCalls.add(callId);
           await _callService.declineCall(callId);

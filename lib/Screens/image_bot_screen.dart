@@ -44,9 +44,8 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
-  // -------------------------------
-  // 🔥 Upload Bild zu Firebase
-  // -------------------------------
+
+  //Upload Bild zu Firebase
   Future<String?> _uploadToFirebase(Uint8List bytes) async {
     try {
       final fileName = "ai_${DateTime.now().millisecondsSinceEpoch}.png";
@@ -65,18 +64,18 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   }
 
-  // -------------------------------
-  // 🔥 Generiere Bild mit Pollinations
-  // -------------------------------
+
+  // Generiere Bild mit Pollinations
+
 Future<dynamic> _generateImage(String prompt) async {
-  // ACHTUNG: Füge hier deinen Secret Key (sk_...) ein!
+  
   const String myApiKey = "sk_OsgzUPABqx04kQQ2GIeEZwKKX4XtswXd"; 
 
   try {
     final encodedPrompt = Uri.encodeComponent(prompt.trim());
     final int seed = Random().nextInt(1000000); 
     
-    // Tipp: 'flux' ist das aktuell beste Modell bei Pollinations
+    
     const String model = "flux"; 
 
     final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
@@ -91,7 +90,7 @@ Future<dynamic> _generateImage(String prompt) async {
     final response = await http.get(
       Uri.parse(url),
       headers: {
-        "Authorization": "Bearer $myApiKey", // Dein privater Key schaltet das Limit frei
+        "Authorization": "Bearer $myApiKey", 
       },
     ).timeout(const Duration(seconds: 40));
 
@@ -125,9 +124,9 @@ Future<dynamic> _generateImage(String prompt) async {
     });
   }
 
-  // -------------------------------
-  // 🔥 Nachricht senden
-  // -------------------------------
+
+  //  Nachricht senden
+ 
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -167,9 +166,9 @@ Future<dynamic> _generateImage(String prompt) async {
     }
   }
 
-  // -------------------------------
+  
   // UI (Unverändert übernommen)
-  // -------------------------------
+ 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -240,7 +239,7 @@ Future<dynamic> _generateImage(String prompt) async {
                             ),
                             const SizedBox(height: 10),
 
-                            // 🔥 Send to Chat Button
+                            // Send to Chat Button
                             ElevatedButton.icon(
                               onPressed: _isUploading ? null : () async {
                                 setState(() => _isUploading = true);
