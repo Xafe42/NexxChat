@@ -33,8 +33,8 @@ class ChatTheme {
     // User hat bewusst einen Hintergrund gewählt
     userSetBackground = false;
     // .value ist deprecated, wir nutzen jetzt .toARGB32()
-    await prefs.setInt('bubble_color', bubble.value);
-    await prefs.setInt('bg_color', bg.value);
+    await prefs.setInt('bubble_color', bubble.toARGB32());
+    await prefs.setInt('bg_color', bg.toARGB32());
     
     // NEU: Wir triggern den Reload, damit sich auch der FAB sofort aktualisiert
     reloadNotifier.value++;
@@ -42,8 +42,8 @@ class ChatTheme {
 
   static Future<void> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    myBubbleColor = Color(prefs.getInt('bubble_color') ?? myBubbleColor.value);
-    backgroundColor = Color(prefs.getInt('bg_color') ?? backgroundColor.value);
+    myBubbleColor = Color(prefs.getInt('bubble_color') ?? myBubbleColor.toARGB32());
+    backgroundColor = Color(prefs.getInt('bg_color') ?? backgroundColor.toARGB32());
     userSetBackground = prefs.getBool('user_bg') ?? false; 
   }
 
