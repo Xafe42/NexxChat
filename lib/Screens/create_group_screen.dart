@@ -6,7 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../theme/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
 import 'private_chat_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final Set<String> _selectedUids = {};
 
   bool _isCreating = false;
-  String _search = '';
+  final String _search = '';
 
   File? _groupImage;
   String? _groupImageUrl;

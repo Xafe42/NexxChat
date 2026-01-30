@@ -5,7 +5,6 @@ import 'package:nexxchat_firebase/Screens/security_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
-import '../theme_notifier.dart';
 import 'welcome_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,14 +23,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final auth = FirebaseAuth.instance;
 
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, mode, _) {
-        final bool isDark = mode == ThemeMode.dark;
+    return ValueListenableBuilder<int>(
+      valueListenable: ChatTheme.reloadNotifier,
+      builder: (context, _, __) {
+        final bool isDark = ChatTheme.isDarkMode;
         final textColor = isDark ? Colors.white : Colors.black;
         // Nimmt die Hintergrundfarbe aus der main.dart (weiß oder dunkelgrau)
-        final bgColor = Theme.of(context).scaffoldBackgroundColor;
-        final accentColor = ChatTheme.myBubbleColor;
+        final bgColor = ChatTheme.getBackgroundColor();
+        final accentColor = ChatTheme.getBubbleColor();
 
         return Scaffold(
           backgroundColor: bgColor,
@@ -76,13 +75,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.dark_mode_outlined,
                     title: "Dark Mode",
                     accentColor: accentColor,
+                    isDark: isDark,
                     trailing: Switch.adaptive(
                       value: isDark,
                       activeTrackColor: accentColor,
                       onChanged: (val) {
-                        final newMode = val ? ThemeMode.dark : ThemeMode.light;
-                        themeNotifier.value = newMode;
-                        ChatTheme.saveThemeMode(newMode);
+                        ChatTheme.saveThemeMode(val);
                       },
                     ),
                   ),
@@ -91,6 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "Personalization",
                     subtitle: "Theme colors & wallpapers",
                     accentColor: accentColor,
+                    isDark: isDark,
                     onTap: () {
                       Navigator.push(
                               context,
@@ -114,6 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "Security",
                     subtitle: "Password, FaceID & 2FA",
                     accentColor: accentColor,
+                    isDark: isDark,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -126,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.notifications_outlined,
                     title: "Notifications",
                     accentColor: accentColor,
+                    isDark: isDark,
                     onTap: () {},
                   ),
                 ],
@@ -143,6 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "Datenschutzerklärung",
                     subtitle: "Privacy Policy",
                     accentColor: accentColor,
+                    isDark: isDark,
                     onTap: () async {
                       final url = Uri.parse(
                         "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
@@ -157,6 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "About NexxChat",
                     subtitle: "Version 1.0.0",
                     accentColor: accentColor,
+                    isDark: isDark,
                     onTap: () {},
                   ),
                 ],
@@ -204,6 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox.shrink();
 
+    final textColor = isDark ? Colors.white : Colors.black;
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -263,9 +267,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
+                            color: textColor,  
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -362,6 +367,7 @@ class _SettingsTile extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final Color accentColor;
+  final bool isDark;
 
   const _SettingsTile(
       {required this.icon,
@@ -369,12 +375,14 @@ class _SettingsTile extends StatelessWidget {
       this.subtitle,
       this.trailing,
       this.onTap,
-      required this.accentColor});
+      required this.accentColor,
+      required this.isDark,
+      });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final titleColor = isDark ? Colors.white : Colors.black; // dynamisch
+    final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600]; //dynamisch
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -387,10 +395,10 @@ class _SettingsTile extends StatelessWidget {
         child: Icon(icon, color: accentColor, size: 22),
       ),
       title: Text(title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor,)),
       subtitle: subtitle != null
           ? Text(subtitle!,
-              style: TextStyle(color: Colors.grey[600], fontSize: 13))
+              style: TextStyle(color: subtitleColor, fontSize: 13))
           : null,
       trailing: trailing ??
           const Icon(Icons.arrow_forward_ios_rounded,
@@ -429,10 +437,17 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
     const Color(0xFFFFF3E0),
     const Color(0xFFE8F5E9),
     const Color(0xFFECEFF1),
-    const Color(0xFF212121),
-    Colors.black,
+    
   ];
-
+  final List<Color> darkBgColors = [
+  Colors.black,               // echtes Schwarz
+  const Color(0xFF121212),    // sehr dunkles Grau (Standard-Dark)
+  const Color(0xFF1E1E1E),    // leicht helleres Grau
+  const Color(0xFF2C2C2C),    // Anthrazit
+  const Color(0xFF0D0D0D),    // fast Schwarz
+  const Color(0xFF181818),    // dunkles Graphit
+];
+ 
   @override
   void initState() {
     super.initState();
@@ -452,13 +467,15 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = ChatTheme.isDarkMode;
     final textColor = isDark ? Colors.white : Colors.black;
 
+    final List<Color> displayBgColors = isDark 
+    ? darkBgColors
+    : bgColors;
+
     return Scaffold(
-      // HIER KORRIGIERT: Statt Colors.black nehmen wir das sanftere Grau
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FB),
+      backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
         title: Text("Chat Design",
             style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
@@ -597,10 +614,10 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
             height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: bgColors.length,
+              itemCount: displayBgColors.length,
               separatorBuilder: (_, __) => const SizedBox(width: 15),
               itemBuilder: (_, i) {
-                final c = bgColors[i];
+                final c = displayBgColors[i];
                 final selected = ChatTheme.backgroundColor == c;
                 return GestureDetector(
                   onTap: () => _save(ChatTheme.myBubbleColor, c),

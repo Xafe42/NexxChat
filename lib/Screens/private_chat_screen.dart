@@ -1218,8 +1218,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       onSend: (prompt, response) async {
                         await _sendAiMessage(
                             prompt: prompt, response: response);
-                        if (mounted)
+                        if (mounted) {
                           setState(() => _isAiPreviewVisible = false);
+                        }
                       },
                     ),
                   ),
@@ -1774,8 +1775,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ImageBotScreen()));
-                  if (imageUrl != null && imageUrl is String)
+                  if (imageUrl != null && imageUrl is String) {
                     await _sendAiImage(imageUrl);
+                  }
                 }),
             _commandCard(
                 icon: "🎮",

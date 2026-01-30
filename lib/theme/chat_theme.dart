@@ -1,56 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../theme_notifier.dart';
 
 class ChatTheme {
-  // 1. ÄNDERUNG: Standardfarbe ist jetzt Hellgrau (Erster Eintrag der Liste)
+  // Chat-Blasenfarbe
   static Color myBubbleColor = Colors.blue[800]!;
+
+  // Hintergrundfarbe
   static Color backgroundColor = const Color(0xFFEEEEEE); 
 
-  // --- Farben Speichern & Laden (wie bisher) ---
+  // Dark-Mode Status
+  static bool isDarkMode = false; 
+
+  //Merkt sich, ob der User den Hintergrund manuell geändert hat
+  //verhindert automatisches Ueberschreiben
+  static bool userSetBackground = false;
+
+  // Triggert UI-Updates bei Theme-Aenderungen
+  static ValueNotifier<int> reloadNotifier = ValueNotifier(0); 
+
+  //Bubble-Farbe zurueckgeben
+  static Color getBubbleColor() => myBubbleColor;
+  //Hintergrundfarbe zurueckgeben
+  static Color getBackgroundColor() => backgroundColor;
+  
+  //Theme Speichern (USER)
   static Future<void> saveTheme(Color bubble, Color bg) async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // .value ist deprecated, wir nutzen jetzt .toARGB32()
-    await prefs.setInt('bubble_color', bubble.toARGB32());
-    await prefs.setInt('bg_color', bg.toARGB32());
-    
+
     myBubbleColor = bubble;
     backgroundColor = bg;
-
+    // User hat bewusst einen Hintergrund gewählt
+    userSetBackground = false;
+    // .value ist deprecated, wir nutzen jetzt .toARGB32()
+    await prefs.setInt('bubble_color', bubble.value);
+    await prefs.setInt('bg_color', bg.value);
+    
     // NEU: Wir triggern den Reload, damit sich auch der FAB sofort aktualisiert
     reloadNotifier.value++;
   }
 
   static Future<void> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    int? bubbleVal = prefs.getInt('bubble_color');
-    int? bgVal = prefs.getInt('bg_color');
-
-    if (bubbleVal != null) myBubbleColor = Color(bubbleVal);
-    if (bgVal != null) backgroundColor = Color(bgVal);
+    myBubbleColor = Color(prefs.getInt('bubble_color') ?? myBubbleColor.value);
+    backgroundColor = Color(prefs.getInt('bg_color') ?? backgroundColor.value);
+    userSetBackground = prefs.getBool('user_bg') ?? false; 
   }
 
   // --- 2. ÄNDERUNG: Dark Mode Speichern ---
-  static Future<void> saveThemeMode(ThemeMode mode) async {
+  static Future<void> saveThemeMode(bool darkMode) async {
     final prefs = await SharedPreferences.getInstance();
-    // Wir speichern "ThemeMode.dark" oder "ThemeMode.light" als String
-    await prefs.setString('theme_mode', mode.toString());
+    isDarkMode = darkMode;
+    
+    await prefs.setBool('dark_mode', darkMode);
+    if (!userSetBackground) {
+    backgroundColor =
+        darkMode ? const Color(0xFF121212) : const Color(0xFFEEEEEE);
+
+    await prefs.setInt('bg_color', backgroundColor.value);
+    }
+    reloadNotifier.value++;
   }
 
   // --- 2. ÄNDERUNG: Dark Mode Laden ---
   static Future<void> loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    String? modeString = prefs.getString('theme_mode');
+    isDarkMode = prefs.getBool('dark_mode') ?? false;
+    reloadNotifier.value++;
+  }
 
-    // Wenn ein Wert gespeichert ist, setzen wir den Notifier
-    if (modeString != null) {
-      if (modeString == ThemeMode.dark.toString()) {
-        themeNotifier.value = ThemeMode.dark;
-      } else {
-        themeNotifier.value = ThemeMode.light;
-      }
-    }
+  static Future<void> loadAll() async {
+    await loadTheme();
+    await loadThemeMode();
+  }
+  // --- TEXT COLORS ---
+  static Color getPrimarytextColor(){
+    return isDarkMode ? Colors.white : Colors.black;
+  }
+  static Color getSecondarytextColor(){
+    return isDarkMode ? Colors.grey[400]! : Colors.grey[600]!;
   }
 }

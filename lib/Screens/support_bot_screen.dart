@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../theme/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 class SupportBotScreen extends StatefulWidget {
   static const String screenRoute = "support_bot_screen";

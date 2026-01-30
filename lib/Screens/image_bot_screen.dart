@@ -245,8 +245,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                                         Navigator.pop(context, url);
                                       }
 
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _isUploading = false);
+                                      }
                                     },
                               icon: _isUploading
                                   ? const SizedBox(

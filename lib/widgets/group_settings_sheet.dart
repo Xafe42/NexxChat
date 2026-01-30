@@ -347,9 +347,10 @@ class _GroupSettingsSheetState extends State<GroupSettingsSheet> {
                     child: StreamBuilder<QuerySnapshot>(
                       stream: _db.collection('users').snapshots(),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData)
+                        if (!snapshot.hasData) {
                           return const Center(
                               child: CircularProgressIndicator());
+                        }
 
                         final availableUsers = snapshot.data!.docs
                             .where((doc) => !currentMembers.contains(doc.id))

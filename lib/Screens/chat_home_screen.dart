@@ -45,7 +45,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   final CallService _callService = CallService();
 
   final Set<String> _handledCallIds = {};
-  bool _incomingDialogOpen = false;
+  final bool _incomingDialogOpen = false;
 
   @override
   void initState() {
@@ -66,7 +66,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     final uid = currentUser?.uid;
     if (uid == null) return;
 
-    ;
   }
 
  
@@ -180,9 +179,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
   void _loadTheme() async {
-    await ChatTheme.loadTheme();
-    if (mounted) setState(() {});
-  }
+  await ChatTheme.loadTheme();
+  // Dark Mode auf Notifier hören (optional)
+  setState(() {});
+}
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return "";
@@ -199,11 +199,11 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final bgColor = ChatTheme.getBackgroundColor();
     final textColor = isDark ? Colors.white : const Color(0xFF2D3436);
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final accentColor = ChatTheme.getBubbleColor();
 
-    final accentColor = ChatTheme.myBubbleColor;
     if (currentUser == null || _loadingUserHiddenChats) {
       return Scaffold(
         backgroundColor: bgColor,
