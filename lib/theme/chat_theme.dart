@@ -30,8 +30,9 @@ class ChatTheme {
 
     myBubbleColor = bubble;
     backgroundColor = bg;
-    // User hat bewusst einen Hintergrund gewählt
-    userSetBackground = false;
+   
+    userSetBackground = true;
+    await prefs.setBool('user_bg', true);
     // .value ist deprecated, wir nutzen jetzt .toARGB32()
     await prefs.setInt('bubble_color', bubble.toARGB32());
     await prefs.setInt('bg_color', bg.toARGB32());
@@ -45,6 +46,7 @@ class ChatTheme {
     myBubbleColor = Color(prefs.getInt('bubble_color') ?? myBubbleColor.toARGB32());
     backgroundColor = Color(prefs.getInt('bg_color') ?? backgroundColor.toARGB32());
     userSetBackground = prefs.getBool('user_bg') ?? false; 
+    reloadNotifier.value++;
   }
 
   // --- 2. ÄNDERUNG: Dark Mode Speichern ---
@@ -57,7 +59,7 @@ class ChatTheme {
     backgroundColor =
         darkMode ? const Color(0xFF121212) : const Color(0xFFEEEEEE);
 
-    await prefs.setInt('bg_color', backgroundColor.value);
+    await prefs.setInt('bg_color', backgroundColor.toARGB32());
     }
     reloadNotifier.value++;
   }
@@ -70,9 +72,18 @@ class ChatTheme {
   }
 
   static Future<void> loadAll() async {
-    await loadTheme();
-    await loadThemeMode();
-  }
+  final prefs = await SharedPreferences.getInstance();
+
+  myBubbleColor =
+      Color(prefs.getInt('bubble_color') ?? myBubbleColor.toARGB32());
+  backgroundColor =
+      Color(prefs.getInt('bg_color') ?? backgroundColor.toARGB32());
+  userSetBackground = prefs.getBool('user_bg') ?? false;
+  isDarkMode = prefs.getBool('dark_mode') ?? false;
+
+  reloadNotifier.value++;
+}
+
   // --- TEXT COLORS ---
   static Color getPrimarytextColor(){
     return isDarkMode ? Colors.white : Colors.black;
