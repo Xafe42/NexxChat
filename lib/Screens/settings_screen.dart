@@ -4,7 +4,7 @@ import 'package:nexxchat_firebase/Screens/profile_screen.dart';
 import 'package:nexxchat_firebase/Screens/security_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../core/services/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import '../theme_notifier.dart';
 import 'welcome_screens.dart';
 

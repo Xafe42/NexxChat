@@ -3,9 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/services/chat_service.dart';
-import '../core/services/chat_theme.dart'; 
+
 import 'create_group_screen.dart';
 import 'private_chat_screen.dart';
+
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 class PeopleScreen extends StatefulWidget {
   const PeopleScreen({super.key});

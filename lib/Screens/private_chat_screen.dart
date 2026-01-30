@@ -16,7 +16,8 @@ import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
 import 'package:nexxchat_firebase/widgets/calltime_preview.dart';
 import 'package:path/path.dart' as path;
-
+// Theme Import
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 // Mini-apps & previews
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
@@ -24,7 +25,6 @@ import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
-import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
 // NEU: Import der separaten Vollbild-Datei

@@ -10,7 +10,8 @@ import 'package:nexxchat_firebase/Screens/incoming_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 
-import '../core/services/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';

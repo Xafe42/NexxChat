@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/services/chat_theme.dart'; 
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";

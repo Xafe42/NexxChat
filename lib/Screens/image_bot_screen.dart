@@ -5,7 +5,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/services/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
 import '../widgets/full_screen_image_page.dart';
 
 class ImageBotScreen extends StatefulWidget {

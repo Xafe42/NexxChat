@@ -13,7 +13,8 @@ import 'package:nexxchat_firebase/core/call_listener.dart';
 import 'package:nexxchat_firebase/core/call/call_mini_overlay.dart';
 import 'package:nexxchat_firebase/core/navigation.dart';
 
-import 'core/services/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
 import 'theme_notifier.dart';
 import 'package:provider/provider.dart';
 import 'core/call/call_session.dart';

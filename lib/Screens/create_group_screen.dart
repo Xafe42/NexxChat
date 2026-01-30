@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../core/services/chat_theme.dart';
+import '../theme/chat_theme.dart';
 import 'private_chat_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {

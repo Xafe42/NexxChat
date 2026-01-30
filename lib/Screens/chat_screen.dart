@@ -7,12 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
-import '../core/services/chat_theme.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/hello_preview.dart';
