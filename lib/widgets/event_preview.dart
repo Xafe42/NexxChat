@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../apps/event_app.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class EventPreview extends StatefulWidget {
   final VoidCallback onCancel;
@@ -69,8 +66,8 @@ class _EventPreviewState extends State<EventPreview> {
     );
   }
 
-  // Event abschicken → wird in Firestore gespeichert + als Message referenziert
-  void _submit() async {
+  // Event abschicken → Daten werden an onSend des Screens gereicht
+  void _submit() {
     final dt = _composeDateTime();
 
     // Validierung: Titel und Datum/Uhrzeit müssen gesetzt sein
@@ -81,10 +78,7 @@ class _EventPreviewState extends State<EventPreview> {
       return;
     }
 
-    final auth = FirebaseAuth.instance;
-    final user = auth.currentUser;
-
-    // Event-Daten sammeln
+    // Event-Daten sammeln und an den Screen zurückgeben
     final data = {
       'title': _title.text.trim(),
       'location': _location.text.trim(),
@@ -92,29 +86,16 @@ class _EventPreviewState extends State<EventPreview> {
       'datetime': dt,
     };
 
-    // Payload für Firestore generieren
-    final payload = EventApp.buildPayload(data);
-
-    // 1️⃣ Event in der "events"-Collection speichern
-    final eventDoc = await FirebaseFirestore.instance.collection("events").add({
-      ...payload,
-      'creator': user?.email,
-    });
-
-    // 2️⃣ Eine Message im Chat speichern, die auf das Event verweist
-    await FirebaseFirestore.instance.collection("messages").add({
-      'type': 'event_ref',
-      'eventId': eventDoc.id,
-      'sender': user?.email,
-      'time': FieldValue.serverTimestamp(),
-    });
-
-    // UI schließen
-    widget.onCancel();
+    widget.onSend(data);
   }
 
   @override
   Widget build(BuildContext context) {
+    // FIX: Reagiert auf Dark Mode Personalisierung
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.grey[100];
+    final textColor = isDark ? Colors.white : Colors.black;
+
     // Labels für Datum und Uhrzeit
     final dateLabel = _date == null
         ? 'Datum wählen'
@@ -125,18 +106,19 @@ class _EventPreviewState extends State<EventPreview> {
         : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
     return Container(
-      color: Colors.grey[100],
+      color: bgColor,
       padding: const EdgeInsets.all(12),
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Nimmt nur so viel Platz wie nötig
         children: [
           // Kopfzeile „Event Preview“
           Row(
-            children: const [
-              Icon(Icons.event, color: Colors.blueGrey),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.event, color: Colors.blueGrey),
+              const SizedBox(width: 8),
               Text(
                 'Event Preview',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
               ),
             ],
           ),
@@ -146,9 +128,11 @@ class _EventPreviewState extends State<EventPreview> {
           // Titel-Eingabe
           TextField(
             controller: _title,
-            decoration: const InputDecoration(
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
               labelText: 'Titel',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+              border: const OutlineInputBorder(),
             ),
           ),
 
@@ -161,7 +145,7 @@ class _EventPreviewState extends State<EventPreview> {
                 child: OutlinedButton.icon(
                   onPressed: _pickDate,
                   icon: const Icon(Icons.calendar_today),
-                  label: Text(dateLabel),
+                  label: Text(dateLabel, style: TextStyle(color: textColor)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -169,7 +153,7 @@ class _EventPreviewState extends State<EventPreview> {
                 child: OutlinedButton.icon(
                   onPressed: _pickTime,
                   icon: const Icon(Icons.access_time),
-                  label: Text(timeLabel),
+                  label: Text(timeLabel, style: TextStyle(color: textColor)),
                 ),
               ),
             ],
@@ -180,9 +164,11 @@ class _EventPreviewState extends State<EventPreview> {
           // Ort
           TextField(
             controller: _location,
-            decoration: const InputDecoration(
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
               labelText: 'Ort',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+              border: const OutlineInputBorder(),
             ),
           ),
 
@@ -192,9 +178,11 @@ class _EventPreviewState extends State<EventPreview> {
           TextField(
             controller: _description,
             maxLines: 3,
-            decoration: const InputDecoration(
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
               labelText: 'Beschreibung (optional)',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+              border: const OutlineInputBorder(),
             ),
           ),
 

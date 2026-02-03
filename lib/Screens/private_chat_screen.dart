@@ -24,6 +24,7 @@ import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
 import '../widgets/ai_preview.dart'; // Enthält die fetchAi Logik
+import '../widgets/event_card.dart';
 import '../widgets/event_preview.dart';
 import '../widgets/full_screen_image_page.dart';
 import '../widgets/group_settings_sheet.dart';
@@ -98,6 +99,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
+  // Load Other User
   Future<void> _loadOtherUser() async {
     try {
       final convDoc = await _db
@@ -137,6 +139,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
+  //  Notification
   Future<void> _sendV1Notification(
       String partnerToken, String messageText) async {
     final serviceAccountJson = {
@@ -144,7 +147,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "project_id": "nexxchat-1f0fc",
       "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
       "private_key":
-          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\ CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\nCUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
+          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\ CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\CUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
       "client_email":
           "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
       "client_id": "102132668974376071943",
@@ -191,6 +194,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       debugPrint("Fehler beim Senden der Benachrichtigung: $e");
     }
   }
+
+  // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
     if (_user == null) return;
@@ -240,6 +245,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
+  // Input change (typing + slash commands)
+
   void _onTextChanged(String value) {
     _raw = value;
     _setTyping(value.trim().isNotEmpty);
@@ -260,6 +267,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     });
   }
+
+  // Basic send (text or command)
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
@@ -344,6 +353,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (mounted) setState(() => _sending = false);
     }
   }
+
+  // Special send helpers (mini-apps)
 
   Future<void> _sendHelloCommand(ChatCommand cmd) async {
     if (_user == null) return;
@@ -538,18 +549,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
     if (_user == null) return;
 
-    final date = data["date"] as String;
-    final time = data["time"] as String;
-    final note = (data["note"] ?? "") as String;
-
-    final scheduledDateTime = DateTime.parse("$date $time:00");
+    final scheduledDateTime =
+        DateTime.parse("${data["date"]} ${data["time"]}:00");
     final convRef = _db.collection("conversations").doc(widget.conversationId);
-
-    final payload = {
-      "date": date,
-      "time": time,
-      "note": note,
-    };
 
     await convRef.collection("messages").add({
       "type": "calltime",
@@ -557,11 +559,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "timestamp": FieldValue.serverTimestamp(),
       "scheduledAt": scheduledDateTime.millisecondsSinceEpoch,
       "status": "scheduled",
-      "payload": payload,
+      "payload": data,
     });
 
     await convRef.update({
-      "lastMessage": "📞 Call on $date at $time",
+      "lastMessage": "📞 Call scheduled",
       "lastMessageTime": FieldValue.serverTimestamp(),
     });
 
@@ -581,13 +583,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final snap = await msgRef.get();
     if (!snap.exists) return;
 
-    final data = snap.data() as Map<String, dynamic>;
-    final Map<String, dynamic> reactions = data['reactions'] ?? {};
+    final reactions = snap.data()?['reactions'] as Map<String, dynamic>? ?? {};
+    final users = List<dynamic>.from(reactions[emoji] ?? []);
 
-    final List<dynamic> usersWhoReacted = reactions[emoji] ?? [];
-    final bool alreadyReacted = usersWhoReacted.contains(myUid);
-
-    if (alreadyReacted) {
+    if (users.contains(myUid)) {
       await msgRef.update({
         'reactions.$emoji': FieldValue.arrayRemove([myUid])
       });
@@ -611,8 +610,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final snap = await msgRef.get();
     if (!snap.exists) return;
 
-    final data = snap.data() as Map<String, dynamic>;
-    final Map<String, dynamic> reactions = data['reactions'] ?? {};
+    final Map<String, dynamic> reactions = snap.data()?['reactions'] ?? {};
 
     Map<String, dynamic> updates = {};
     reactions.forEach((emoji, userList) {
@@ -625,6 +623,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       await msgRef.update(updates);
     }
   }
+
+  // Images (gallery / camera)
 
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
@@ -662,15 +662,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Future<void> _pickFromGallery() async {
     final XFile? img = await _picker.pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    await _sendImage(File(img.path));
+    if (img != null) {
+      await _sendImage(File(img.path));
+    }
     setState(() => _isSlashToolbarVisible = false);
   }
 
   Future<void> _pickFromCamera() async {
     final XFile? img = await _picker.pickImage(source: ImageSource.camera);
-    if (img == null) return;
-    await _sendImage(File(img.path));
+    if (img != null) {
+      await _sendImage(File(img.path));
+    }
     setState(() => _isSlashToolbarVisible = false);
   }
 
@@ -729,6 +731,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
+  // Mini-apps UI helpers
+
   void _toggleSlashToolbar() {
     setState(() {
       _isSlashToolbarVisible = !_isSlashToolbarVisible;
@@ -749,6 +753,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
+  // Formatting
+
   String _formatTime(Timestamp? ts) {
     if (ts == null) return "";
     return DateFormat('HH:mm').format(ts.toDate());
@@ -764,6 +770,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (justDate == yesterday) return 'Yesterday';
     return DateFormat('dd MMM yyyy').format(dt);
   }
+
+  // BUILD
 
   @override
   Widget build(BuildContext context) {
@@ -791,6 +799,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
           return Scaffold(
             backgroundColor: ChatTheme.backgroundColor,
+            resizeToAvoidBottomInset: true,
             appBar: AppBar(
               backgroundColor:
                   isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
@@ -872,7 +881,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'audio',
                       );
 
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -887,7 +896,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
-
                 if (!isGroup && convData != null && !userDeleted)
                   IconButton(
                     icon:
@@ -910,7 +918,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'video',
                       );
 
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -925,7 +933,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
-
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.call, color: Colors.white),
@@ -943,7 +950,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'audio',
                       );
 
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -952,13 +959,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             title: widget.title,
                             userId: _user!.uid,
                             userName: _user!.email ?? "User",
-                            callType: 'audio', 
+                            callType: 'audio',
                           ),
                         ),
                       );
                     },
                   ),
-
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.videocam, color: Colors.white),
@@ -975,7 +981,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         members: members,
                       );
 
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -992,12 +998,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   ),
               ],
             ),
-            body: Stack(
+            body: Column(
               children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                Expanded(
+                  child: Stack(
+                    children: [
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream:
                             _chatService.messagesStream(widget.conversationId),
                         builder: (context, snap) {
@@ -1017,84 +1023,27 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             );
                           }
 
-                          if (docs.isEmpty) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Text(
-                                  'Say hi 👋',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            );
-                          }
-
                           return ListView.builder(
                             reverse: true,
                             controller: _scrollCtrl,
                             padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                            itemCount: docs.length + 2,
+                            itemCount: docs.length,
                             itemBuilder: (_, index) {
-                              if (index == docs.length + 1) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 8),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      color: isDark
-                                          ? const Color.fromARGB(
-                                              200, 24, 34, 40)
-                                          : const Color.fromARGB(
-                                              148, 248, 236, 130),
-                                    ),
-                                    child: Text(
-                                      '🔒 Messages are end-to-end encrypted.',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark
-                                            ? Colors.yellow[200]
-                                            : Colors.black87,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              if (index == docs.length) {
-                                final msgData = docs.last.data();
-                                final ts = (msgData['timestamp'] ??
-                                    msgData['time']) as Timestamp?;
-                                final dt = ts?.toDate() ?? DateTime.now();
-                                return _DateChip(label: _formatDateLabel(dt));
-                              }
-
                               final msg = docs[index].data();
                               final msgId = docs[index].id;
-                              final senderEmail = msg['sender'] ?? '';
-                              final isMe = msg['senderId'] == _user?.uid ||
-                                  senderEmail == _user?.email;
+                              final isMe = msg['senderId'] == _user?.uid;
 
                               final type = msg['type'] ?? 'text';
-                              final ts = (msg['timestamp'] ?? msg['time'])
-                                  as Timestamp?;
-                              final dt = ts?.toDate() ?? DateTime.now();
-                              final time = _formatTime(ts);
 
-                              bool showDateChip = false;
-                              if (index < docs.length - 1) {
-                                final nextMsg = docs[index + 1].data();
-                                final nextTs = (nextMsg['timestamp'] ??
-                                    nextMsg['time']) as Timestamp?;
-                                final nextDt =
-                                    nextTs?.toDate() ?? DateTime.now();
-
-                                if (dt.year != nextDt.year ||
-                                    dt.month != nextDt.month ||
-                                    dt.day != nextDt.day) {
-                                  showDateChip = true;
+                              // Zeitstempel-Sicherung
+                              var ts = msg['timestamp'] ?? msg['time'];
+                              String timeLabel = "";
+                              if (ts is Timestamp) {
+                                timeLabel = _formatTime(ts);
+                              } else if (ts is String) {
+                                var dt = DateTime.tryParse(ts);
+                                if (dt != null) {
+                                  timeLabel = DateFormat('HH:mm').format(dt);
                                 }
                               }
 
@@ -1103,133 +1052,163 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 messageId: msgId,
                                 isMe: isMe,
                                 type: type,
-                                time: time,
+                                time: timeLabel,
                                 bubbleMe: bubbleMe,
                                 bubbleOther: bubbleOther,
                               );
 
-                              if (!showDateChip) return bubble;
+                              // Datum-Chips (Verwendet _formatDateLabel)
+                              bool showDateChip = false;
+                              DateTime dt = (ts is Timestamp)
+                                  ? ts.toDate()
+                                  : DateTime.now();
+                              if (index == docs.length - 1) {
+                                showDateChip = true;
+                              } else {
+                                var prevTs =
+                                    docs[index + 1].data()['timestamp'] ??
+                                        docs[index + 1].data()['time'];
+                                if (prevTs is Timestamp) {
+                                  DateTime prevDt = prevTs.toDate();
+                                  if (dt.day != prevDt.day ||
+                                      dt.month != prevDt.month ||
+                                      dt.year != prevDt.year) {
+                                    showDateChip = true;
+                                  }
+                                }
+                              }
 
-                              return Column(
-                                children: [
-                                  _DateChip(label: _formatDateLabel(dt)),
-                                  bubble,
-                                ],
-                              );
+                              if (showDateChip) {
+                                return Column(
+                                  children: [
+                                    _DateChip(label: _formatDateLabel(dt)),
+                                    bubble,
+                                  ],
+                                );
+                              }
+                              return bubble;
                             },
                           );
                         },
                       ),
-                    ),
-                    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                      stream: _db
-                          .collection("conversations")
-                          .doc(widget.conversationId)
-                          .snapshots(),
-                      builder: (context, snap) {
-                        if (!snap.hasData || snap.data!.data() == null) {
-                          return const SizedBox.shrink();
-                        }
-
-                        final data = snap.data!.data()!;
-                        final typingUsers =
-                            List<String>.from(data["typingUsers"] ?? []);
-                        final members =
-                            List<String>.from(data["members"] ?? []);
-                        final me = _user?.uid;
-                        final otherUid = members.firstWhere((m) => m != me,
-                            orElse: () => "");
-
-                        final isTyping = otherUid.isNotEmpty &&
-                            typingUsers.contains(otherUid);
-
-                        if (!isTyping) return const SizedBox.shrink();
-
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                              left: 18, bottom: 4, top: 2),
-                          child: Row(
-                            children: [
-                              Text(
-                                "typing…",
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                      if (_showScrollBtn)
+                        Positioned(
+                          right: 12,
+                          bottom: 10,
+                          child: FloatingActionButton(
+                            mini: true,
+                            backgroundColor: isDark
+                                ? Colors.grey[800]
+                                : ChatTheme.myBubbleColor,
+                            onPressed: () {
+                              if (_scrollCtrl.hasClients) {
+                                _scrollCtrl.animateTo(
+                                  0,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              }
+                            },
+                            child: const Icon(Icons.arrow_downward, size: 20),
                           ),
-                        );
-                      },
-                    ),
-                    _buildInput(isDark),
-                  ],
+                        ),
+                    ],
+                  ),
                 ),
-                if (_showScrollBtn)
-                  Positioned(
-                    right: 12,
-                    bottom: 90,
-                    child: FloatingActionButton(
-                      mini: true,
-                      backgroundColor:
-                          isDark ? Colors.grey[800] : ChatTheme.myBubbleColor,
-                      onPressed: () {
-                        if (_scrollCtrl.hasClients) {
-                          _scrollCtrl.animateTo(
-                            0,
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutCubic,
-                          );
-                        }
-                      },
-                      child: const Icon(Icons.arrow_downward, size: 20),
-                    ),
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: _db
+                      .collection("conversations")
+                      .doc(widget.conversationId)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    if (!snap.hasData || snap.data!.data() == null) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final data = snap.data!.data()!;
+                    final typingUsers =
+                        List<String>.from(data["typingUsers"] ?? []);
+                    final members = List<String>.from(data["members"] ?? []);
+                    final me = _user?.uid;
+                    final otherUid =
+                        members.firstWhere((m) => m != me, orElse: () => "");
+
+                    final isTyping =
+                        otherUid.isNotEmpty && typingUsers.contains(otherUid);
+
+                    if (!isTyping) return const SizedBox.shrink();
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(left: 18, bottom: 4, top: 2),
+                      child: Row(
+                        children: [
+                          Text(
+                            "typing…",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, animation) => SizeTransition(
+                    sizeFactor: animation,
+                    child: FadeTransition(opacity: animation, child: child),
                   ),
-                if (_aktiveCmd?.type == "hello")
-                  Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
-                    child: HelloPreview(
-                      text: _aktiveCmd!.previewText!,
-                      onCancel: _resetInput,
-                      onSend: _send,
-                    ),
-                  ),
-                if (_aktiveCmd?.type == "calltime")
-                  Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
-                    child: CallTimePreview(
-                      onCancel: _resetInput,
-                      onSend: (data) => _sendScheduledCall(data),
-                    ),
-                  ),
-                if (_aktiveCmd?.type == "event")
-                  Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
-                    child: EventPreview(
-                      onCancel: _resetInput,
-                      onSend: (form) async {
-                        final eventPayload = EventApp.buildPayload(form);
-                        final doc = await _db.collection("events").add({
-                          ...eventPayload,
-                          "creator": _user!.email,
-                        });
-                        await _sendEventRef(doc.id);
-                        _resetInput();
-                      },
-                    ),
-                  ),
-                if (_isSlashToolbarVisible) _slashToolbar(),
+                  child: _buildInteractionArea(),
+                ),
+                _buildInput(isDark),
               ],
             ),
           );
         });
+  }
+
+  Widget _buildInteractionArea() {
+    if (_isSlashToolbarVisible) {
+      return _slashToolbar();
+    } else if (_aktiveCmd?.type == "hello") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: HelloPreview(
+          text: _aktiveCmd!.previewText!,
+          onCancel: _resetInput,
+          onSend: _send,
+        ),
+      );
+    } else if (_aktiveCmd?.type == "calltime") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: CallTimePreview(
+          onCancel: _resetInput,
+          onSend: (data) => _sendScheduledCall(data),
+        ),
+      );
+    } else if (_aktiveCmd?.type == "event") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: EventPreview(
+          onCancel: _resetInput,
+          onSend: (form) async {
+            final eventPayload = EventApp.buildPayload(form);
+            final doc = await _db.collection("events").add({
+              ...eventPayload,
+              "creator": _user!.email,
+            });
+            await _sendEventRef(doc.id);
+            _resetInput();
+          },
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   void _openImageActions({
@@ -1266,10 +1245,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   );
                 }).toList(),
               ),
-
               const SizedBox(height: 16),
               const Divider(),
-
               if (isMe)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
@@ -1364,9 +1341,50 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final textColor =
         isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
     final payload = msg['payload'] as Map<String, dynamic>?;
-    final senderEmail = msg['sender'] ?? '';
+    final senderEmail = (msg['sender'] ?? '').toString();
 
     Widget bubbleWidget;
+
+    // --- FIX: SICHERER DATUM-CHECK ---
+    if (type == 'event_ref') {
+      final eventId = msg['eventId'];
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.85,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: _db.collection('events').doc(eventId).snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData || !snap.data!.exists) {
+                return const Text("Lädt Event...");
+              }
+              final eventData = snap.data!.data() as Map<String, dynamic>;
+              final ePayload = eventData['payload']['data'] ?? {};
+              final votes =
+                  ePayload['votes'] ?? {'yes': [], 'maybe': [], 'no': []};
+
+              DateTime? parsedDate;
+              var rawDate = ePayload['datetime'];
+              if (rawDate is Timestamp) {
+                parsedDate = rawDate.toDate();
+              } else if (rawDate is String) {
+                parsedDate = DateTime.tryParse(rawDate);
+              }
+
+              return EventCard(
+                title: ePayload['title'] ?? '',
+                datetime: parsedDate,
+                location: ePayload['location'] ?? '',
+                description: ePayload['description'] ?? '',
+                votes: votes,
+                messageId: snap.data!.id,
+                currentUser: _user?.email ?? '',
+              );
+            },
+          ),
+        ),
+      );
+    }
 
     // --- NEUES KI DESIGN ---
     if (type == 'ai') {
@@ -1379,9 +1397,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               maxWidth: MediaQuery.of(context).size.width * 0.85),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: isDark 
-                ? [const Color(0xFF1A237E), const Color(0xFF0D47A1)]
-                : [Colors.blue.shade50, Colors.white],
+              colors: isDark
+                  ? [const Color(0xFF1A237E), const Color(0xFF0D47A1)]
+                  : [Colors.blue.shade50, Colors.white],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1408,16 +1426,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.smart_toy_rounded, 
-                      size: 16, color: Colors.blueAccent),
+                    const Icon(Icons.smart_toy_rounded,
+                        size: 16, color: Colors.blueAccent),
                     const SizedBox(width: 6),
-                    Text("NexxAI", 
-                      style: TextStyle(
-                        fontSize: 12, 
-                        fontWeight: FontWeight.w900,
-                        color: Colors.blueAccent.shade400,
-                        letterSpacing: 1.1,
-                      )),
+                    Text("NexxAI",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.blueAccent.shade400,
+                          letterSpacing: 1.1,
+                        )),
                   ],
                 ),
               ),
@@ -1425,7 +1443,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                 child: Text(response.toString(),
                     style: TextStyle(
-                      fontSize: 15, 
+                      fontSize: 15,
                       color: isDark ? Colors.white : Colors.black87,
                       height: 1.4,
                     )),
@@ -1435,9 +1453,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 child: Align(
                   alignment: Alignment.bottomRight,
                   child: Text(time,
-                    style: TextStyle(
-                      fontSize: 10, 
-                      color: isDark ? Colors.white54 : Colors.grey)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.white54 : Colors.grey)),
                 ),
               )
             ],
@@ -1453,8 +1471,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       return Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.8),
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
           child: CallTimeMessageCard(
             payload: msg["payload"] ?? {},
             conversationId: widget.conversationId,
@@ -1500,8 +1518,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (type == 'call') {
       final status = msg['status'];
       final duration = msg['duration'] ?? 0;
-      final callType = msg['callType'] ?? 'video';
-      final isAudio = callType == 'audio';
+      final isAudio = msg['callType'] == 'audio';
 
       late String text;
 
@@ -1581,19 +1598,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         bubbleColor: bubbleColor,
         time: time,
         textColor: textColor,
-        senderName: isMe ? null : senderEmail.toString().split("@").first,
+        senderName: isMe ? null : senderEmail.split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: child,
-      );
-    } else if (type == 'event_ref') {
-      bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : senderEmail.toString().split("@").first,
-        onLongPress: () => _openReactionPicker(messageId),
-        child: const Text("📅 Event"),
       );
     } else {
       final text = msg['content'] ?? payload?['text'] ?? '';
@@ -1602,7 +1609,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         bubbleColor: bubbleColor,
         time: time,
         textColor: textColor,
-        senderName: isMe ? null : senderEmail.toString().split("@").first,
+        senderName: isMe ? null : senderEmail.split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: Text(text.toString(),
             style: TextStyle(fontSize: 17, color: textColor)),
@@ -1756,88 +1763,95 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
+  // SLASH MENU
   Widget _slashToolbar() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 80,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 18),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 20,
-                offset: const Offset(0, 8))
+    return Container(
+      key: const ValueKey("slash_toolbar"),
+      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 20,
+              offset: const Offset(0, -2))
+        ],
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _commandCard(
+                icon: "👋",
+                title: "Hello",
+                description: "Sende Nachricht",
+                onTap: () {
+                  _ctrl.text = "/hello ";
+                  _onTextChanged("/hello ");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "🖼️",
+                title: "Bild senden",
+                description: "Galerie",
+                onTap: _pickFromGallery),
+            _commandCard(
+                icon: "🧠",
+                title: "KI Image",
+                description: "KI generieren",
+                onTap: () async {
+                  setState(() => _isSlashToolbarVisible = false);
+                  final imageUrl = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ImageBotScreen()));
+                  if (imageUrl != null && imageUrl is String) {
+                    await _sendAiImage(imageUrl);
+                  }
+                }),
+            _commandCard(
+                icon: "🎮",
+                title: "Tetris",
+                description: "Mini-Tetris",
+                onTap: () {
+                  _ctrl.text = "/tetris";
+                  _onTextChanged("/tetris");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "📞",
+                title: "Call Time",
+                description: "Plane einen Gruppen- oder Privat-Call",
+                onTap: () {
+                  _ctrl.text = "/calltime";
+                  _onTextChanged("/calltime");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "🤖",
+                title: "AI",
+                description: "Frag die KI direkt hier im Chat",
+                onTap: () {
+                  _ctrl.text = "/ai ";
+                  _ctrl.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _ctrl.text.length));
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
+            _commandCard(
+                icon: "📅",
+                title: "Event",
+                description: "Erstelle ein Gruppen-Event",
+                onTap: () {
+                  _ctrl.text = "/event";
+                  _onTextChanged("/event");
+                  setState(() => _isSlashToolbarVisible = false);
+                }),
           ],
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _commandCard(
-                  icon: "👋",
-                  title: "Hello",
-                  description: "Sende Nachricht",
-                  onTap: () {
-                    _ctrl.text = "/hello ";
-                    _onTextChanged("/hello ");
-                    setState(() => _isSlashToolbarVisible = false);
-                  }),
-              _commandCard(
-                  icon: "🖼️",
-                  title: "Bild senden",
-                  description: "Galerie",
-                  onTap: _pickFromGallery),
-              _commandCard(
-                  icon: "🧠",
-                  title: "KI Image",
-                  description: "KI generieren",
-                  onTap: () async {
-                    setState(() => _isSlashToolbarVisible = false);
-                    final imageUrl = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const ImageBotScreen()));
-                    if (imageUrl != null && imageUrl is String) {
-                      await _sendAiImage(imageUrl);
-                    }
-                  }),
-              _commandCard(
-                  icon: "🎮",
-                  title: "Tetris",
-                  description: "Mini-Tetris",
-                  onTap: () {
-                    _ctrl.text = "/tetris";
-                    _onTextChanged("/tetris");
-                    setState(() => _isSlashToolbarVisible = false);
-                  }),
-              _commandCard(
-                  icon: "📞",
-                  title: "Call Time",
-                  description: "Plane einen Gruppen- oder Privat-Call",
-                  onTap: () {
-                    _ctrl.text = "/calltime";
-                    _onTextChanged("/calltime");
-                    setState(() => _isSlashToolbarVisible = false);
-                  }),
-              _commandCard(
-                  icon: "🤖",
-                  title: "AI",
-                  description: "Frag die KI direkt hier im Chat",
-                  onTap: () {
-                    _ctrl.text = "/ai ";
-                    _ctrl.selection = TextSelection.fromPosition(TextPosition(offset: _ctrl.text.length));
-                    setState(() => _isSlashToolbarVisible = false);
-                  }),
-            ],
-          ),
         ),
       ),
     );
@@ -1864,19 +1878,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title,
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode ? Colors.white : Colors.black)),
-                Text(description,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: isDarkMode
-                            ? Colors.grey[400]
-                            : Colors.grey.shade700)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : Colors.black)),
+                    Text(description,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey.shade700)),
+                  ]),
             ),
           ],
         ),
@@ -1992,7 +2008,8 @@ class _Bubble extends StatelessWidget {
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75),
           child: Column(
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
