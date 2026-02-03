@@ -9,16 +9,14 @@ import 'package:nexxchat_firebase/Screens/chat_screen.dart';
 import 'package:nexxchat_firebase/Screens/registration_screen.dart';
 import 'package:nexxchat_firebase/Screens/signin_screen.dart';
 import 'package:nexxchat_firebase/Screens/welcome_screens.dart';
-import 'package:nexxchat_firebase/core/call_listener.dart';
 import 'package:nexxchat_firebase/core/call/call_mini_overlay.dart';
+import 'package:nexxchat_firebase/core/call_listener.dart';
 import 'package:nexxchat_firebase/core/navigation.dart';
-
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
-
-import 'theme_notifier.dart';
 import 'package:provider/provider.dart';
+
 import 'core/call/call_session.dart';
-// NEU: Hintergrund-Handler (ganz oben!)
+import 'theme_notifier.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -28,14 +26,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // NEU: Hintergrund-Handling registrieren
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // NEU: Kanal für Android Vibration erstellen
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'chat_messages', 
     'Chat Benachrichtigungen',
-    importance: Importance.max, // Max sorgt für das aufpoppende Banner
+    importance: Importance.max, 
     enableVibration: true,
     playSound: true,
   );
@@ -45,8 +41,7 @@ void main() async {
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  await ChatTheme.loadTheme();
-  await ChatTheme.loadThemeMode();
+  await ChatTheme.loadAll();
 
   runApp(
   MultiProvider(
@@ -94,11 +89,13 @@ return GlobalCallListener(
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: Colors.white,
+      brightness: Brightness.light,
     ),
 
     darkTheme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: const Color(0xFF121212),
+      brightness: Brightness.dark,
     ),
 
     themeMode: currentMode,

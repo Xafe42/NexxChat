@@ -9,16 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-// Local Imports (Bitte Pfade anpassen falls nötig)
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
 import 'package:nexxchat_firebase/widgets/calltime_preview.dart';
 import 'package:path/path.dart' as path;
-// Theme Import
-import 'package:nexxchat_firebase/theme/chat_theme.dart';
-// Mini-apps & previews
+
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
@@ -27,7 +25,6 @@ import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
 import '../widgets/ai_preview.dart';
 import '../widgets/event_preview.dart';
-// NEU: Import der separaten Vollbild-Datei
 import '../widgets/full_screen_image_page.dart';
 import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
@@ -63,7 +60,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _lastTypingState = false;
   bool _showScrollBtn = false;
 
-  // Mini-apps state
   // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
@@ -103,7 +99,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // Load Other User
   Future<void> _loadOtherUser() async {
     try {
       final convDoc = await _db
@@ -143,7 +138,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  //  Notification
   Future<void> _sendV1Notification(
       String partnerToken, String messageText) async {
     final serviceAccountJson = {
@@ -151,7 +145,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "project_id": "nexxchat-1f0fc",
       "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
       "private_key":
-          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\nCZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\nCUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
+          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\ CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\nCUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
       "client_email":
           "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
       "client_id": "102132668974376071943",
@@ -198,8 +192,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       debugPrint("Fehler beim Senden der Benachrichtigung: $e");
     }
   }
-
-  // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
     if (_user == null) return;
@@ -249,8 +241,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  // Input change (typing + slash commands)
-
   void _onTextChanged(String value) {
     _raw = value;
     _setTyping(value.trim().isNotEmpty);
@@ -272,8 +262,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     });
   }
-
-  // Basic send (text or command)
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
@@ -330,8 +318,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (mounted) setState(() => _sending = false);
     }
   }
-
-  // Special send helpers (mini-apps)
 
   Future<void> _sendHelloCommand(ChatCommand cmd) async {
     if (_user == null) return;
@@ -557,8 +543,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  // Reactions
-
   Future<void> _toggleReaction(String messageId, String emoji) async {
     if (_user == null) return;
     final myUid = _user!.uid;
@@ -589,7 +573,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // --- NEU: Alle eigenen Reaktionen von einer Nachricht entfernen ---
   Future<void> _removeAllMyReactions(String messageId) async {
     if (_user == null) return;
     final myUid = _user!.uid;
@@ -618,12 +601,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  //  Images (gallery / camera)
-
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
 
-    // Spinner aktivieren
     setState(() => _sending = true);
 
     try {
@@ -724,8 +704,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  //  Mini-apps UI helpers
-
   void _toggleSlashToolbar() {
     setState(() {
       _isSlashToolbarVisible = !_isSlashToolbarVisible;
@@ -755,8 +733,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _resetInput();
   }
 
-  // Formatting
-
   String _formatTime(Timestamp? ts) {
     if (ts == null) return "";
     return DateFormat('HH:mm').format(ts.toDate());
@@ -772,8 +748,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (justDate == yesterday) return 'Yesterday';
     return DateFormat('dd MMM yyyy').format(dt);
   }
-
-  // BUILD
 
   @override
   Widget build(BuildContext context) {
@@ -861,7 +835,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 ],
               ),
               actions: [
-                ///  AUDIO CALL - PRIVATE
                 if (!isGroup && convData != null && !userDeleted)
                   IconButton(
                     icon: const Icon(Icons.call, color: Colors.white),
@@ -883,6 +856,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'audio',
                       );
 
+                      if (!mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -897,8 +871,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
-
-                /// VIDEO CALL - PRIVATE
                 if (!isGroup && convData != null && !userDeleted)
                   IconButton(
                     icon:
@@ -921,6 +893,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'video',
                       );
 
+                      if (!mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -935,8 +908,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
-
-                /// AUDIO CALL GROUP
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.call, color: Colors.white),
@@ -954,6 +925,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         type: 'audio',
                       );
 
+                      if (!mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -962,14 +934,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             title: widget.title,
                             userId: _user!.uid,
                             userName: _user!.email ?? "User",
-                            callType: 'audio', // 🎧
+                            callType: 'audio',
                           ),
                         ),
                       );
                     },
                   ),
-
-                /// VIDEO CALL - GROUP
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.videocam, color: Colors.white),
@@ -986,6 +956,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         members: members,
                       );
 
+                      if (!mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -1278,7 +1249,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              //  EMOJI ROW
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: ['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) {
@@ -1294,11 +1264,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   );
                 }).toList(),
               ),
-
               const SizedBox(height: 16),
               const Divider(),
-
-              //  DELETE IMAGE
               if (isMe)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
@@ -1401,10 +1368,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final status = msg['status'] ?? 'scheduled';
       if (status != 'scheduled') return const SizedBox.shrink();
 
-      return CallTimeMessageCard(
-        payload: msg["payload"] ?? {},
-        conversationId: widget.conversationId,
-        messageId: messageId,
+      // FIX: Constraints für CallTime Card, damit sie nicht ausbricht
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85),
+          child: CallTimeMessageCard(
+            payload: msg["payload"] ?? {},
+            conversationId: widget.conversationId,
+            messageId: messageId,
+          ),
+        ),
       );
     }
 
@@ -1424,7 +1399,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               isMe: isMe,
             ),
           ),
-          // NEU: Multi-Reaction Anzeige unter Bildern
           _buildReactionsDisplay(msg, messageId),
         ],
       );
@@ -1432,7 +1406,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (type == 'deleted') {
       return _Bubble(
         isMe: isMe,
-        bubbleColor: bubbleColor.withOpacity(0.5),
+        bubbleColor: bubbleColor.withValues(alpha: 0.5),
         textColor: Colors.grey,
         time: time,
         onLongPress: () {},
@@ -1484,18 +1458,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             const Icon(Icons.videogame_asset, size: 26, color: Colors.white),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Tetris Score",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                Text("Score: $score",
-                    style:
-                        const TextStyle(fontSize: 14, color: Colors.white70)),
-              ],
+            Flexible(
+              // FIX: Flexible gegen Text-Overflow
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Tetris Score",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  Text("Score: $score",
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.white70)),
+                ],
+              ),
             ),
           ],
         );
@@ -1506,11 +1483,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             const Text("👋", style: TextStyle(fontSize: 22)),
             const SizedBox(width: 6),
-            Text("Hello $who!",
-                style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                    fontWeight: FontWeight.w600)),
+            Flexible(
+              // FIX: Flexible gegen Text-Overflow
+              child: Text("Hello $who!",
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
+                      fontWeight: FontWeight.w600)),
+            ),
           ],
         );
       } else {
@@ -1585,14 +1565,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           onLongPress: () => _openReactionPicker(messageId),
           child: bubbleWidget,
         ),
-        // NEU: Multi-Reaction Anzeige unter Text/Apps
         _buildReactionsDisplay(msg, messageId),
       ],
     );
   }
 
-  // --- NEUE HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE ---
-  // --- HILFSFUNKTION FÜR MULTI-REACTIONS ANZEIGE (unverändert aus letztem Schritt) ---
   Widget _buildReactionsDisplay(Map<String, dynamic> msg, String messageId) {
     final Map<String, dynamic> reactions = msg['reactions'] ?? {};
     if (reactions.isEmpty) return const SizedBox.shrink();
@@ -1605,54 +1582,59 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final isMe = msg['senderId'] == _user?.uid;
 
+    // FIX: BoxConstraints und Padding, damit Wrap nicht ausbricht
     return Padding(
       padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
-        children: activeReactions.map((entry) {
-          final emoji = entry.key;
-          final List users = entry.value as List;
-          final count = users.length;
-          final bool iReacted = users.contains(_user?.uid);
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        child: Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+          children: activeReactions.map((entry) {
+            final emoji = entry.key;
+            final List users = entry.value as List;
+            final count = users.length;
+            final bool iReacted = users.contains(_user?.uid);
 
-          return GestureDetector(
-            onTap: () => _toggleReaction(messageId, emoji),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: iReacted
-                    ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
-                    : (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white10
-                        : Colors.grey[200]),
-                borderRadius: BorderRadius.circular(12),
-                border: iReacted
-                    ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
-                    : null,
+            return GestureDetector(
+              onTap: () => _toggleReaction(messageId, emoji),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: iReacted
+                      ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
+                      : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white10
+                          : Colors.grey[200]),
+                  borderRadius: BorderRadius.circular(12),
+                  border: iReacted
+                      ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(emoji, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(width: 4),
+                    Text(
+                      count.toString(),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: iReacted
+                              ? ChatTheme.myBubbleColor
+                              : (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white70
+                                  : Colors.black87)),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 13)),
-                  const SizedBox(width: 4),
-                  Text(
-                    count.toString(),
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: iReacted
-                            ? ChatTheme.myBubbleColor
-                            : (Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white70
-                                : Colors.black87)),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -1748,61 +1730,64 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 offset: const Offset(0, 8))
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _commandCard(
-                icon: "👋",
-                title: "Hello",
-                description: "Sende Nachricht",
-                onTap: () {
-                  _ctrl.text = "/hello ";
-                  _onTextChanged("/hello ");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "🖼️",
-                title: "Bild senden",
-                description: "Galerie",
-                onTap: _pickFromGallery),
-            _commandCard(
-                icon: "🧠",
-                title: "KI Image",
-                description: "KI generieren",
-                onTap: () async {
-                  setState(() => _isSlashToolbarVisible = false);
-                  final imageUrl = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ImageBotScreen()));
-                  if (imageUrl != null && imageUrl is String) {
-                    await _sendAiImage(imageUrl);
-                  }
-                }),
-            _commandCard(
-                icon: "🎮",
-                title: "Tetris",
-                description: "Mini-Tetris",
-                onTap: () {
-                  _ctrl.text = "/tetris";
-                  _onTextChanged("/tetris");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "🤖",
-                title: "AI",
-                description: "Chat mit AI",
-                onTap: _openAiPreview),
-            _commandCard(
-                icon: "📞",
-                title: "Call Time",
-                description: "Plane einen Gruppen- oder Privat-Call",
-                onTap: () {
-                  _ctrl.text = "/calltime";
-                  _onTextChanged("/calltime");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-          ],
+        // FIX: Scrollview für Toolbar falls zu viele Items
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _commandCard(
+                  icon: "👋",
+                  title: "Hello",
+                  description: "Sende Nachricht",
+                  onTap: () {
+                    _ctrl.text = "/hello ";
+                    _onTextChanged("/hello ");
+                    setState(() => _isSlashToolbarVisible = false);
+                  }),
+              _commandCard(
+                  icon: "🖼️",
+                  title: "Bild senden",
+                  description: "Galerie",
+                  onTap: _pickFromGallery),
+              _commandCard(
+                  icon: "🧠",
+                  title: "KI Image",
+                  description: "KI generieren",
+                  onTap: () async {
+                    setState(() => _isSlashToolbarVisible = false);
+                    final imageUrl = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ImageBotScreen()));
+                    if (imageUrl != null && imageUrl is String) {
+                      await _sendAiImage(imageUrl);
+                    }
+                  }),
+              _commandCard(
+                  icon: "🎮",
+                  title: "Tetris",
+                  description: "Mini-Tetris",
+                  onTap: () {
+                    _ctrl.text = "/tetris";
+                    _onTextChanged("/tetris");
+                    setState(() => _isSlashToolbarVisible = false);
+                  }),
+              _commandCard(
+                  icon: "📞",
+                  title: "Call Time",
+                  description: "Plane einen Gruppen- oder Privat-Call",
+                  onTap: () {
+                    _ctrl.text = "/calltime";
+                    _onTextChanged("/calltime");
+                    setState(() => _isSlashToolbarVisible = false);
+                  }),
+              _commandCard(
+                  icon: "🤖",
+                  title: "AI",
+                  description: "Chat mit AI",
+                  onTap: _openAiPreview),
+            ],
+          ),
         ),
       ),
     );
@@ -1828,19 +1813,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? Colors.white : Colors.black)),
-              Text(description,
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: isDarkMode
-                          ? Colors.grey[400]
-                          : Colors.grey.shade700)),
-            ]),
+            Expanded(
+              // FIX: Expanded damit Beschreibung umbrechen kann
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : Colors.black)),
+                    Text(description,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey.shade700)),
+                  ]),
+            ),
           ],
         ),
       ),
@@ -1955,6 +1945,9 @@ class _Bubble extends StatelessWidget {
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          // FIX: Bubble Breite begrenzen damit sie nicht ausbricht
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75),
           child: Column(
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -1972,6 +1965,7 @@ class _Bubble extends StatelessWidget {
                         bottomLeft: const Radius.circular(12),
                         bottomRight: const Radius.circular(12))),
                 child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: isMe
                         ? CrossAxisAlignment.end
                         : CrossAxisAlignment.start,

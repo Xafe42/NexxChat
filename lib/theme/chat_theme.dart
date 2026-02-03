@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../theme_notifier.dart';
+
 
 class ChatTheme {
   // Chat-Blasenfarbe
@@ -24,6 +26,10 @@ class ChatTheme {
   //Hintergrundfarbe zurueckgeben
   static Color getBackgroundColor() => backgroundColor;
   
+  static Future<void> loadTheme() async {
+    await loadAll();
+  }
+
   //Theme Speichern (USER)
   static Future<void> saveTheme(Color bubble, Color bg) async {
     final prefs = await SharedPreferences.getInstance();
@@ -37,15 +43,6 @@ class ChatTheme {
     await prefs.setInt('bubble_color', bubble.toARGB32());
     await prefs.setInt('bg_color', bg.toARGB32());
     
-    // NEU: Wir triggern den Reload, damit sich auch der FAB sofort aktualisiert
-    reloadNotifier.value++;
-  }
-
-  static Future<void> loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    myBubbleColor = Color(prefs.getInt('bubble_color') ?? myBubbleColor.toARGB32());
-    backgroundColor = Color(prefs.getInt('bg_color') ?? backgroundColor.toARGB32());
-    userSetBackground = prefs.getBool('user_bg') ?? false; 
     reloadNotifier.value++;
   }
 
@@ -53,6 +50,8 @@ class ChatTheme {
   static Future<void> saveThemeMode(bool darkMode) async {
     final prefs = await SharedPreferences.getInstance();
     isDarkMode = darkMode;
+    
+    themeNotifier.value = darkMode ? ThemeMode.dark : ThemeMode.light;
     
     await prefs.setBool('dark_mode', darkMode);
     if (!userSetBackground) {
@@ -68,6 +67,9 @@ class ChatTheme {
   static Future<void> loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     isDarkMode = prefs.getBool('dark_mode') ?? false;
+    
+    themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
     reloadNotifier.value++;
   }
 
@@ -80,6 +82,8 @@ class ChatTheme {
       Color(prefs.getInt('bg_color') ?? backgroundColor.toARGB32());
   userSetBackground = prefs.getBool('user_bg') ?? false;
   isDarkMode = prefs.getBool('dark_mode') ?? false;
+
+  themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
   reloadNotifier.value++;
 }

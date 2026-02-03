@@ -1,10 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/profile_screen.dart';
 import 'package:nexxchat_firebase/Screens/security_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../theme_notifier.dart';
 import 'welcome_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -26,10 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ValueListenableBuilder<int>(
       valueListenable: ChatTheme.reloadNotifier,
       builder: (context, _, __) {
-        final bool isDark = ChatTheme.isDarkMode;
+        final bool isDark = themeNotifier.value == ThemeMode.dark;
         final textColor = isDark ? Colors.white : Colors.black;
         // Nimmt die Hintergrundfarbe aus der main.dart (weiß oder dunkelgrau)
-        final bgColor = ChatTheme.getBackgroundColor();
+        final bgColor = Theme.of(context).scaffoldBackgroundColor;
         final accentColor = ChatTheme.getBubbleColor();
 
         return Scaffold(
@@ -81,6 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       activeTrackColor: accentColor,
                       onChanged: (val) {
                         ChatTheme.saveThemeMode(val);
+                        setState(() {});
                       },
                     ),
                   ),
@@ -270,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: textColor,  
+                            color: textColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -369,20 +372,21 @@ class _SettingsTile extends StatelessWidget {
   final Color accentColor;
   final bool isDark;
 
-  const _SettingsTile(
-      {required this.icon,
-      required this.title,
-      this.subtitle,
-      this.trailing,
-      this.onTap,
-      required this.accentColor,
-      required this.isDark,
-      });
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+    required this.accentColor,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     final titleColor = isDark ? Colors.white : Colors.black; // dynamisch
-    final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600]; //dynamisch
+    final subtitleColor =
+        isDark ? Colors.grey[400] : Colors.grey[600]; //dynamisch
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -395,7 +399,11 @@ class _SettingsTile extends StatelessWidget {
         child: Icon(icon, color: accentColor, size: 22),
       ),
       title: Text(title,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor,)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: titleColor,
+          )),
       subtitle: subtitle != null
           ? Text(subtitle!,
               style: TextStyle(color: subtitleColor, fontSize: 13))
@@ -437,17 +445,16 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
     const Color(0xFFFFF3E0),
     const Color(0xFFE8F5E9),
     const Color(0xFFECEFF1),
-    
   ];
   final List<Color> darkBgColors = [
-  Colors.black,               // echtes Schwarz
-  const Color(0xFF121212),    // sehr dunkles Grau (Standard-Dark)
-  const Color(0xFF1E1E1E),    // leicht helleres Grau
-  const Color(0xFF2C2C2C),    // Anthrazit
-  const Color(0xFF0D0D0D),    // fast Schwarz
-  const Color(0xFF181818),    // dunkles Graphit
-];
- 
+    Colors.black, // echtes Schwarz
+    const Color(0xFF121212), // sehr dunkles Grau (Standard-Dark)
+    const Color(0xFF1E1E1E), // leicht helleres Grau
+    const Color(0xFF2C2C2C), // Anthrazit
+    const Color(0xFF0D0D0D), // fast Schwarz
+    const Color(0xFF181818), // dunkles Graphit
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -467,15 +474,13 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ChatTheme.isDarkMode;
+    final isDark = themeNotifier.value == ThemeMode.dark;
     final textColor = isDark ? Colors.white : Colors.black;
 
-    final List<Color> displayBgColors = isDark 
-    ? darkBgColors
-    : bgColors;
+    final List<Color> displayBgColors = isDark ? darkBgColors : bgColors;
 
     return Scaffold(
-      backgroundColor: ChatTheme.backgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       appBar: AppBar(
         title: Text("Chat Design",
             style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
@@ -484,7 +489,6 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
       ),
-
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -493,6 +497,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
             height: 300,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
+              // In der Vorschau zeigen wir die gewählte Personalisierung
               color: ChatTheme.backgroundColor,
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
@@ -512,7 +517,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
+                        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                         borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(20),
                             topRight: Radius.circular(20),
@@ -603,7 +608,7 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
           const SizedBox(height: 40),
 
           // BACKGROUND COLORS
-          Text("BACKGROUND COLOR",
+          Text("CHAT BACKGROUND COLOR",
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,

@@ -5,11 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
-import 'package:nexxchat_firebase/Screens/call_screen.dart';
-import 'package:nexxchat_firebase/Screens/incoming_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
-
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 import 'chat_screen.dart';
@@ -65,10 +62,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   void _listenIncomingCalls() {
     final uid = currentUser?.uid;
     if (uid == null) return;
-
   }
-
- 
 
   Future<void> _saveFcmToken() async {
     String? token = await FirebaseMessaging.instance.getToken();
@@ -179,10 +173,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   }
 
   void _loadTheme() async {
-  await ChatTheme.loadTheme();
-  // Dark Mode auf Notifier hören (optional)
-  setState(() {});
-}
+    await ChatTheme.loadTheme();
+    // Dark Mode auf Notifier hören (optional)
+    if (mounted) setState(() {});
+  }
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return "";
@@ -198,8 +192,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: Nutzt jetzt die System-Helligkeit statt der statischen Variable
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = ChatTheme.getBackgroundColor();
+
+    // FIX: Nutzt jetzt die System-Hintergrundfarbe (aus main.dart) statt der personalisierten Farbe
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     final textColor = isDark ? Colors.white : const Color(0xFF2D3436);
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
     final accentColor = ChatTheme.getBubbleColor();
@@ -648,54 +646,54 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     );
   }
 
-Widget _buildAvatarContent(Map<String, dynamic> chat) {
-  // GROUP IMAGE (from Firebase)
-  final groupAvatar = chat['avatar'];
-  if (groupAvatar != null &&
-      groupAvatar.toString().isNotEmpty &&
-      groupAvatar.toString().startsWith('http')) {
-    return Image.network(
-      groupAvatar,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _buildInitial(chat),
-    );
-  }
+  Widget _buildAvatarContent(Map<String, dynamic> chat) {
+    // GROUP IMAGE (from Firebase)
+    final groupAvatar = chat['avatar'];
+    if (groupAvatar != null &&
+        groupAvatar.toString().isNotEmpty &&
+        groupAvatar.toString().startsWith('http')) {
+      return Image.network(
+        groupAvatar,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitial(chat),
+      );
+    }
 
-  //  USER PROFILE IMAGE
-  final avatarUrl = chat['avatarUrl'];
-  if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
-    return Image.network(
-      avatarUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _buildInitial(chat),
-    );
-  }
+    //  USER PROFILE IMAGE
+    final avatarUrl = chat['avatarUrl'];
+    if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
+      return Image.network(
+        avatarUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitial(chat),
+      );
+    }
 
-  //  ICON (groups without image / bots)
-  if (chat['icon'] != null) {
-    return Icon(
-      chat['icon'] as IconData,
-      color: Colors.white,
-      size: 28,
-    );
-  }
-
-  //  FALLBACK LETTER
-  return _buildInitial(chat);
-}
-
-Widget _buildInitial(Map<String, dynamic> chat) {
-  return Center(
-    child: Text(
-      (chat['name'] as String).isNotEmpty
-          ? (chat['name'] as String)[0].toUpperCase()
-          : "?",
-      style: const TextStyle(
+    //  ICON (groups without image / bots)
+    if (chat['icon'] != null) {
+      return Icon(
+        chat['icon'] as IconData,
         color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 22,
+        size: 28,
+      );
+    }
+
+    //  FALLBACK LETTER
+    return _buildInitial(chat);
+  }
+
+  Widget _buildInitial(Map<String, dynamic> chat) {
+    return Center(
+      child: Text(
+        (chat['name'] as String).isNotEmpty
+            ? (chat['name'] as String)[0].toUpperCase()
+            : "?",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
