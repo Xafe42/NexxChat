@@ -147,7 +147,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "project_id": "nexxchat-1f0fc",
       "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
       "private_key":
-          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54\ CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\CUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
+          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54 CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\CUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
       "client_email":
           "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
       "client_id": "102132668974376071943",
@@ -751,6 +751,55 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ),
     );
     _resetInput();
+  }
+
+  void _showDevelopmentDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child:
+                  const Icon(Icons.construction, color: Colors.amber, size: 40),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "In Entwicklung",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Diese Funktion wird bald verfügbar sein!",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChatTheme.myBubbleColor,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Formatting
@@ -1770,131 +1819,130 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return Container(
       key: const ValueKey("slash_toolbar"),
-      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 20,
-              offset: const Offset(0, -2))
+              offset: const Offset(0, -4))
         ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _commandCard(
-                icon: "👋",
-                title: "Hello",
-                description: "Sende Nachricht",
-                onTap: () {
-                  _ctrl.text = "/hello ";
-                  _onTextChanged("/hello ");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "🖼️",
-                title: "Bild senden",
-                description: "Galerie",
-                onTap: _pickFromGallery),
-            _commandCard(
-                icon: "🧠",
-                title: "KI Image",
-                description: "KI generieren",
-                onTap: () async {
-                  setState(() => _isSlashToolbarVisible = false);
-                  final imageUrl = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ImageBotScreen()));
-                  if (imageUrl != null && imageUrl is String) {
-                    await _sendAiImage(imageUrl);
-                  }
-                }),
-            _commandCard(
-                icon: "🎮",
-                title: "Tetris",
-                description: "Mini-Tetris",
-                onTap: () {
-                  _ctrl.text = "/tetris";
-                  _onTextChanged("/tetris");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "📞",
-                title: "Call Time",
-                description: "Plane einen Gruppen- oder Privat-Call",
-                onTap: () {
-                  _ctrl.text = "/calltime";
-                  _onTextChanged("/calltime");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "🤖",
-                title: "AI",
-                description: "Frag die KI direkt hier im Chat",
-                onTap: () {
-                  _ctrl.text = "/ai ";
-                  _ctrl.selection = TextSelection.fromPosition(
-                      TextPosition(offset: _ctrl.text.length));
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-            _commandCard(
-                icon: "📅",
-                title: "Event",
-                description: "Erstelle ein Gruppen-Event",
-                onTap: () {
-                  _ctrl.text = "/event";
-                  _onTextChanged("/event");
-                  setState(() => _isSlashToolbarVisible = false);
-                }),
-          ],
-        ),
+      child: GridView.count(
+        shrinkWrap: true,
+        crossAxisCount: 4,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.85,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          _commandTile(
+              icon: "👋",
+              title: "Hello",
+              onTap: () {
+                _ctrl.text = "/hello ";
+                _onTextChanged("/hello ");
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(icon: "🖼️", title: "Galerie", onTap: _pickFromGallery),
+          _commandTile(
+              icon: "🧠",
+              title: "KI Image",
+              onTap: () async {
+                setState(() => _isSlashToolbarVisible = false);
+                final imageUrl = await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ImageBotScreen()));
+                if (imageUrl != null && imageUrl is String) {
+                  await _sendAiImage(imageUrl);
+                }
+              }),
+          _commandTile(
+              icon: "🎮",
+              title: "Tetris",
+              onTap: () {
+                _ctrl.text = "/tetris";
+                _onTextChanged("/tetris");
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "📞",
+              title: "Calltime",
+              onTap: () {
+                _ctrl.text = "/calltime";
+                _onTextChanged("/calltime");
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "📅",
+              title: "Event",
+              onTap: () {
+                _ctrl.text = "/event";
+                _onTextChanged("/event");
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "🤖",
+              title: "AI",
+              onTap: () {
+                _ctrl.text = "/ai ";
+                _ctrl.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _ctrl.text.length));
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "➕",
+              title: "Widget",
+              onTap: () {
+                setState(() => _isSlashToolbarVisible = false);
+                _showDevelopmentDialog();
+              }),
+        ],
       ),
     );
   }
 
-  Widget _commandCard(
+  Widget _commandTile(
       {required String icon,
       required String title,
-      required String description,
       required VoidCallback onTap}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: isDarkMode
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.grey.shade50,
             border: Border.all(
-                color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300),
-            color: isDarkMode ? Colors.grey[800] : Colors.white),
-        child: Row(
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 26)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            color: isDarkMode ? Colors.white : Colors.black)),
-                    Text(description,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: isDarkMode
-                                ? Colors.grey[400]
-                                : Colors.grey.shade700)),
-                  ]),
+              color: isDarkMode ? Colors.white10 : Colors.grey.shade200,
+              width: 1.5,
             ),
-          ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 26)),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(title,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white70 : Colors.black87)),
+              ),
+            ],
+          ),
         ),
       ),
     );
