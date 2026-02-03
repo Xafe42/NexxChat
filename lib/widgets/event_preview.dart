@@ -33,6 +33,14 @@ class _EventPreviewState extends State<EventPreview> {
     super.dispose();
   }
 
+  String _formatMonth(int m) {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    return months[m - 1];
+  }
+
   // Datumsauswahl (DatePicker öffnen)
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -91,119 +99,164 @@ class _EventPreviewState extends State<EventPreview> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: Reagiert auf Dark Mode Personalisierung
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.grey[100];
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
 
-    // Labels für Datum und Uhrzeit
-    final dateLabel = _date == null
-        ? 'Datum wählen'
-        : '${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}';
-
-    final timeLabel = _time == null
-        ? 'Uhrzeit wählen'
-        : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
-
-    return Container(
-      color: bgColor,
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // Nimmt nur so viel Platz wie nötig
-        children: [
-          // Kopfzeile „Event Preview“
-          Row(
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade700,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 20,
+              color: Colors.black.withOpacity(0.20),
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.event, color: Colors.blueGrey),
-              const SizedBox(width: 8),
-              Text(
-                'Event Preview',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+              // ---------- HEADER ----------
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade700,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _date == null ? "--" : _formatMonth(_date!.month),
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                        Text(
+                          _date == null ? "--" : _date!.day.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "New Event",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
 
-          const SizedBox(height: 8),
+              const SizedBox(height: 20),
 
-          // Titel-Eingabe
-          TextField(
-            controller: _title,
-            style: TextStyle(color: textColor),
-            decoration: InputDecoration(
-              labelText: 'Titel',
-              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Datum + Uhrzeit
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(dateLabel, style: TextStyle(color: textColor)),
+              // ---------- FIELDS ----------
+              TextField(
+                controller: _title,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  labelText: "Title",
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickTime,
-                  icon: const Icon(Icons.access_time),
-                  label: Text(timeLabel, style: TextStyle(color: textColor)),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_today, size: 18),
+                      label: Text(
+                        _date == null ? "Date" : "${_date!.day}.${_date!.month}.",
+                        style: TextStyle(color: textColor, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickTime,
+                      icon: const Icon(Icons.access_time, size: 18),
+                      label: Text(
+                        _time == null ? "Time" : _time!.format(context),
+                        style: TextStyle(color: textColor, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _location,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  labelText: "Location",
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
                 ),
               ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _description,
+                style: TextStyle(color: textColor),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: "Description (optional)",
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ---------- BUTTONS ----------
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Send"),
+                  ),
+                ],
+              )
             ],
           ),
-
-          const SizedBox(height: 8),
-
-          // Ort
-          TextField(
-            controller: _location,
-            style: TextStyle(color: textColor),
-            decoration: InputDecoration(
-              labelText: 'Ort',
-              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Beschreibung
-          TextField(
-            controller: _description,
-            maxLines: 3,
-            style: TextStyle(color: textColor),
-            decoration: InputDecoration(
-              labelText: 'Beschreibung (optional)',
-              labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Buttons „Cancel“ und „Send“
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: widget.onCancel,
-                child: const Text('Abbrechen'),
-              ),
-              const SizedBox(width: 6),
-              ElevatedButton(
-                onPressed: _submit,
-                child: const Text('Senden'),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
