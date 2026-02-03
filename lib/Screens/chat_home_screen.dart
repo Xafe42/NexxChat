@@ -28,6 +28,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   final _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
   User? currentUser;
+  
+  // Controller für das Wischen zwischen den Seiten
+  late PageController _pageController;
 
   /// IDs of hidden conversations
   List<String> _hiddenChats = [];
@@ -48,6 +51,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   void initState() {
     super.initState();
     currentUser = _auth.currentUser;
+    // Initialisierung des PageControllers
+    _pageController = PageController(initialPage: _selectedIndex);
     _loadTheme();
     _loadHiddenChats();
     _saveFcmToken(); // NEU: Adresse des Handys speichern
@@ -56,6 +61,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   @override
   void dispose() {
+    // Controller sauber löschen
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -175,7 +182,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   void _loadTheme() async {
     await ChatTheme.loadTheme();
     // Dark Mode auf Notifier hören (optional)
-    if (mounted) setState(() {});
+    setState(() {});
   }
 
   String _formatTimestamp(Timestamp? timestamp) {
@@ -209,23 +216,34 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       );
     }
 
-    final List<Widget> pages = [
-      Column(
-        children: [
-          _buildHeader(textColor, isDark),
-          Expanded(
-            child: _buildChatList(textColor, subTextColor, accentColor),
-          ),
-        ],
-      ),
-      const PeopleScreen(),
-      const SettingsScreen(),
-    ];
-
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: pages[_selectedIndex],
+        // PageView ermöglicht das Wischen nach rechts/links
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            // Aktualisiert den Index der Bottom Bar beim Wischen
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          children: [
+            // SEITE 1: CHATS
+            Column(
+              children: [
+                _buildHeader(textColor, isDark),
+                Expanded(
+                  child: _buildChatList(textColor, subTextColor, accentColor),
+                ),
+              ],
+            ),
+            // SEITE 2: PEOPLE
+            const PeopleScreen(),
+            // SEITE 3: SETTINGS
+            const SettingsScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -241,7 +259,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: (index) {
+            // Animiert die Seite beim Klick auf die Icons
+            _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          },
           selectedItemColor: accentColor,
           unselectedItemColor: Colors.grey[400],
           showSelectedLabels: false,
@@ -322,9 +347,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             child: IconButton(
               icon: Icon(Icons.add_rounded, color: textColor, size: 26),
               onPressed: () {
-                setState(() {
-                  _selectedIndex = 1;
-                });
+                // Wechselt zur People-Seite
+                _pageController.animateToPage(
+                  1,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               },
             ),
           ),
