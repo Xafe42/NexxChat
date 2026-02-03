@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 import '../Screens/TetrisFullScreenPage.dart';
@@ -14,7 +13,7 @@ import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
-import '../widgets/ai_preview.dart';
+import '../widgets/ai_preview.dart'; // Hier liegt die fetchAi Logik
 import '../widgets/event_preview.dart';
 import '../widgets/hello_preview.dart';
 import '../widgets/message_stream_builder.dart';
@@ -62,7 +61,8 @@ class _ChatScreenState extends State<ChatScreen> {
   String _raw = "";
   ChatCommand? _aktiveCmd;
 
-  bool _isAiPreviewVisible = false;
+  // Diese Variable steuert nun nicht mehr das AI Fenster, kann aber für Ladezustände genutzt werden
+  bool _isAiLoading = false; 
   bool _isSlashToolbarVisible = false;
 
   @override
@@ -78,16 +78,16 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() {});
   }
 
-  void _openAiPreview() {
-    if (_aktiveCmd != null) setState(() => _aktiveCmd = null);
+  // Diese Methode wird jetzt direkt zum Starten der KI-Eingabe genutzt
+  void _activateAiInput() {
     setState(() {
-      _isAiPreviewVisible = true;
+      _ctrl.text = "/ai ";
+      _ctrl.selection = TextSelection.fromPosition(TextPosition(offset: _ctrl.text.length));
       _isSlashToolbarVisible = false;
     });
   }
 
   void _toggleSlashToolbar() {
-    if (_isAiPreviewVisible) setState(() => _isAiPreviewVisible = false);
     setState(() => _isSlashToolbarVisible = !_isSlashToolbarVisible);
   }
 
@@ -114,12 +114,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (v.startsWith("/") && _aktiveCmd == null) {
         _isSlashToolbarVisible = true;
-        _isAiPreviewVisible = false;
       } else {
         _isSlashToolbarVisible = false;
       }
 
-      
       if (_aktiveCmd?.type == "tetris") {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _openTetris();
@@ -128,7 +126,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  
   void _openTetris() {
     Navigator.push(
       context,
@@ -148,7 +145,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  
   Future<void> _sendTetrisScore(int score) async {
     await _firestore.collection("messages").add({
       "type": "app",
@@ -165,6 +161,45 @@ class _ChatScreenState extends State<ChatScreen> {
     final txt = _raw.trim();
     if (txt.isEmpty) return;
 
+    // --- INTEGRATION: DIREKTE KI ANFRAGE ---
+    if (txt.startsWith("/ai ")) {
+      final prompt = txt.replaceFirst("/ai ", "").trim();
+      if (prompt.isEmpty) return;
+
+      // Controller leeren für flüssiges Gefühl
+      _ctrl.clear();
+      _raw = "";
+      
+      // 1. Die Frage des Users als Nachricht anzeigen
+      await _firestore.collection("messages").add({
+        "type": "text",
+        "payload": {"text": "🤖 Frage an KI: $prompt"},
+        "sender": angemeldeterUser.email,
+        "time": FieldValue.serverTimestamp(),
+      });
+
+      setState(() => _isAiLoading = true);
+
+      try {
+        // 2. KI Antwort holen
+        final response = await fetchAi(prompt);
+
+        // 3. Antwort als KI-Nachricht speichern
+        await _firestore.collection("messages").add({
+          "type": "ai",
+          "payload": {
+            "prompt": prompt,
+            "response": response,
+          },
+          "sender": "NexxAI", // Spezial-Absender für Bot-Design
+          "time": FieldValue.serverTimestamp(),
+        });
+      } finally {
+        if (mounted) setState(() => _isAiLoading = false);
+      }
+      return;
+    }
+
     if (_aktiveCmd != null) {
       final cmd = _aktiveCmd!;
 
@@ -173,11 +208,12 @@ class _ChatScreenState extends State<ChatScreen> {
         await _firestore.collection("messages").add({
           ...payload,
           "sender": angemeldeterUser.email,
+          "time": FieldValue.serverTimestamp(), // Zeitstempel hinzugefügt
         });
       }
 
       if (cmd.type == "event") {
-        
+        // Logik für Event-Preview ist in build()
       }
     } else {
       await _firestore.collection("messages").add({
@@ -225,6 +261,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 "NexxChat",
                 style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)
             ),
+            if (_isAiLoading) 
+              const Padding(
+                padding: EdgeInsets.only(left: 10),
+                child: SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)),
+              )
           ],
         ),
         actions: [
@@ -267,11 +308,11 @@ class _ChatScreenState extends State<ChatScreen> {
                               maxLines: null,
                               style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                               decoration: InputDecoration(
-                                hintText: "Nachricht",
+                                hintText: "Nachricht (Nutze /ai...)",
                                 hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                                 filled: true,
                                 fillColor: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
-                                border: OutlineInputBorder(
+                                border: const OutlineInputBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(20)),
                                   borderSide: BorderSide.none,
                                 ),
@@ -320,29 +361,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
 
-            // AI Preview
-            if (_isAiPreviewVisible)
-              Positioned(
-                bottom: 70,
-                left: 0,
-                right: 0,
-                child: AiPreview(
-                  onCancel: () => setState(() => _isAiPreviewVisible = false),
-                  onSend: (prompt, response) async {
-                    await _firestore.collection("messages").add({
-                      "type": "ai",
-                      "payload": {
-                        "prompt": prompt,
-                        "response": response,
-                      },
-                      "sender": angemeldeterUser.email,
-                      "time": FieldValue.serverTimestamp(),
-                    });
-                    setState(() => _isAiPreviewVisible = false);
-                  },
-                ),
-              ),
-
             // EVENT Preview
             if (_aktiveCmd?.type == "event")
               Positioned(
@@ -382,7 +400,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 // SLASH MENU
   Widget _slashToolbar() {
-    // Prüfen, ob Dark Mode aktiv ist
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
@@ -394,11 +411,10 @@ class _ChatScreenState extends State<ChatScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 18),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: backgroundColor, // Passt sich jetzt an
+          color: backgroundColor, 
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.18),
               blurRadius: 20,
               offset: const Offset(0, 8),
@@ -447,8 +463,8 @@ class _ChatScreenState extends State<ChatScreen> {
             _commandCard(
               icon: "🤖",
               title: "AI",
-              description: "Chatte mit AI",
-              onTap: _openAiPreview,
+              description: "Frag die KI direkt hier im Chat",
+              onTap: _activateAiInput, // Nutzt die neue direkte Logik
             ),
           ],
         ),
@@ -462,7 +478,6 @@ class _ChatScreenState extends State<ChatScreen> {
     required String description,
     required VoidCallback onTap,
   }) {
-    // Farben basierend auf Dark Mode definieren
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
     final borderColor = isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
@@ -483,28 +498,31 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17, 
-                    fontWeight: FontWeight.w600,
-                    color: titleColor, // Farbe angepasst
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17, 
+                      fontWeight: FontWeight.w600,
+                      color: titleColor, 
+                    ),
                   ),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 13, 
-                    color: descColor, // Farbe angepasst
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 13, 
+                      color: descColor, 
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
-  }}
+  }
+}

@@ -23,7 +23,7 @@ import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
-import '../widgets/ai_preview.dart';
+import '../widgets/ai_preview.dart'; // Enthält die fetchAi Logik
 import '../widgets/event_preview.dart';
 import '../widgets/full_screen_image_page.dart';
 import '../widgets/group_settings_sheet.dart';
@@ -63,7 +63,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
-  bool _isAiPreviewVisible = false;
   bool _isSlashToolbarVisible = false;
   String? otherUserId;
   bool userDeleted = false;
@@ -250,7 +249,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       if (value.startsWith("/") && _aktiveCmd == null) {
         _isSlashToolbarVisible = true;
-        _isAiPreviewVisible = false;
       } else {
         _isSlashToolbarVisible = false;
       }
@@ -266,6 +264,34 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _send() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending || _user == null) return;
+
+    // --- NEUE KI LOGIK ---
+    if (text.startsWith("/ai ")) {
+      final prompt = text.replaceFirst("/ai ", "").trim();
+      if (prompt.isEmpty) return;
+
+      setState(() => _sending = true);
+      _ctrl.clear();
+
+      try {
+        // 1. Prompt als normale Textnachricht senden
+        await _chatService.sendTextMessage(
+          conversationId: widget.conversationId,
+          text: "🤖 Fragt KI: $prompt",
+          senderUid: _user!.uid,
+          senderEmail: _user!.email ?? '',
+        );
+
+        // 2. KI Antwort holen
+        final response = await fetchAi(prompt);
+
+        // 3. Antwort als speziellen Typ 'ai' speichern
+        await _sendAiMessage(prompt: prompt, response: response);
+      } finally {
+        if (mounted) setState(() => _sending = false);
+      }
+      return;
+    }
 
     if (_aktiveCmd != null) {
       final cmd = _aktiveCmd!;
@@ -433,9 +459,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     await msgRef.set({
       'id': msgRef.id,
-      'senderId': _user!.uid,
+      'senderId': 'nexx_bot', // Spezial ID für den Bot
       'receiverId': receiverUid,
-      'sender': _user!.email,
+      'sender': 'NexxAI@bot.com',
       'timestamp': FieldValue.serverTimestamp(),
       'status': "SENT",
       'type': 'ai',
@@ -487,7 +513,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _raw = "";
       _aktiveCmd = null;
       _isSlashToolbarVisible = false;
-      _isAiPreviewVisible = false;
     });
     _setTyping(false);
   }
@@ -707,15 +732,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _toggleSlashToolbar() {
     setState(() {
       _isSlashToolbarVisible = !_isSlashToolbarVisible;
-      if (_isSlashToolbarVisible) _isAiPreviewVisible = false;
-    });
-  }
-
-  void _openAiPreview() {
-    setState(() {
-      _isAiPreviewVisible = true;
-      _isSlashToolbarVisible = false;
-      _aktiveCmd = null;
     });
   }
 
@@ -871,6 +887,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
+
                 if (!isGroup && convData != null && !userDeleted)
                   IconButton(
                     icon:
@@ -908,6 +925,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       );
                     },
                   ),
+
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.call, color: Colors.white),
@@ -934,12 +952,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             title: widget.title,
                             userId: _user!.uid,
                             userName: _user!.email ?? "User",
-                            callType: 'audio',
+                            callType: 'audio', 
                           ),
                         ),
                       );
                     },
                   ),
+
                 if (isGroup && convData != null)
                   IconButton(
                     icon: const Icon(Icons.videocam, color: Colors.white),
@@ -1178,23 +1197,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       onSend: _send,
                     ),
                   ),
-                if (_isAiPreviewVisible)
-                  Positioned(
-                    bottom: 70,
-                    left: 0,
-                    right: 0,
-                    child: AiPreview(
-                      onCancel: () =>
-                          setState(() => _isAiPreviewVisible = false),
-                      onSend: (prompt, response) async {
-                        await _sendAiMessage(
-                            prompt: prompt, response: response);
-                        if (mounted) {
-                          setState(() => _isAiPreviewVisible = false);
-                        }
-                      },
-                    ),
-                  ),
                 if (_aktiveCmd?.type == "calltime")
                   Positioned(
                     bottom: 70,
@@ -1264,8 +1266,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   );
                 }).toList(),
               ),
+
               const SizedBox(height: 16),
               const Divider(),
+
               if (isMe)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
@@ -1364,16 +1368,93 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     Widget bubbleWidget;
 
+    // --- NEUES KI DESIGN ---
+    if (type == 'ai') {
+      final response = payload?['response'] ?? '';
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark 
+                ? [const Color(0xFF1A237E), const Color(0xFF0D47A1)]
+                : [Colors.blue.shade50, Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: 0.1),
+                blurRadius: 10,
+                spreadRadius: 2,
+              )
+            ],
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.smart_toy_rounded, 
+                      size: 16, color: Colors.blueAccent),
+                    const SizedBox(width: 6),
+                    Text("NexxAI", 
+                      style: TextStyle(
+                        fontSize: 12, 
+                        fontWeight: FontWeight.w900,
+                        color: Colors.blueAccent.shade400,
+                        letterSpacing: 1.1,
+                      )),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Text(response.toString(),
+                    style: TextStyle(
+                      fontSize: 15, 
+                      color: isDark ? Colors.white : Colors.black87,
+                      height: 1.4,
+                    )),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12, bottom: 6),
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(time,
+                    style: TextStyle(
+                      fontSize: 10, 
+                      color: isDark ? Colors.white54 : Colors.grey)),
+                ),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
     if (type == 'calltime') {
       final status = msg['status'] ?? 'scheduled';
       if (status != 'scheduled') return const SizedBox.shrink();
 
-      // FIX: Constraints für CallTime Card, damit sie nicht ausbricht
       return Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.85),
+              maxWidth: MediaQuery.of(context).size.width * 0.8),
           child: CallTimeMessageCard(
             payload: msg["payload"] ?? {},
             conversationId: widget.conversationId,
@@ -1459,7 +1540,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             const Icon(Icons.videogame_asset, size: 26, color: Colors.white),
             const SizedBox(width: 10),
             Flexible(
-              // FIX: Flexible gegen Text-Overflow
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1484,7 +1564,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             const Text("👋", style: TextStyle(fontSize: 22)),
             const SizedBox(width: 6),
             Flexible(
-              // FIX: Flexible gegen Text-Overflow
               child: Text("Hello $who!",
                   style: TextStyle(
                       fontSize: 16,
@@ -1505,33 +1584,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         senderName: isMe ? null : senderEmail.toString().split("@").first,
         onLongPress: () => _openReactionPicker(messageId),
         child: child,
-      );
-    } else if (type == "ai") {
-      final prompt = payload?['prompt'] ?? '';
-      final response = payload?['response'] ?? '';
-
-      bubbleWidget = _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : senderEmail.toString().split("@").first,
-        onLongPress: () => _openReactionPicker(messageId),
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (prompt.isNotEmpty)
-              Text("Q: $prompt",
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      color: isMe ? Colors.white70 : Colors.black54)),
-            if (prompt.isNotEmpty) const SizedBox(height: 4),
-            Text(response.toString(),
-                style: TextStyle(fontSize: 15, color: textColor)),
-          ],
-        ),
       );
     } else if (type == 'event_ref') {
       bubbleWidget = _Bubble(
@@ -1582,59 +1634,54 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final isMe = msg['senderId'] == _user?.uid;
 
-    // FIX: BoxConstraints und Padding, damit Wrap nicht ausbricht
     return Padding(
       padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
-      child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        child: Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
-          children: activeReactions.map((entry) {
-            final emoji = entry.key;
-            final List users = entry.value as List;
-            final count = users.length;
-            final bool iReacted = users.contains(_user?.uid);
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+        children: activeReactions.map((entry) {
+          final emoji = entry.key;
+          final List users = entry.value as List;
+          final count = users.length;
+          final bool iReacted = users.contains(_user?.uid);
 
-            return GestureDetector(
-              onTap: () => _toggleReaction(messageId, emoji),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: iReacted
-                      ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
-                      : (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white10
-                          : Colors.grey[200]),
-                  borderRadius: BorderRadius.circular(12),
-                  border: iReacted
-                      ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(emoji, style: const TextStyle(fontSize: 13)),
-                    const SizedBox(width: 4),
-                    Text(
-                      count.toString(),
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: iReacted
-                              ? ChatTheme.myBubbleColor
-                              : (Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white70
-                                  : Colors.black87)),
-                    ),
-                  ],
-                ),
+          return GestureDetector(
+            onTap: () => _toggleReaction(messageId, emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: iReacted
+                    ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white10
+                        : Colors.grey[200]),
+                borderRadius: BorderRadius.circular(12),
+                border: iReacted
+                    ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
+                    : null,
               ),
-            );
-          }).toList(),
-        ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: iReacted
+                            ? ChatTheme.myBubbleColor
+                            : (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white70
+                                : Colors.black87)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -1730,7 +1777,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 offset: const Offset(0, 8))
           ],
         ),
-        // FIX: Scrollview für Toolbar falls zu viele Items
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1784,8 +1830,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               _commandCard(
                   icon: "🤖",
                   title: "AI",
-                  description: "Chat mit AI",
-                  onTap: _openAiPreview),
+                  description: "Frag die KI direkt hier im Chat",
+                  onTap: () {
+                    _ctrl.text = "/ai ";
+                    _ctrl.selection = TextSelection.fromPosition(TextPosition(offset: _ctrl.text.length));
+                    setState(() => _isSlashToolbarVisible = false);
+                  }),
             ],
           ),
         ),
@@ -1814,22 +1864,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             Text(icon, style: const TextStyle(fontSize: 26)),
             const SizedBox(width: 14),
             Expanded(
-              // FIX: Expanded damit Beschreibung umbrechen kann
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            color: isDarkMode ? Colors.white : Colors.black)),
-                    Text(description,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: isDarkMode
-                                ? Colors.grey[400]
-                                : Colors.grey.shade700)),
-                  ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white : Colors.black)),
+                Text(description,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey.shade700)),
+              ]),
             ),
           ],
         ),
@@ -1945,9 +1992,7 @@ class _Bubble extends StatelessWidget {
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-          // FIX: Bubble Breite begrenzen damit sie nicht ausbricht
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
           child: Column(
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
