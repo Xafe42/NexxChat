@@ -29,7 +29,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   int _selectedIndex = 0;
   User? currentUser;
   
-  // Controller für das Wischen zwischen den Seiten
   late PageController _pageController;
 
   /// IDs of hidden conversations
@@ -51,7 +50,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   void initState() {
     super.initState();
     currentUser = _auth.currentUser;
-    // Initialisierung des PageControllers
     _pageController = PageController(initialPage: _selectedIndex);
     _loadTheme();
     _loadHiddenChats();
@@ -61,7 +59,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   @override
   void dispose() {
-    // Controller sauber löschen
     _pageController.dispose();
     super.dispose();
   }
@@ -219,17 +216,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        // PageView ermöglicht das Wischen nach rechts/links
         child: PageView(
           controller: _pageController,
           onPageChanged: (index) {
-            // Aktualisiert den Index der Bottom Bar beim Wischen
             setState(() {
               _selectedIndex = index;
             });
           },
           children: [
-            // SEITE 1: CHATS
             Column(
               children: [
                 _buildHeader(textColor, isDark),
@@ -238,9 +232,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 ),
               ],
             ),
-            // SEITE 2: PEOPLE
             const PeopleScreen(),
-            // SEITE 3: SETTINGS
             const SettingsScreen(),
           ],
         ),
@@ -260,7 +252,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
-            // Animiert die Seite beim Klick auf die Icons
             _pageController.animateToPage(
               index,
               duration: const Duration(milliseconds: 300),
@@ -303,7 +294,8 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                   ),
                 );
               },
-              backgroundColor: Colors.white,
+              // Farbe passt sich jetzt dynamisch an
+              backgroundColor: isDark ? Colors.grey[800] : Colors.white,
               elevation: 6,
               child: Icon(
                 Icons.smart_toy_rounded, // 🤖 KI icon
@@ -347,7 +339,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
             child: IconButton(
               icon: Icon(Icons.add_rounded, color: textColor, size: 26),
               onPressed: () {
-                // Wechselt zur People-Seite
                 _pageController.animateToPage(
                   1,
                   duration: const Duration(milliseconds: 300),
