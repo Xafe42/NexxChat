@@ -9,8 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:nexxchat_firebase/Screens/chat_home_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
+import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
@@ -71,6 +73,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void initState() {
     super.initState();
+    ChatOpenTracker.openedConversationId = widget.conversationId;
     _user = _auth.currentUser;
     _loadTheme();
     _loadOtherUser();
@@ -96,6 +99,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _ctrl.dispose();
     _scrollCtrl.dispose();
     _scheduledCallSub?.cancel();
+    ChatOpenTracker.openedConversationId = null;
     super.dispose();
   }
 
@@ -269,90 +273,123 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // Basic send (text or command)
+Future<void> _send() async {
+  final text = _ctrl.text.trim();
+  if (text.isEmpty || _sending || _user == null) return;
 
-  Future<void> _send() async {
-    final text = _ctrl.text.trim();
-    if (text.isEmpty || _sending || _user == null) return;
-
-    // --- NEUE KI LOGIK ---
-    if (text.startsWith("/ai ")) {
-      final prompt = text.replaceFirst("/ai ", "").trim();
-      if (prompt.isEmpty) return;
-
-      setState(() => _sending = true);
-      _ctrl.clear();
-
-      try {
-        // 1. Prompt als normale Textnachricht senden
-        await _chatService.sendTextMessage(
-          conversationId: widget.conversationId,
-          text: "🤖 Fragt KI: $prompt",
-          senderUid: _user!.uid,
-          senderEmail: _user!.email ?? '',
-        );
-
-        // 2. KI Antwort holen
-        final response = await fetchAi(prompt);
-
-        // 3. Antwort als speziellen Typ 'ai' speichern
-        await _sendAiMessage(prompt: prompt, response: response);
-      } finally {
-        if (mounted) setState(() => _sending = false);
-      }
-      return;
-    }
-
-    if (_aktiveCmd != null) {
-      final cmd = _aktiveCmd!;
-
-      if (cmd.type == "hello") {
-        await _sendHelloCommand(cmd);
-        _resetInput();
-        return;
-      }
-    }
-
-    await FirebaseFirestore.instance
-        .collection("users")
-        .doc(_user!.uid)
-        .update({
-      "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
-    });
+  // AI 
+  if (text.startsWith("/ai ")) {
+    final prompt = text.replaceFirst("/ai ", "").trim();
+    if (prompt.isEmpty) return;
 
     setState(() => _sending = true);
+    _ctrl.clear();
+
     try {
       await _chatService.sendTextMessage(
         conversationId: widget.conversationId,
-        text: text,
+        text: "🤖 Fragt KI: $prompt",
         senderUid: _user!.uid,
         senderEmail: _user!.email ?? '',
       );
 
-      if (otherUserId != null) {
-        final userDoc = await _db.collection('users').doc(otherUserId!).get();
-        final String? partnerToken = userDoc.data()?['fcmToken'];
+      await _updateConversationMeta("🤖 Fragt KI: $prompt");
 
-        if (partnerToken != null) {
-          await _sendV1Notification(partnerToken, text);
-        }
-      }
+      final response = await fetchAi(prompt);
 
-      _ctrl.clear();
-      _raw = "";
-      _aktiveCmd = null;
-      _setTyping(false);
-
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-        );
-      }
+      await _sendAiMessage(
+        prompt: prompt,
+        response: response,
+      );
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+    return;
   }
+
+  // Commands 
+  if (_aktiveCmd != null) {
+    final cmd = _aktiveCmd!;
+    if (cmd.type == "hello") {
+      await _sendHelloCommand(cmd);
+      _resetInput();
+      return;
+    }
+  }
+
+  await FirebaseFirestore.instance
+      .collection("users")
+      .doc(_user!.uid)
+      .update({
+    "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
+  });
+
+  setState(() => _sending = true);
+
+  try {
+    await _chatService.sendTextMessage(
+      conversationId: widget.conversationId,
+      text: text,
+      senderUid: _user!.uid,
+      senderEmail: _user!.email ?? '',
+    );
+
+    await _updateConversationMeta(text);
+
+    if (otherUserId != null) {
+      final userDoc =
+          await _db.collection('users').doc(otherUserId!).get();
+
+      final partnerToken = userDoc.data()?['fcmToken'];
+
+      if (partnerToken != null) {
+        await _sendV1Notification(partnerToken, text);
+      }
+    }
+
+    _ctrl.clear();
+    _raw = "";
+    _aktiveCmd = null;
+    _setTyping(false);
+
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _sending = false);
+  }
+}
+
+Future<void> _updateConversationMeta(String text) async {
+  if (_user == null) return;
+
+  final myDoc = await FirebaseFirestore.instance
+      .collection("users")
+      .doc(_user!.uid)
+      .get();
+
+  final myName =
+      myDoc.data()?["fullName"] ??
+      myDoc.data()?["name"] ??
+      _user!.email ??
+      "User";
+
+  await FirebaseFirestore.instance
+    .collection("conversations")
+    .doc(widget.conversationId)
+    .set({
+  "lastMessage": text,
+  "lastMessageTime": FieldValue.serverTimestamp(),
+  "lastSenderId": _user!.uid,
+  "lastSenderName": myName,
+  "lastSenderEmail": _user!.email,
+}, SetOptions(merge: true));
+}
+   
 
   // Special send helpers (mini-apps)
 

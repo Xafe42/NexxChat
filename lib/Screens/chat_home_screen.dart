@@ -6,9 +6,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
+import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
+import 'package:nexxchat_firebase/core/navigation.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
+import '../core/widgets/ui/banner_service.dart';
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
@@ -28,8 +31,12 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   final _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
   User? currentUser;
-  
+
   late PageController _pageController;
+  StreamSubscription? _msgSub;
+  String? _openedConversationId;
+  Timestamp? _lastBannerTime;
+  late DateTime _appStartTime;
 
   /// IDs of hidden conversations
   List<String> _hiddenChats = [];
@@ -49,18 +56,78 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _appStartTime = DateTime.now();
     currentUser = _auth.currentUser;
     _pageController = PageController(initialPage: _selectedIndex);
     _loadTheme();
     _loadHiddenChats();
     _saveFcmToken(); // NEU: Adresse des Handys speichern
     _listenIncomingCalls();
+    _listenNewMessages();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+    _msgSub?.cancel();
+  }
+
+  void _listenNewMessages() {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
+
+    _msgSub = _firestore
+        .collection("conversations")
+        .where("members", arrayContains: uid)
+        .orderBy("lastMessageTime", descending: true)
+        .snapshots()
+        .listen((snap) async {
+      if (snap.docs.isEmpty) return;
+
+      final doc = snap.docs.first;
+      final conv = doc.data();
+
+      final senderId = conv["lastSenderId"];
+      final text = conv["lastMessage"] ?? "";
+      final time = conv["lastMessageTime"] as Timestamp?;
+      final conversationId = doc.id;
+      if (time == null) return;
+
+      final msgTime = time.toDate();
+
+      if (senderId == uid) return;
+      if (ChatOpenTracker.openedConversationId == conversationId) return;
+      if (msgTime.isBefore(_appStartTime)) return;
+      if (_lastBannerTime != null &&
+          time.millisecondsSinceEpoch ==
+              _lastBannerTime!.millisecondsSinceEpoch) {
+        return;
+      }
+
+      _lastBannerTime = time;
+
+      final name = conv["lastSenderName"] ?? conv["lastSenderEmail"] ?? "User";
+
+      if (!mounted) return;
+
+      BannerService.show(
+        context,
+        title: name,
+        message: text,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PrivateChatScreen(
+                conversationId: conversationId,
+                title: name,
+              ),
+            ),
+          );
+        },
+      );
+    });
   }
 
   void _listenIncomingCalls() {
