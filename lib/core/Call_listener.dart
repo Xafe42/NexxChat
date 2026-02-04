@@ -70,7 +70,8 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
     });
   }
 
-void _openIncoming(String callId, Map<String, dynamic> data) {
+
+ void _openIncoming(String callId, Map<String, dynamic> data) {
   final navigator = globalNavigatorKey.currentState;
   if (navigator == null) return;
 
@@ -86,53 +87,44 @@ void _openIncoming(String callId, Map<String, dynamic> data) {
         callId: callId,
         title: title,
 
-        // ✅ ACCEPT
+        // ACCEPT
         onAccept: () async {
-          _blockedCalls.add(callId);
+  _blockedCalls.add(callId);
 
-          // ✅ IMPORTANT: استعمل callType الصحيح
-          final callType = (data['callType'] ?? 'video') as String;
+  await _callService.acceptCall(callId);
 
-          // ✅ جهّز engine قبل التنقّل
-          final engine = WebRTCCallEngine(
-            isCaller: false,
-            callType: callType,
-          );
+ 
+  final doc = await _db.collection("calls").doc(callId).get();
 
-          // ✅ 1) stop ringing-timeout بسرعة
-          try {
-            await _callService.acceptCall(callId);
-            print("✅ acceptCall DONE");
-          } catch (e) {
-            print("❌ acceptCall ERROR: $e");
-          }
+  final callType =
+      (doc.data()?['callType'] ?? 'audio') as String;
 
-          // ✅ 2) init webrtc (باش يكتب answer و candidates)
-          try {
-            await engine.init(
-              callId: callId,
-              userId: _auth.currentUser!.uid,
-              userName: _auth.currentUser!.email ?? "User",
-            );
-            print("✅ engine.init DONE");
-          } catch (e) {
-            print("❌ engine.init ERROR: $e");
-          }
+  print("📞 ACCEPT callType=$callType");
 
-          // ✅ 3) GO TO CallScreen
-          navigator.pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => CallScreen(
-                callId: callId,
-                engine: engine,
-                title: title,
-                userId: _auth.currentUser!.uid,
-                userName: _auth.currentUser!.email ?? "User",
-                callType: callType,
-              ),
-            ),
-          );
-        },
+  final engine = WebRTCCallEngine(
+    isCaller: false,
+    callType: callType,
+  );
+
+  await engine.init(
+    callId: callId,
+    userId: _auth.currentUser!.uid,
+    userName: _auth.currentUser!.email ?? "User",
+  );
+
+  navigator.pushReplacement(
+    MaterialPageRoute(
+      builder: (_) => CallScreen(
+        callId: callId,
+        engine: engine,
+        title: title,
+        userId: _auth.currentUser!.uid,
+        userName: _auth.currentUser!.email ?? "User",
+        callType: callType,
+      ),
+    ),
+  );
+},
 
         // DECLINE
         onDecline: () async {
@@ -149,6 +141,8 @@ void _openIncoming(String callId, Map<String, dynamic> data) {
     _incomingOpen = false;
   });
 }
+
+
   @override
   void dispose() {
     _sub?.cancel();

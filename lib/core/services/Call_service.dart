@@ -20,7 +20,7 @@ class CallService {
       'callerName': callerName,
       'receiverId': receiverId,
       'isGroup': false,
-      'type': type,
+      'callType': type,
       'status': 'ringing',
       'createdAt': FieldValue.serverTimestamp(),
       'acceptedAtMs': null,
@@ -49,7 +49,7 @@ class CallService {
       'callerName': callerName,
       'members': members,
       'isGroup': true,
-      'type': type,
+      'callType': type,
       'status': 'ringing',
       'createdAt': FieldValue.serverTimestamp(),
       'acceptedAtMs': null,
@@ -193,7 +193,7 @@ class CallService {
       final callerId = data['callerId'];
       final status = (data['status'] ?? '').toString();
       final duration = (data['duration'] ?? 0) as int;
-      final type = (data['type'] ?? 'video').toString(); // ✅ audio/video
+      final type = (data['callType'] ?? 'video').toString();
 
       if (conversationId == null || callerId == null) return;
 
