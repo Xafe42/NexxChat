@@ -44,7 +44,7 @@ class WebRTCCallEngine implements CallEngine {
 
   bool _answering = false;
 
-  // ================= INIT =================
+  // INIT 
 
   @override
   Future<void> init({
@@ -80,7 +80,7 @@ class WebRTCCallEngine implements CallEngine {
     
   }
  
-  // ================= MEDIA =================
+  // MEDIA 
 
   Future<void> _initMedia() async {
     _local = await navigator.mediaDevices.getUserMedia({
@@ -93,7 +93,7 @@ class WebRTCCallEngine implements CallEngine {
     }
   }
 
-  // ================= PEER =================
+  // PEER 
 
   Future<void> _initPeer() async {
     _pc = await createPeerConnection({
@@ -120,7 +120,7 @@ class WebRTCCallEngine implements CallEngine {
 
       _remote = e.streams.first;
 
-      // 🔥 VERY IMPORTANT: enable remote audio
+      //  enable remote audio
       for (final t in _remote!.getAudioTracks()) {
         t.enabled = true;
       }
@@ -146,7 +146,7 @@ class WebRTCCallEngine implements CallEngine {
     };
   }
 
-  // ================= OFFER =================
+  // OFFER 
 
   Future<void> _createOffer() async {
     final offer = await _pc!.createOffer();
@@ -158,7 +158,7 @@ class WebRTCCallEngine implements CallEngine {
     }, SetOptions(merge: true));
   }
 
-  // ================= ANSWER =================
+  // ANSWER 
 
   void _listenOfferAndAnswer() {
     _docSub?.cancel();
@@ -204,7 +204,7 @@ class WebRTCCallEngine implements CallEngine {
     });
   }
 
-  // ================= ICE RECEIVE =================
+  // ICE RECEIVE 
 
   void _listenCandidates() {
     final other = _isCaller ? 'callee' : 'caller';
@@ -244,7 +244,7 @@ class WebRTCCallEngine implements CallEngine {
     _pending.clear();
   }
 
-  // ================= STATUS =================
+  // STATUS 
 
   void _listenCallStatus() {
     _statusSub =
@@ -262,7 +262,7 @@ class WebRTCCallEngine implements CallEngine {
     });
   }
 
-  // ================= END =================
+  // END 
 
   @override
   Future<void> endCall() async {
@@ -293,7 +293,7 @@ class WebRTCCallEngine implements CallEngine {
     }
   }
 
-  // ================= CONTROLS =================
+  // CONTROLS 
 
   @override
   void setMuted(bool muted) {
@@ -326,7 +326,7 @@ class WebRTCCallEngine implements CallEngine {
     }
   }
 
-  // ================= UI =================
+  //  UI 
 
   @override
   Widget buildView() {

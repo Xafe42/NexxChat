@@ -18,7 +18,7 @@ class GlobalCallListener extends StatefulWidget {
 }
 
 class _GlobalCallListenerState extends State<GlobalCallListener> {
-   StreamSubscription<QuerySnapshot>? _sub;
+  StreamSubscription<QuerySnapshot>? _sub;
 
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
@@ -27,14 +27,13 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
   bool _incomingOpen = false;
   final Set<String> _blockedCalls = {};
 
-
   @override
   void initState() {
     super.initState();
     _startListening();
   }
 
- void _startListening() {
+  void _startListening() {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -57,8 +56,7 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
         final receiverId = data["receiverId"];
         final members = List<String>.from(data["members"] ?? []);
 
-        final isForMe =
-            (!isGroup && receiverId == user.uid) ||
+        final isForMe = (!isGroup && receiverId == user.uid) ||
             (isGroup && members.contains(user.uid));
 
         if (!isForMe) continue;
@@ -70,78 +68,74 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
     });
   }
 
+  void _openIncoming(String callId, Map<String, dynamic> data) {
+    final navigator = globalNavigatorKey.currentState;
+    if (navigator == null) return;
 
- void _openIncoming(String callId, Map<String, dynamic> data) {
-  final navigator = globalNavigatorKey.currentState;
-  if (navigator == null) return;
+    final title = data["callerName"] ??
+        (data["isGroup"] == true ? "Group Call" : "Incoming Call");
 
-  final title =
-      data["callerName"] ??
-      (data["isGroup"] == true ? "Group Call" : "Incoming Call");
+    navigator
+        .push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => IncomingCallScreen(
+          callId: callId,
+          title: title,
 
-  navigator
-      .push(
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => IncomingCallScreen(
-        callId: callId,
-        title: title,
+          // ACCEPT
+          onAccept: () async {
+            _blockedCalls.add(callId);
 
-        // ACCEPT
-        onAccept: () async {
-  _blockedCalls.add(callId);
+            await _callService.acceptCall(callId);
 
-  await _callService.acceptCall(callId);
+            final doc = await _db.collection("calls").doc(callId).get();
 
- 
-  final doc = await _db.collection("calls").doc(callId).get();
+            final callType = (doc.data()?['callType'] ?? 'audio') as String;
 
-  final callType =
-      (doc.data()?['callType'] ?? 'audio') as String;
+            print("📞 ACCEPT callType=$callType");
 
-  print("📞 ACCEPT callType=$callType");
+            final engine = WebRTCCallEngine(
+              isCaller: false,
+              callType: callType,
+            );
 
-  final engine = WebRTCCallEngine(
-    isCaller: false,
-    callType: callType,
-  );
+            await engine.init(
+              callId: callId,
+              userId: _auth.currentUser!.uid,
+              userName: _auth.currentUser!.email ?? "User",
+            );
 
-  await engine.init(
-    callId: callId,
-    userId: _auth.currentUser!.uid,
-    userName: _auth.currentUser!.email ?? "User",
-  );
+            navigator.pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => CallScreen(
+                  callId: callId,
+                  engine: engine,
+                  title: title,
+                  userId: _auth.currentUser!.uid,
+                  userName: _auth.currentUser!.email ?? "User",
+                  callType: callType,
+                ),
+              ),
+            );
+          },
 
-  navigator.pushReplacement(
-    MaterialPageRoute(
-      builder: (_) => CallScreen(
-        callId: callId,
-        engine: engine,
-        title: title,
-        userId: _auth.currentUser!.uid,
-        userName: _auth.currentUser!.email ?? "User",
-        callType: callType,
+          // DECLINE
+          onDecline: () async {
+            _blockedCalls.add(callId);
+            await _callService.declineCall(callId);
+
+            if (navigator.canPop()) {
+              navigator.pop();
+            }
+          },
+        ),
       ),
-    ),
-  );
-},
-
-        // DECLINE
-        onDecline: () async {
-          _blockedCalls.add(callId);
-          await _callService.declineCall(callId);
-
-          if (navigator.canPop()) {
-            navigator.pop();
-          }
-        },
-      ),
-    ),
-  ).then((_) {
-    _incomingOpen = false;
-  });
-}
-
+    )
+        .then((_) {
+      _incomingOpen = false;
+    });
+  }
 
   @override
   void dispose() {

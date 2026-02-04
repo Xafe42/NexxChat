@@ -9,7 +9,7 @@ class CallService {
     required String callerId,
     required String receiverId,
     String? callerName,
-    String type = "video", // ✅ "video" OR "audio"
+    String type = "video", 
   }) async {
     final callId = '${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -38,7 +38,7 @@ class CallService {
     required String callerId,
     required List<String> members,
     String? callerName,
-    String type = "video", // ✅ allow audio too if you want
+    String type = "video", 
   }) async {
     final callId = 'group_${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -240,7 +240,7 @@ class CallService {
         'senderId': callerId,
         'status': status,
         'duration': duration,
-        'callType': type, // ✅ optional but useful (audio/video)
+        'callType': type, 
         'text': text,
         'timestamp': FieldValue.serverTimestamp(),
       });
