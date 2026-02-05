@@ -143,62 +143,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  //  Notification
-  Future<void> _sendV1Notification(
-      String partnerToken, String messageText) async {
-    final serviceAccountJson = {
-      "type": "service_account",
-      "project_id": "nexxchat-1f0fc",
-      "private_key_id": "c533a8e4f04d4ab3d1501c5bbdf694a360254c51",
-      "private_key":
-          "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLpMMgZDDBx0lP\nswJUm4FBIkPlHWI+UAz/sLRBV5gcf5ezrU/IqQ4Fw7Bt+56X0Y2uVKtpTh69M+dZ\n7zWf8MS4hzKm3XlpAWn79xGi+0H03LBaN4Zq4h145PRclavWusMpepa9dJsClXUC\nef/wQlDonGbYHe0jBEMDFB1ohU0sA7nTowUhDR3Tgixkj+LklGjBKnvJnpaQxptE\n7KLHYUmxAe5Z+8giWKVFa+/+99LRxH/ISdWRtIiuefrm2qVRoFWkccRQSB6HW0Wr\n5rRU/RWhzXYvSkrLB5lCwFidd7e4xXf92uFyS+0WLBwi2JIgchoCaAsMm+7AixoF\ntsevNHutAgMBAAECggEACiFu7JJXY5hyovKci9F1l2QpPQFedQud7e1gNjzxjf9h\n8FgPl0OjtTE0OnBxRguwcOr44QL4IADwQibWg9eiLazaHfd4FftyRozWtYUq1Y/R\n/Rb0iqYnga9gIaf3dbXyRgK5c4DUwkblnIMtsonWBRBcxGUOujZ4z/Mk+GFjQqxw\n+hHXb5UGG2puG6MoM044EHQrfc1U+tEkiD+u2QCWzbVkjVF+gMnuRqBsRpoXvPK+\ngicQ3Xt6wimf1XvwxaHLbQSl4mY0mtbzhINdkq39D+71l0y1nnPpicbgwDPVJ/H2\ndBJklvFGnPtXwOUQwgSquGjSYIFv3t9I2OLlZRHqQQKBgQD4qeZ6drLs0S6AWu7Q\noWgyXursOk5spivZpwX5GiMETyg+fufuYu04JIzWlPRVEjXDKbppc9rriRoVBGmn\nFLaMopFXflJYDXvINzzFsL+Ur/pGJ2So1s/qExSCHSA0pC8ePUIDog8DOLHUfIpk\ny/oB0MJy4kyHEW8UR0rZ4jHWwQKBgQDRptXsXzXXOXIyB4cN3j1SG6OU+uHHjnMn\nbbYM5NJlycwpJ7D8fa7A4wUmkIToR3rVwR+gNj5CdkfZ3LodqRdSurDoVLYI+vVF\neP3dcRkmGe2bs+8PxfdCEMyZTpyLKnxKFaXockcd8alBrtbU94tzcxxlCqk0RHIB\nh44fY85r7QKBgQCkvhNHUTqrcM7pFNWhfT4GGSJ1DRAGJXVpxqFLbsiCQ1s7RGKu\nafYVuwlf5OGXNvBNc2jgEnSYlYWlJP5GRo/GzrGSEMvHMG+wrv/hTX8vqAMc1V54 CZFH2Ao/RcKffaMF2rnQpF5j2Pzf9P7PVuA0sbUR3eGrnp5EBhOOFLDGQQKBgHHI\nCfHu+lmEY+WjEDkGlGErfuwr/L1BIl4TvOnihg2YJ6VuVS+zRlSI4RK8/GTT5mZ8\nGZ3p0oBfkT87/AZ87puHltuAngrhqJu7vougBfYXvEz0qpn05uyEEYZik7Mzq6DJ\nfvFYlCA8N4/eQ9nxP024+4Aa+RnUy8rotslycWVBAoGAL2fXL9HLEqivaSpYy06z\nqu9QT96oGYzPzDaBa0fDxtcueKBIH2r/mLcWJmHAyB85F0Fmw5KOf6dcNA4SQCGI\CUDMfvuPALeIGzsG8V4EjUnSVVXHXgNVjuveFnYFgjAgew/It/NgONgfdFcujt0T\nIACeOc0leZMWG6cNYjD47rA=\n-----END PRIVATE KEY-----\n",
-      "client_email":
-          "firebase-adminsdk-fbsvc@nexxchat-1f0fc.iam.gserviceaccount.com",
-      "client_id": "102132668974376071943",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url":
-          "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url":
-          "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40nexxchat-1f0fc.iam.gserviceaccount.com",
-      "universe_domain": "googleapis.com"
-    };
-
-    final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-
-    try {
-      final credentials =
-          auth.ServiceAccountCredentials.fromJson(serviceAccountJson);
-      final client = await auth.clientViaServiceAccount(credentials, scopes);
-
-      final String url =
-          'https://fcm.googleapis.com/v1/projects/nexxchat-1f0fc/messages:send';
-
-      await client.post(
-        Uri.parse(url),
-        body: jsonEncode({
-          'message': {
-            'token': partnerToken,
-            'notification': {
-              'title': _user?.email?.split('@')[0] ?? "NexxChat",
-              'body': messageText,
-            },
-            'android': {
-              'priority': 'high',
-              'notification': {
-                'channel_id': 'chat_messages',
-                'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-              },
-            },
-          }
-        }),
-      );
-      client.close();
-    } catch (e) {
-      debugPrint("Fehler beim Senden der Benachrichtigung: $e");
-    }
-  }
-
+ 
   // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
@@ -335,17 +280,6 @@ Future<void> _send() async {
     );
 
     await _updateConversationMeta(text);
-
-    if (otherUserId != null) {
-      final userDoc =
-          await _db.collection('users').doc(otherUserId!).get();
-
-      final partnerToken = userDoc.data()?['fcmToken'];
-
-      if (partnerToken != null) {
-        await _sendV1Notification(partnerToken, text);
-      }
-    }
 
     _ctrl.clear();
     _raw = "";

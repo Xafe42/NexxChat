@@ -45,7 +45,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   Map<String, Timestamp?> _hiddenChatTimes = {};
 
   bool _loadingUserHiddenChats = true;
-
+  bool _initialLoadDone = false;
   // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
   final List<Map<String, dynamic>> _staticChats = [];
   final CallService _callService = CallService();
@@ -72,71 +72,97 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     super.dispose();
     _msgSub?.cancel();
   }
-void _listenNewMessages() {
-  final uid = currentUser?.uid;
-  if (uid == null) return;
 
-  _msgSub = _firestore
-      .collection("conversations")
-      .where("members", arrayContains: uid)
-      .snapshots()
-      .listen((snap) async {
+  final Map<String, int> _lastSeenTime = {};
+  final Map<String, String> _lastSeenKey = {};
 
-    for (final change in snap.docChanges) {
+  bool _ready = false;
 
-      if (change.type != DocumentChangeType.modified) continue;
+  void _listenNewMessages() {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
 
-      final doc = change.doc;
+    _msgSub?.cancel();
 
-      if (doc.metadata.hasPendingWrites) continue;
+    _msgSub = _firestore
+        .collection("conversations")
+        .where("members", arrayContains: uid)
+        .snapshots()
+        .listen((snap) {
+      
+      if (!_ready) {
+        for (final d in snap.docs) {
+          final t = d["lastMessageTime"] as Timestamp?;
+          if (t != null) {
+            _lastSeenTime[d.id] = t.millisecondsSinceEpoch;
 
-      final conv = doc.data();
-      if (conv == null) continue;
+            final data = d.data();
+            _lastSeenKey[d.id] =
+                "${data["lastSenderId"]}|${data["lastMessage"]}";
+          }
+        }
+        _ready = true;
+        return;
+      }
 
-      final senderId = conv["lastSenderId"];
-      final text = conv["lastMessage"] ?? "";
-      final time = conv["lastMessageTime"] as Timestamp?;
-      final conversationId = doc.id;
+      for (final change in snap.docChanges) {
+        if (change.type != DocumentChangeType.modified) continue;
 
-      if (senderId == uid) continue;
-      if (ChatOpenTracker.openedConversationId == conversationId) continue;
-      if (time == null) continue;
-      if (time.toDate().isBefore(_appStartTime)) continue;
+        final doc = change.doc;
 
-      // 🔥 MAGIC LINE (dedupe)
-      final key = "$senderId|$text";
+       
+        if (doc.metadata.hasPendingWrites) continue;
+        if (doc.metadata.isFromCache) continue;
 
-      if (_lastShownPerConv[conversationId] == key) continue;
+        final data = doc.data();
+        if (data == null) continue;
 
-      _lastShownPerConv[conversationId] = key;
+        final senderId = data["lastSenderId"];
+        final text = (data["lastMessage"] ?? "").toString();
+        final time = data["lastMessageTime"] as Timestamp?;
+        final convId = doc.id;
 
-      final name =
-          conv["lastSenderName"] ??
-          conv["lastSenderEmail"] ??
-          "User";
+        if (time == null) continue;
 
-      if (!mounted) return;
+        final ms = time.millisecondsSinceEpoch;
+        final prevTime = _lastSeenTime[convId] ?? 0;
 
-      BannerService.show(
-        context,
-        title: name,
-        message: text,
-        avatarUrl: conv["lastSenderPhoto"],
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PrivateChatScreen(
-                conversationId: conversationId,
-                title: name,
+        if (ms <= prevTime) continue;
+        _lastSeenTime[convId] = ms;
+
+        final key = "$senderId|$text";
+        if (_lastSeenKey[convId] == key) continue;
+        _lastSeenKey[convId] = key;
+
+        if (senderId == uid) continue;
+        if (ChatOpenTracker.openedConversationId == convId) continue;
+
+        final name =
+            data["lastSenderName"] ?? data["lastSenderEmail"] ?? "User";
+
+        if (!mounted) return;
+
+        BannerService.show(
+          context,
+          title: name.toString(),
+          message: text,
+          avatarUrl: data["lastSenderPhoto"]?.toString(),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PrivateChatScreen(
+                  conversationId: convId,
+                  title: name,
+                ),
               ),
-            ),
-          );
-        },
-      );
-    }
-  });
-}
+            );
+          },
+        );
+      }
+    });
+  }
+
   void _listenIncomingCalls() {
     final uid = currentUser?.uid;
     if (uid == null) return;
@@ -146,12 +172,12 @@ void _listenNewMessages() {
     String? token = await FirebaseMessaging.instance.getToken();
     if (token != null && currentUser != null) {
       await _firestore.collection("users").doc(currentUser!.uid).set({
-        'fcmToken': token,
+        'fcmToken': token.trim(),
       }, SetOptions(merge: true));
     }
   }
 
-  // 🔥 Hide specific conversation + store hide timestamp
+  // Hide specific conversation + store hide timestamp
   Future<void> _hideChat(String chatId) async {
     if (currentUser == null) return;
 
@@ -171,7 +197,7 @@ void _listenNewMessages() {
     }
   }
 
-  // 🔥 Unhide specific conversation (z.B. wenn neue Nachricht nach hide kam)
+  //  Unhide specific conversation (z.B. wenn neue Nachricht nach hide kam)
   Future<void> _unhideChat(String chatId) async {
     if (currentUser == null) return;
 
@@ -190,7 +216,7 @@ void _listenNewMessages() {
     }
   }
 
-  // 🔥 Bottom Sheet bei Longpress
+  //  Bottom Sheet bei Longpress
   void _showChatOptions(Map<String, dynamic> chat) {
     if (chat['docId'] == null) return;
 
