@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
-import 'package:nexxchat_firebase/core/navigation.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
@@ -37,6 +36,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   String? _openedConversationId;
   Timestamp? _lastBannerTime;
   late DateTime _appStartTime;
+  final Map<String, String> _lastShownPerConv = {};
 
   /// IDs of hidden conversations
   List<String> _hiddenChats = [];
@@ -61,7 +61,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     _pageController = PageController(initialPage: _selectedIndex);
     _loadTheme();
     _loadHiddenChats();
-    _saveFcmToken(); // NEU: Adresse des Handys speichern
+    _saveFcmToken(); //Adresse des Handys speichern
     _listenIncomingCalls();
     _listenNewMessages();
   }
@@ -72,42 +72,48 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     super.dispose();
     _msgSub?.cancel();
   }
+void _listenNewMessages() {
+  final uid = currentUser?.uid;
+  if (uid == null) return;
 
-  void _listenNewMessages() {
-    final uid = currentUser?.uid;
-    if (uid == null) return;
+  _msgSub = _firestore
+      .collection("conversations")
+      .where("members", arrayContains: uid)
+      .snapshots()
+      .listen((snap) async {
 
-    _msgSub = _firestore
-        .collection("conversations")
-        .where("members", arrayContains: uid)
-        .orderBy("lastMessageTime", descending: true)
-        .snapshots()
-        .listen((snap) async {
-      if (snap.docs.isEmpty) return;
+    for (final change in snap.docChanges) {
 
-      final doc = snap.docs.first;
+      if (change.type != DocumentChangeType.modified) continue;
+
+      final doc = change.doc;
+
+      if (doc.metadata.hasPendingWrites) continue;
+
       final conv = doc.data();
+      if (conv == null) continue;
 
       final senderId = conv["lastSenderId"];
       final text = conv["lastMessage"] ?? "";
       final time = conv["lastMessageTime"] as Timestamp?;
       final conversationId = doc.id;
-      if (time == null) return;
 
-      final msgTime = time.toDate();
+      if (senderId == uid) continue;
+      if (ChatOpenTracker.openedConversationId == conversationId) continue;
+      if (time == null) continue;
+      if (time.toDate().isBefore(_appStartTime)) continue;
 
-      if (senderId == uid) return;
-      if (ChatOpenTracker.openedConversationId == conversationId) return;
-      if (msgTime.isBefore(_appStartTime)) return;
-      if (_lastBannerTime != null &&
-          time.millisecondsSinceEpoch ==
-              _lastBannerTime!.millisecondsSinceEpoch) {
-        return;
-      }
+      // 🔥 MAGIC LINE (dedupe)
+      final key = "$senderId|$text";
 
-      _lastBannerTime = time;
+      if (_lastShownPerConv[conversationId] == key) continue;
 
-      final name = conv["lastSenderName"] ?? conv["lastSenderEmail"] ?? "User";
+      _lastShownPerConv[conversationId] = key;
+
+      final name =
+          conv["lastSenderName"] ??
+          conv["lastSenderEmail"] ??
+          "User";
 
       if (!mounted) return;
 
@@ -115,6 +121,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
         context,
         title: name,
         message: text,
+        avatarUrl: conv["lastSenderPhoto"],
         onTap: () {
           Navigator.push(
             context,
@@ -127,9 +134,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           );
         },
       );
-    });
-  }
-
+    }
+  });
+}
   void _listenIncomingCalls() {
     final uid = currentUser?.uid;
     if (uid == null) return;

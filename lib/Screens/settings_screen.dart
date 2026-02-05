@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/profile_screen.dart';
 import 'package:nexxchat_firebase/Screens/security_screen.dart';
+import 'package:nexxchat_firebase/core/services/notification_settings.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -130,7 +131,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: "Notifications",
                     accentColor: accentColor,
                     isDark: isDark,
-                    onTap: () {},
+                    onTap: () async {
+                      final current =
+                          await NotificationSettings.isSoundEnabled();
+
+                      await NotificationSettings.setSound(!current);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            !current
+                                ? "Notification sound ON 🔊"
+                                : "Notification sound OFF 🔇",
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
