@@ -126,28 +126,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  _SettingsTile(
-                    icon: Icons.notifications_outlined,
-                    title: "Notifications",
-                    accentColor: accentColor,
-                    isDark: isDark,
-                    onTap: () async {
-                      final current =
-                          await NotificationSettings.isSoundEnabled();
-
-                      await NotificationSettings.setSound(!current);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            !current
-                                ? "Notification sound ON 🔊"
-                                : "Notification sound OFF 🔇",
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                 ValueListenableBuilder<bool>(
+  valueListenable: NotificationSettings.soundEnabled,
+  builder: (_, enabled, __) {
+    return _SettingsTile(
+      icon: enabled
+          ? Icons.notifications_outlined
+          : Icons.notifications_off_outlined,
+      title: "Notifications",
+      accentColor: accentColor,
+      isDark: isDark,
+      onTap: () async {
+        await NotificationSettings.setSound(!enabled);
+      },
+    );
+  },
+),
                 ],
               ),
 

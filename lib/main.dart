@@ -14,8 +14,8 @@ import 'package:nexxchat_firebase/core/call_listener.dart';
 import 'package:nexxchat_firebase/core/navigation.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import 'package:provider/provider.dart';
-
-import 'core/call/call_session.dart';
+import 'package:nexxchat_firebase/core/services/notification_settings.dart'
+    as app_notif;import 'core/call/call_session.dart';
 import 'theme_notifier.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -42,7 +42,7 @@ void main() async {
       ?.createNotificationChannel(channel);
 
   await ChatTheme.loadAll();
-
+await app_notif.NotificationSettings.load();
   runApp(
   MultiProvider(
     providers: [
