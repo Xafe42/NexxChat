@@ -40,16 +40,32 @@ exports.sendMessageNotification = onDocumentCreated(
 
       if (!token) continue;
 
-      await getMessaging().send({
-        token: token,
-        notification: {
-          title: "New message",
-          body: text,
-        },
-        data: {
-          conversationId: conversationId,
-        },
-      });
+await getMessaging().send({
+  token: token,
+
+  notification: {
+    title: conv.title || msg.senderName || "New message",
+    body: text,
+  },
+
+  android: {
+    priority: "high",
+    notification: {
+      channelId: "chat_messages",
+      sound: "default",
+      visibility: "public",
+      priority: "high",
+      defaultSound: true,
+      defaultVibrateTimings: true,
+    },
+  },
+
+  data: {
+    conversationId: conversationId,
+    senderId: senderId,
+    click_action: "FLUTTER_NOTIFICATION_CLICK",
+  },
+});
     }
   }
 );

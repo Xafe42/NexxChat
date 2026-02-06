@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
 import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
+import 'package:nexxchat_firebase/core/navigation.dart';
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
@@ -52,10 +53,24 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   final Set<String> _handledCallIds = {};
   final bool _incomingDialogOpen = false;
-
+  String? _initialConversationId;
   @override
   void initState() {
     super.initState();
+    if (_initialConversationId != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      globalNavigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => PrivateChatScreen(
+            conversationId: _initialConversationId!,
+            title: 'Chat',
+          ),
+        ),
+      );
+      _initialConversationId = null; // مهم
+    });
+  }
+    _setupFCMClickHandling();
     _appStartTime = DateTime.now();
     currentUser = _auth.currentUser;
     _pageController = PageController(initialPage: _selectedIndex);
@@ -162,7 +177,21 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
       }
     });
   }
+void _setupFCMClickHandling() {
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    final convId = message.data['conversationId'];
+    if (convId == null) return;
 
+    globalNavigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => PrivateChatScreen(
+          conversationId: convId,
+          title: 'Chat',
+        ),
+      ),
+    );
+  });
+}
   void _listenIncomingCalls() {
     final uid = currentUser?.uid;
     if (uid == null) return;
@@ -170,6 +199,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   Future<void> _saveFcmToken() async {
     String? token = await FirebaseMessaging.instance.getToken();
+    print("FCM TOKEN = $token");
     if (token != null && currentUser != null) {
       await _firestore.collection("users").doc(currentUser!.uid).set({
         'fcmToken': token.trim(),

@@ -17,20 +17,28 @@ import 'package:provider/provider.dart';
 import 'package:nexxchat_firebase/core/services/notification_settings.dart'
     as app_notif;import 'core/call/call_session.dart';
 import 'theme_notifier.dart';
+String? initialConversationId;
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await FirebaseMessaging.instance.requestPermission(
+  alert: true,
+  badge: true,
+  sound: true,
+);
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'chat_messages', 
     'Chat Benachrichtigungen',
+    description: 'Incoming chat messages',
     importance: Importance.max, 
     enableVibration: true,
     playSound: true,
@@ -43,6 +51,13 @@ void main() async {
 
   await ChatTheme.loadAll();
 await app_notif.NotificationSettings.load();
+RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
+
+    initialConversationId = initialMessage?.data['conversationId'];
+
+
+
   runApp(
   MultiProvider(
     providers: [
