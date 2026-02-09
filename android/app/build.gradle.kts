@@ -18,10 +18,16 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "at.isha.nexxchat_firebase"
     compileSdk = 36
+    
+    // Die NDK Version ist wichtig für die nativen Bibliotheken von speech_to_text
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "at.isha.nexxchat_firebase"
+        
+        // ÄNDERUNG: Manuell auf 21 setzen, damit das Mikrofon-Plugin funktioniert
         minSdk = flutter.minSdkVersion 
+        
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"

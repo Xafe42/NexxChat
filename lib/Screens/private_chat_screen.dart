@@ -1,15 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:nexxchat_firebase/Screens/chat_home_screen.dart';
+import 'package:nexxchat_firebase/Screens/ai_video_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
 import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
 import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
@@ -143,7 +141,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
- 
   // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
@@ -218,112 +215,110 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // Basic send (text or command)
-Future<void> _send() async {
-  final text = _ctrl.text.trim();
-  if (text.isEmpty || _sending || _user == null) return;
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending || _user == null) return;
 
-  // AI 
-  if (text.startsWith("/ai ")) {
-    final prompt = text.replaceFirst("/ai ", "").trim();
-    if (prompt.isEmpty) return;
+    // AI
+    if (text.startsWith("/ai ")) {
+      final prompt = text.replaceFirst("/ai ", "").trim();
+      if (prompt.isEmpty) return;
+
+      setState(() => _sending = true);
+      _ctrl.clear();
+
+      try {
+        await _chatService.sendTextMessage(
+          conversationId: widget.conversationId,
+          text: "🤖 Fragt KI: $prompt",
+          senderUid: _user!.uid,
+          senderEmail: _user!.email ?? '',
+        );
+
+        await _updateConversationMeta("🤖 Fragt KI: $prompt");
+
+        final response = await fetchAi(prompt);
+
+        await _sendAiMessage(
+          prompt: prompt,
+          response: response,
+        );
+      } finally {
+        if (mounted) setState(() => _sending = false);
+      }
+      return;
+    }
+
+    // Commands
+    if (_aktiveCmd != null) {
+      final cmd = _aktiveCmd!;
+      if (cmd.type == "hello") {
+        await _sendHelloCommand(cmd);
+        _resetInput();
+        return;
+      }
+    }
+
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(_user!.uid)
+        .update({
+      "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
+    });
 
     setState(() => _sending = true);
-    _ctrl.clear();
 
     try {
       await _chatService.sendTextMessage(
         conversationId: widget.conversationId,
-        text: "🤖 Fragt KI: $prompt",
+        text: text,
         senderUid: _user!.uid,
         senderEmail: _user!.email ?? '',
       );
 
-      await _updateConversationMeta("🤖 Fragt KI: $prompt");
+      await _updateConversationMeta(text);
 
-      final response = await fetchAi(prompt);
+      _ctrl.clear();
+      _raw = "";
+      _aktiveCmd = null;
+      _setTyping(false);
 
-      await _sendAiMessage(
-        prompt: prompt,
-        response: response,
-      );
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
-    return;
   }
 
-  // Commands 
-  if (_aktiveCmd != null) {
-    final cmd = _aktiveCmd!;
-    if (cmd.type == "hello") {
-      await _sendHelloCommand(cmd);
-      _resetInput();
-      return;
-    }
+  Future<void> _updateConversationMeta(String text) async {
+    if (_user == null) return;
+
+    final myDoc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(_user!.uid)
+        .get();
+
+    final myName = myDoc.data()?["fullName"] ??
+        myDoc.data()?["name"] ??
+        _user!.email ??
+        "User";
+
+    await FirebaseFirestore.instance
+        .collection("conversations")
+        .doc(widget.conversationId)
+        .set({
+      "lastMessage": text,
+      "lastMessageTime": FieldValue.serverTimestamp(),
+      "lastSenderId": _user!.uid,
+      "lastSenderName": myName,
+      "lastSenderEmail": _user!.email,
+    }, SetOptions(merge: true));
   }
-
-  await FirebaseFirestore.instance
-      .collection("users")
-      .doc(_user!.uid)
-      .update({
-    "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
-  });
-
-  setState(() => _sending = true);
-
-  try {
-    await _chatService.sendTextMessage(
-      conversationId: widget.conversationId,
-      text: text,
-      senderUid: _user!.uid,
-      senderEmail: _user!.email ?? '',
-    );
-
-    await _updateConversationMeta(text);
-
-    _ctrl.clear();
-    _raw = "";
-    _aktiveCmd = null;
-    _setTyping(false);
-
-    if (_scrollCtrl.hasClients) {
-      _scrollCtrl.animateTo(
-        0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _sending = false);
-  }
-}
-
-Future<void> _updateConversationMeta(String text) async {
-  if (_user == null) return;
-
-  final myDoc = await FirebaseFirestore.instance
-      .collection("users")
-      .doc(_user!.uid)
-      .get();
-
-  final myName =
-      myDoc.data()?["fullName"] ??
-      myDoc.data()?["name"] ??
-      _user!.email ??
-      "User";
-
-  await FirebaseFirestore.instance
-    .collection("conversations")
-    .doc(widget.conversationId)
-    .set({
-  "lastMessage": text,
-  "lastMessageTime": FieldValue.serverTimestamp(),
-  "lastSenderId": _user!.uid,
-  "lastSenderName": myName,
-  "lastSenderEmail": _user!.email,
-}, SetOptions(merge: true));
-}
-   
 
   // Special send helpers (mini-apps)
 
@@ -1862,6 +1857,18 @@ Future<void> _updateConversationMeta(String text) async {
                 _ctrl.selection = TextSelection.fromPosition(
                     TextPosition(offset: _ctrl.text.length));
                 setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "💖",
+              title: "AI Call",
+              onTap: () {
+                setState(() => _isSlashToolbarVisible = false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          const AiVideoCallScreen(name: "Deine KI-Freundin")),
+                );
               }),
           _commandTile(
               icon: "➕",
