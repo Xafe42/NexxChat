@@ -1805,6 +1805,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         childAspectRatio: 0.85,
         physics: const NeverScrollableScrollPhysics(),
         children: [
+          /*
           _commandTile(
               icon: "👋",
               title: "Hello",
@@ -1813,6 +1814,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 _onTextChanged("/hello ");
                 setState(() => _isSlashToolbarVisible = false);
               }),
+              */
           _commandTile(icon: "🖼️", title: "Galerie", onTap: _pickFromGallery),
           _commandTile(
               icon: "🧠",
