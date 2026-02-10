@@ -8,7 +8,7 @@ class AiCompanionService {
 
   // Wir nutzen exakt deine funktionierende Konfiguration vom Support Bot
   static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
-  static const String model = 'gemini-2.5-flash-preview-09-2025';
+  static const String model = 'gemini-2.5-flash-lite';
   static const String apiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
 
@@ -20,7 +20,7 @@ class AiCompanionService {
     _tts.setLanguage("de-DE");
     // Optimierung für eine „echtere“ Stimme
     _tts.setSpeechRate(0.45); // Etwas langsamer wirkt oft natürlicher
-    _tts.setPitch(1.0);       // Neutraler Pitch
+    _tts.setPitch(1.0); // Neutraler Pitch
     _tts.setVolume(1.0);
   }
 
@@ -41,8 +41,7 @@ class AiCompanionService {
         'systemInstruction': {
           'parts': [
             {
-              'text':
-                  '$systemPrompt Deine Antworten müssen IMMER extrem kurz sein (maximal 1 bis 2 Sätze). '
+              'text': '$systemPrompt Deine Antworten müssen IMMER extrem kurz sein (maximal 1 bis 2 Sätze). '
                   'Antworte als deine persönliche KI. '
                   'WICHTIG: Benutze NIEMALS Smileys, Emojis oder Sonderzeichen wie :) oder :D in deinen Antworten.'
             }
@@ -50,11 +49,13 @@ class AiCompanionService {
         }
       };
 
-      final res = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 10));
+      final res = await http
+          .post(
+            Uri.parse(apiUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(utf8.decode(res.bodyBytes));
@@ -62,7 +63,8 @@ class AiCompanionService {
             "Ich höre dir zu.";
       } else {
         print("API Fehler: ${res.statusCode}");
-        if (res.statusCode == 429) return "Zu viele Anfragen. Bitte warte kurz.";
+        if (res.statusCode == 429)
+          return "Zu viele Anfragen. Bitte warte kurz.";
         return "Ich hab gerade ein technisches Problem.";
       }
     } catch (e) {

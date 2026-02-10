@@ -1,7 +1,7 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 class SupportBotScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
 
   //Gemini Config
   static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
-  static const String model = 'gemini-2.5-flash-preview-09-2025';
+  static const String model = 'gemini-2.5-flash';
   static const String apiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
 
