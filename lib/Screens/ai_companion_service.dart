@@ -18,15 +18,17 @@ class AiCompanionService {
 
   void _initTts() {
     _tts.setLanguage("de-DE");
-    _tts.setSpeechRate(0.5);
-    _tts.setPitch(1.1);
+    // Optimierung für eine „echtere“ Stimme
+    _tts.setSpeechRate(0.45); // Etwas langsamer wirkt oft natürlicher
+    _tts.setPitch(1.0);       // Neutraler Pitch
+    _tts.setVolume(1.0);
   }
 
   FlutterTts get tts => _tts;
 
-  Future<String> getResponse(String userText) async {
+  // Akzeptiert jetzt userText UND den systemPrompt
+  Future<String> getResponse(String userText, String systemPrompt) async {
     try {
-      // Wir bauen den Payload exakt wie im Support Bot
       final payload = {
         'contents': [
           {
@@ -40,7 +42,9 @@ class AiCompanionService {
           'parts': [
             {
               'text':
-                  'Du bist Bärbel, die liebevolle KI-Freundin des Nutzers. Antworte liebevoll, humorvoll und EXTREM KURZ (maximal 2 Sätze).'
+                  '$systemPrompt Deine Antworten müssen IMMER extrem kurz sein (maximal 1 bis 2 Sätze). '
+                  'Antworte als deine persönliche KI. '
+                  'WICHTIG: Benutze NIEMALS Smileys, Emojis oder Sonderzeichen wie :) oder :D in deinen Antworten.'
             }
           ]
         }
@@ -55,10 +59,11 @@ class AiCompanionService {
       if (res.statusCode == 200) {
         final data = jsonDecode(utf8.decode(res.bodyBytes));
         return data['candidates']?[0]['content']?['parts']?[0]['text'] ??
-            "Ich höre dir zu, mein Schatz.";
+            "Ich höre dir zu.";
       } else {
-        print("Bärbel API Fehler: ${res.statusCode} - ${res.body}");
-        return "Ich hab gerade ein kleines Funkloch, Liebling.";
+        print("API Fehler: ${res.statusCode}");
+        if (res.statusCode == 429) return "Zu viele Anfragen. Bitte warte kurz.";
+        return "Ich hab gerade ein technisches Problem.";
       }
     } catch (e) {
       print("Netzwerkfehler: $e");

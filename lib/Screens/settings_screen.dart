@@ -69,6 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               _profileHeader(isDark),
+
               // -------- Appearance Section --------
               _sectionTitle("APPEARANCE"),
               _SettingsGroup(
@@ -107,6 +108,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 30),
 
+              // -------- AI Section --------
+              _sectionTitle("AI COMPANION"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.auto_awesome_outlined,
+                    title: "AI Personality",
+                    subtitle: "Customize how your AI responds",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AiSettingsScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 30),
+
               // -------- Security Section --------
               _sectionTitle("PRIVACY & SECURITY"),
               _SettingsGroup(
@@ -126,22 +151,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                 ValueListenableBuilder<bool>(
-  valueListenable: NotificationSettings.soundEnabled,
-  builder: (_, enabled, __) {
-    return _SettingsTile(
-      icon: enabled
-          ? Icons.notifications_outlined
-          : Icons.notifications_off_outlined,
-      title: "Notifications",
-      accentColor: accentColor,
-      isDark: isDark,
-      onTap: () async {
-        await NotificationSettings.setSound(!enabled);
-      },
-    );
-  },
-),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: NotificationSettings.soundEnabled,
+                    builder: (_, enabled, __) {
+                      return _SettingsTile(
+                        icon: enabled
+                            ? Icons.notifications_outlined
+                            : Icons.notifications_off_outlined,
+                        title: "Notifications",
+                        accentColor: accentColor,
+                        isDark: isDark,
+                        onTap: () async {
+                          await NotificationSettings.setSound(!enabled);
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
 
@@ -342,6 +367,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
             fontWeight: FontWeight.bold,
             color: Colors.grey[500],
             letterSpacing: 1.2),
+      ),
+    );
+  }
+}
+
+// --- AI SETTINGS SCREEN ---
+
+class AiSettingsScreen extends StatefulWidget {
+  const AiSettingsScreen({super.key});
+
+  @override
+  State<AiSettingsScreen> createState() => _AiSettingsScreenState();
+}
+
+class _AiSettingsScreenState extends State<AiSettingsScreen> {
+  final _promptController = TextEditingController();
+  final _user = FirebaseAuth.instance.currentUser;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentPrompt();
+  }
+
+  Future<void> _loadCurrentPrompt() async {
+    if (_user == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user!.uid)
+        .get();
+    if (doc.exists && doc.data()!['ai_prompt'] != null) {
+      _promptController.text = doc.data()!['ai_prompt'];
+    } else {
+      _promptController.text = "Du bist eine hilfreiche persönliche KI.";
+    }
+  }
+
+  Future<void> _savePrompt() async {
+    if (_user == null) return;
+    setState(() => _isSaving = true);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user!.uid)
+        .update({
+      'ai_prompt': _promptController.text.trim(),
+    });
+    setState(() => _isSaving = false);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = themeNotifier.value == ThemeMode.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text("KI Einstellungen", style: TextStyle(color: textColor)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text("ANWEISUNGEN FÜR DIE KI",
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: TextField(
+              controller: _promptController,
+              maxLines: 6,
+              style: TextStyle(color: textColor),
+              decoration: const InputDecoration(
+                hintText: "Schreibe hier, wie die KI sich verhalten soll...",
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text("Vorlagen:", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            children: [
+              ActionChip(
+                label: const Text("Support Bot"),
+                onPressed: () => _promptController.text =
+                    "Du bist ein professioneller Support Bot. Antworte sachlich, präzise und hilfsbereit.",
+              ),
+              ActionChip(
+                label: const Text("Girlfriend"),
+                onPressed: () => _promptController.text =
+                    "Ich bin deine Freundin. Antworte liebevoll, humorvoll und ohne Emojis.",
+              ),
+              ActionChip(
+                label: const Text("Angry Coach"),
+                onPressed: () => _promptController.text =
+                    "Du bist ein strenger Fitness-Coach. Sei fordernd, motivierend und benutze keine Emojis.",
+              ),
+            ],
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _savePrompt,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ChatTheme.myBubbleColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: _isSaving
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text("Einstellungen speichern",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
