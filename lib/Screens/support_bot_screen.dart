@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
@@ -24,6 +26,8 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
   ];
 
   bool _isLoading = false;
+  String _systemPrompt =
+      "Du bist ein hilfreicher Support Bot. Antworte kurz, klar und hilfreich.";
 
   //Gemini Config
   static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
@@ -35,11 +39,27 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
   void initState() {
     super.initState();
     _loadTheme();
+    _loadSystemPrompt();
   }
 
   void _loadTheme() async {
     await ChatTheme.loadTheme();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadSystemPrompt() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && doc.data()?['ai_prompt'] != null) {
+        setState(() {
+          _systemPrompt = doc.data()!['ai_prompt'];
+        });
+      }
+    }
   }
 
   //AI CALL
@@ -58,10 +78,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
         'contents': history,
         'systemInstruction': {
           'parts': [
-            {
-              'text':
-                  'Du bist ein hilfreicher Support Bot. Antworte kurz, klar und hilfreich.'
-            }
+            {'text': _systemPrompt}
           ]
         }
       };
@@ -83,7 +100,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     }
   }
 
-  //SEND 
+  //SEND
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isLoading) return;
@@ -128,7 +145,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
 
-      //  APP BAR 
+      //  APP BAR
       appBar: AppBar(
         backgroundColor: ChatTheme.myBubbleColor,
         elevation: 0,
@@ -141,8 +158,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.white,
-              child: Icon(Icons.support_agent,
-                  size: 18, color: Colors.black),
+              child: Icon(Icons.support_agent, size: 18, color: Colors.black),
             ),
             SizedBox(width: 10),
             Text(
@@ -159,7 +175,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
 
       body: Column(
         children: [
-          // CHAT 
+          // CHAT
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -184,7 +200,6 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                               size: 18, color: Colors.black),
                         ),
                       if (!isMe) const SizedBox(width: 8),
-
                       Flexible(
                         child: _bubble(
                           text: msg['text'] ?? "",
@@ -199,7 +214,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             ),
           ),
 
-          // TYPING 
+          // TYPING
           if (_isLoading)
             Padding(
               padding: const EdgeInsets.only(left: 18, bottom: 8),
@@ -213,8 +228,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                   SizedBox(width: 8),
                   Text(
                     "Support Bot schreibt…",
-                    style: TextStyle(
-                        fontSize: 13, fontStyle: FontStyle.italic),
+                    style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
                   ),
                 ],
               ),
@@ -225,7 +239,6 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
             color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: SafeArea(
-              top: false,
               child: Row(
                 children: [
                   Expanded(
@@ -235,8 +248,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
                       decoration: InputDecoration(
                         hintText: "Schreibe eine Frage…",
                         filled: true,
-                        fillColor:
-                            isDark ? Colors.grey[800] : Colors.grey[100],
+                        fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
