@@ -35,8 +35,18 @@ class _EventPreviewState extends State<EventPreview> {
 
   String _formatMonth(int m) {
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return months[m - 1];
   }
@@ -81,7 +91,8 @@ class _EventPreviewState extends State<EventPreview> {
     // Validierung: Titel und Datum/Uhrzeit müssen gesetzt sein
     if (_title.text.trim().isEmpty || dt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bitte Titel, Datum und Uhrzeit ausfüllen')),
+        const SnackBar(
+            content: Text('Bitte Titel, Datum und Uhrzeit ausfüllen')),
       );
       return;
     }
@@ -105,7 +116,7 @@ class _EventPreviewState extends State<EventPreview> {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.blue.shade700,
         borderRadius: BorderRadius.circular(22),
@@ -118,7 +129,7 @@ class _EventPreviewState extends State<EventPreview> {
         ],
       ),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(18),
@@ -130,33 +141,34 @@ class _EventPreviewState extends State<EventPreview> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade700,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     children: [
                       Text(
                         _date == null ? "--" : _formatMonth(_date!.month),
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10),
                       ),
                       Text(
                         _date == null ? "--" : _date!.day.toString(),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Text(
                   "New Event",
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                   ),
@@ -164,78 +176,78 @@ class _EventPreviewState extends State<EventPreview> {
               ],
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
             // ---------- FIELDS ----------
             TextField(
               controller: _title,
-              style: TextStyle(color: textColor, fontSize: 14),
+              style: TextStyle(color: textColor, fontSize: 13),
               decoration: InputDecoration(
                 labelText: "Title",
-                labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 12),
                 border: const OutlineInputBorder(),
                 isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today, size: 14),
-                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                    icon: const Icon(Icons.calendar_today, size: 12),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 36),
+                    ),
                     label: Text(
                       _date == null ? "Date" : "${_date!.day}.${_date!.month}.",
-                      style: TextStyle(color: textColor, fontSize: 12),
+                      style: TextStyle(color: textColor, fontSize: 11),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _pickTime,
-                    icon: const Icon(Icons.access_time, size: 14),
-                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                    icon: const Icon(Icons.access_time, size: 12),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 36),
+                    ),
                     label: Text(
                       _time == null ? "Time" : _time!.format(context),
-                      style: TextStyle(color: textColor, fontSize: 12),
+                      style: TextStyle(color: textColor, fontSize: 11),
                     ),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
             TextField(
               controller: _location,
-              style: TextStyle(color: textColor, fontSize: 14),
+              style: TextStyle(color: textColor, fontSize: 13),
               decoration: InputDecoration(
                 labelText: "Location",
-                labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 12),
                 border: const OutlineInputBorder(),
                 isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
             ),
 
-            const SizedBox(height: 8),
-
-            TextField(
-              controller: _description,
-              style: TextStyle(color: textColor, fontSize: 14),
-              maxLines: 1,
-              decoration: InputDecoration(
-                labelText: "Description (optional)",
-                labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
             // ---------- BUTTONS ----------
             Row(
@@ -243,6 +255,7 @@ class _EventPreviewState extends State<EventPreview> {
               children: [
                 TextButton(
                   onPressed: widget.onCancel,
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 36)),
                   child: const Text("Cancel"),
                 ),
                 ElevatedButton(
@@ -250,9 +263,9 @@ class _EventPreviewState extends State<EventPreview> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    minimumSize: const Size(80, 36),
                   ),
-                  child: const Text("Send"),
+                  child: const Text("Send", style: TextStyle(fontSize: 13)),
                 ),
               ],
             )
