@@ -57,151 +57,153 @@ class _CallTimePreviewState extends State<CallTimePreview> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
-    return Center(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade700,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.black.withOpacity(0.15),
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.blue.shade700,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 20,
-              color: Colors.black.withOpacity(0.20),
-              offset: const Offset(0, 8),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ---------- HEADER ----------
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade700,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _date == null ? "--" : _formatMonth(_date!.month),
+                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                      Text(
+                        _date == null ? "--" : _date!.day.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  "Call Time",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // ---------- DATE + TIME ----------
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  _date == null || _time == null
+                      ? "Select date & time"
+                      : "${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}    "
+                          "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}",
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // ---------- PICKERS ----------
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _pickDate,
+                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Text("Pick Date", style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _pickTime,
+                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Text("Pick Time", style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // ---------- NOTE ----------
+            TextField(
+              controller: _note,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: "Description (optional)",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              maxLines: 1,
+            ),
+
+            const SizedBox(height: 14),
+
+            // ---------- BUTTONS ----------
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: widget.onCancel,
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_date == null || _time == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Select date & time")),
+                      );
+                      return;
+                    }
+
+                    final formattedDate =
+                        "${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}";
+
+                    final formattedTime =
+                        "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}";
+
+                    widget.onSend({
+                      "date": formattedDate,
+                      "time": formattedTime,
+                      "note": _note.text.trim(),
+                    });
+                  },
+                  child: const Text("Send"),
+                ),
+              ],
             )
           ],
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ---------- HEADER ----------
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade700,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _date == null ? "--" : _formatMonth(_date!.month),
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                        Text(
-                          _date == null ? "--" : _date!.day.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    "Call Time",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // ---------- DATE + TIME ----------
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    _date == null || _time == null
-                        ? "Select date & time"
-                        : "${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}   "
-                            "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}",
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // ---------- PICKERS ----------
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _pickDate,
-                      child: const Text("Pick Date"),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _pickTime,
-                      child: const Text("Pick Time"),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // ---------- NOTE ----------
-              TextField(
-                controller: _note,
-                decoration: const InputDecoration(
-                  labelText: "Description (optional)",
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 20),
-
-              // ---------- BUTTONS ----------
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text("Cancel"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_date == null || _time == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Select date & time")),
-                        );
-                        return;
-                      }
-
-                      final formattedDate =
-                          "${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}";
-
-                      final formattedTime =
-                          "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}";
-
-                      widget.onSend({
-                        "date": formattedDate,
-                        "time": formattedTime,
-                        "note": _note.text.trim(),
-                      });
-                    },
-                    child: const Text("Send"),
-                  ),
-                ],
-              )
-            ],
-          ),
         ),
       ),
     );
