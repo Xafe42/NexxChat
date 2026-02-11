@@ -35,7 +35,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
 
   late final AnimationController _dotController;
   late final Animation<int> _dotAnimation;
-
+  Timer? _timeoutTimer;
   bool _navigated = false;
   bool _closed = false;
 
@@ -51,6 +51,19 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
     _dotAnimation = IntTween(begin: 1, end: 3).animate(_dotController);
 
     _sub = _callService.listenCall(widget.callId).listen(_onCallUpdate);
+    _timeoutTimer = Timer(const Duration(seconds: 30), () async {
+    final doc = await FirebaseFirestore.instance
+        .collection("calls")
+        .doc(widget.callId)
+        .get();
+
+    final status = doc.data()?["status"];
+
+    if (status == "ringing") {
+      await _callService.cancelCall(widget.callId);
+      _safeClose();
+    }
+  });
   }
 
   Future<void> _onCallUpdate(
@@ -63,6 +76,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
 
    if ((status == 'accepted' || status == 'active') && !_navigated){
     RingtoneService.stop();
+    _timeoutTimer?.cancel();
       _navigated = true;
 
       final engine = WebRTCCallEngine(
@@ -125,6 +139,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
 
   @override
   void dispose() {
+    _timeoutTimer?.cancel();
     _sub?.cancel();
     _dotController.dispose();
     super.dispose();
