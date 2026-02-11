@@ -9,23 +9,33 @@ class CallService {
     required String callerId,
     required String receiverId,
     String? callerName,
-    String type = "video", 
+    String type = "video",
   }) async {
-    final callId = '${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
+    final callId =
+        '${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
     await _db.collection('calls').doc(callId).set({
       'callId': callId,
       'conversationId': conversationId,
+
       'callerId': callerId,
       'callerName': callerName,
+
       'receiverId': receiverId,
       'isGroup': false,
+      'members': [callerId, receiverId],
+
+      'participants': [callerId],
+
       'callType': type,
       'status': 'ringing',
+
       'createdAt': FieldValue.serverTimestamp(),
+
       'acceptedAtMs': null,
       'endedAtMs': null,
       'duration': 0,
+
       'summaryWritten': false,
     });
 
@@ -38,119 +48,97 @@ class CallService {
     required String callerId,
     required List<String> members,
     String? callerName,
-    String type = "video", 
+    String type = "video",
   }) async {
-    final callId = 'group_${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
+    final callId =
+        'group_${conversationId}_${DateTime.now().millisecondsSinceEpoch}';
 
     await _db.collection('calls').doc(callId).set({
       'callId': callId,
       'conversationId': conversationId,
+
       'callerId': callerId,
       'callerName': callerName,
+
       'members': members,
       'isGroup': true,
+
+      'participants': [callerId],
+
       'callType': type,
       'status': 'ringing',
+
       'createdAt': FieldValue.serverTimestamp(),
+
       'acceptedAtMs': null,
       'endedAtMs': null,
       'duration': 0,
+
       'summaryWritten': false,
     });
 
     return callId;
   }
 
-  /// LISTENERS
-  Stream<DocumentSnapshot<Map<String, dynamic>>> listenCall(String callId) {
+  /// LISTEN CALL
+  Stream<DocumentSnapshot<Map<String, dynamic>>> listenCall(
+      String callId) {
     return _db.collection('calls').doc(callId).snapshots();
   }
 
-  /// Incoming PRIVATE calls (optionally filter by type)
-  Stream<QuerySnapshot<Map<String, dynamic>>> listenIncomingPrivateCalls(
-    String userId, {
-    String? type, // "video" / "audio" / null => all
-  }) {
-    var q = _db
-        .collection('calls')
-        .where('isGroup', isEqualTo: false)
-        .where('receiverId', isEqualTo: userId)
-        .where('status', isEqualTo: 'ringing');
+  /// ACCEPT CALL
+  Future<void> acceptCall(String callId, String userId) async {
+    final ref = _db.collection("calls").doc(callId);
 
-    if (type != null) q = q.where('type', isEqualTo: type);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
 
-    return q.snapshots();
-  }
+      final data = snap.data()!;
+      final participants =
+          List<String>.from(data["participants"] ?? []);
 
-  /// Incoming GROUP calls (optionally filter by type)
-  Stream<QuerySnapshot<Map<String, dynamic>>> listenIncomingGroupCalls(
-    String userId, {
-    String? type, // "video" / "audio" / null => all
-  }) {
-    var q = _db
-        .collection('calls')
-        .where('isGroup', isEqualTo: true)
-        .where('members', arrayContains: userId)
-        .where('status', isEqualTo: 'ringing');
+      if (!participants.contains(userId)) {
+        participants.add(userId);
+      }
 
-    if (type != null) q = q.where('type', isEqualTo: type);
-
-    return q.snapshots();
-  }
-
-  /// STATE CHANGES
- Future<void> acceptCall(String callId, String userId) async {
-  final ref = _db.collection("calls").doc(callId);
-
-  await _db.runTransaction((tx) async {
-    final snap = await tx.get(ref);
-    if (!snap.exists) return;
-
-    final data = snap.data()!;
-    final participants = List<String>.from(data["participants"] ?? []);
-
-    
-    if (!participants.contains(userId)) {
-      participants.add(userId);
-    }
-
-    tx.update(ref, {
-      "status": "active", 
-      "participants": participants,
-      "callerId": participants.first,
-      "acceptedAtMs": DateTime.now().millisecondsSinceEpoch,
+      tx.update(ref, {
+        "status": "active",
+        "participants": participants,
+        "acceptedAtMs":
+            data["acceptedAtMs"] ??
+                DateTime.now().millisecondsSinceEpoch,
+      });
     });
-  });
-}
+  }
+
+  /// DECLINE
   Future<void> declineCall(String callId) async {
     await _db.collection('calls').doc(callId).update({
       'status': 'declined',
-      'endedAt': FieldValue.serverTimestamp(),
       'endedAtMs': DateTime.now().millisecondsSinceEpoch,
     });
 
     await _logCallMessageIfNeeded(callId);
   }
 
-  /// CALLER cancels before accept
+  /// CANCEL
   Future<void> cancelCall(String callId) async {
     final ref = _db.collection('calls').doc(callId);
     final snap = await ref.get();
-    if (!snap.exists) return;
 
-    final data = snap.data()!;
-    if (data['status'] != 'ringing') return;
+    if (!snap.exists) return;
+    if (snap['status'] != 'ringing') return;
 
     await ref.update({
       'status': 'cancelled',
-      'endedAt': FieldValue.serverTimestamp(),
       'endedAtMs': DateTime.now().millisecondsSinceEpoch,
     });
 
     await _logCallMessageIfNeeded(callId);
   }
 
-  /// END CALL (caller or callee)
+  /// END CALL
   Future<void> endCall(String callId) async {
     final ref = _db.collection('calls').doc(callId);
 
@@ -161,39 +149,31 @@ class CallService {
       final data = snap.data()!;
       final status = data['status'];
 
-      // already finished
       if (status == 'ended' ||
           status == 'missed' ||
           status == 'declined' ||
-          status == 'cancelled') {
-        return;
-      }
+          status == 'cancelled') return;
 
-      final acceptedAtMs = data['acceptedAtMs'] as int?;
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final start = data['acceptedAtMs'];
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-      String finalStatus;
-      int duration = 0;
+      int dur = 0;
 
-      if (acceptedAtMs == null) {
-        finalStatus = 'missed';
-      } else {
-        finalStatus = 'ended';
-        duration = ((nowMs - acceptedAtMs) / 1000).round();
+      if (start != null) {
+        dur = ((now - start) / 1000).round();
       }
 
       tx.update(ref, {
-        'status': finalStatus,
-        'endedAt': FieldValue.serverTimestamp(),
-        'endedAtMs': nowMs,
-        'duration': duration,
+        'status': start == null ? 'missed' : 'ended',
+        'endedAtMs': now,
+        'duration': dur,
       });
     });
 
     await _logCallMessageIfNeeded(callId);
   }
 
-  /// CALL SUMMARY MESSAGE (writes 1 message only)
+  /// CALL SUMMARY
   Future<void> _logCallMessageIfNeeded(String callId) async {
     final callRef = _db.collection('calls').doc(callId);
 
@@ -204,59 +184,40 @@ class CallService {
       final data = snap.data()!;
       if (data['summaryWritten'] == true) return;
 
-      final conversationId = data['conversationId'];
+      final convId = data['conversationId'];
       final callerId = data['callerId'];
-      final status = (data['status'] ?? '').toString();
-      final duration = (data['duration'] ?? 0) as int;
-      final type = (data['callType'] ?? 'video').toString();
+      final status = data['status'];
+      final dur = data['duration'] ?? 0;
+      final type = data['callType'] ?? 'video';
 
-      if (conversationId == null || callerId == null) return;
+      if (convId == null || callerId == null) return;
 
-      final convRef = _db.collection('conversations').doc(conversationId);
-      final msgRef = convRef.collection('messages').doc();
-
-      final isAudio = type == 'audio';
+      final convRef =
+          _db.collection('conversations').doc(convId);
+      final msgRef =
+          convRef.collection('messages').doc();
 
       String text;
-      if (isAudio) {
-        switch (status) {
-          case 'missed':
-            text = '📞 Verpasster Sprachanruf';
-            break;
-          case 'declined':
-            text = '🚫 Sprachanruf abgelehnt';
-            break;
-          case 'cancelled':
-            text = '⏱ Sprachanruf abgebrochen';
-            break;
-          default:
-            text = '📞 Sprachanruf beendet – Dauer: ${_format(duration)}';
-        }
+
+      if (status == 'missed') {
+        text = type == 'audio'
+            ? '📞 Missed audio call'
+            : '📹 Missed video call';
+      } else if (status == 'declined') {
+        text = '🚫 Call declined';
+      } else if (status == 'cancelled') {
+        text = '⏱ Call cancelled';
       } else {
-        switch (status) {
-          case 'missed':
-            text = '📹 Verpasster Videoanruf';
-            break;
-          case 'declined':
-            text = '🚫 Videoanruf abgelehnt';
-            break;
-          case 'cancelled':
-            text = '⏱ Videoanruf abgebrochen';
-            break;
-          default:
-            text = '📹 Videoanruf beendet – Dauer: ${_format(duration)}';
-        }
+        text =
+            '${type == 'audio' ? '📞' : '📹'} Call ended – ${_format(dur)}';
       }
 
       tx.set(msgRef, {
-        'id': msgRef.id,
         'type': 'call',
         'callId': callId,
         'senderId': callerId,
-        'status': status,
-        'duration': duration,
-        'callType': type, 
         'text': text,
+        'duration': dur,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -269,9 +230,9 @@ class CallService {
     });
   }
 
-  String _format(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+  String _format(int s) {
+    final m = (s ~/ 60).toString().padLeft(2, '0');
+    final ss = (s % 60).toString().padLeft(2, '0');
+    return '$m:$ss';
   }
 }

@@ -38,14 +38,15 @@ class WebRTCCallEngine implements CallEngine {
   StreamSubscription? _docSub;
   StreamSubscription? _candSub;
   StreamSubscription? _statusSub;
+  StreamSubscription? _activeGateSub;
 
   final Set<String> _seenCandidates = {};
   final List<RTCIceCandidate> _pending = [];
 
   bool _answering = false;
+  bool _startedSignaling = false;
 
-  // INIT 
-
+  // INIT
   @override
   Future<void> init({
     required String callId,
@@ -57,6 +58,8 @@ class WebRTCCallEngine implements CallEngine {
 
     _callId = callId;
 
+    print("🧭 ENGINE INIT => role=${_isCaller ? 'CALLER' : 'CALLEE'} callId=$_callId type=$callType user=$userId");
+
     if (isVideo) {
       await _localR.initialize();
       await _remoteR.initialize();
@@ -67,22 +70,55 @@ class WebRTCCallEngine implements CallEngine {
 
     await Helper.setSpeakerphoneOn(false);
 
-    if (_isCaller) {
-      await _createOffer();
-      _listenAnswer();
-    } else {
-      _listenOfferAndAnswer();
-    }
+    // IMPORTANT:
+    // For scheduled/calltime calls, callee must NOT start answering while status is still "ringing"
+    // We wait until call doc becomes "active".
+    await _startWhenActive();
 
     _listenCandidates();
     _listenCallStatus();
-    
-    
   }
- 
-  // MEDIA 
 
+  Future<void> _startWhenActive() async {
+    // Caller can start immediately (offer)
+    if (_isCaller) {
+      _startSignaling();
+      return;
+    }
+
+    // Callee waits until Firestore status becomes "active"
+    _activeGateSub?.cancel();
+    _activeGateSub = _db.collection('calls').doc(_callId).snapshots().listen((d) {
+      final data = d.data();
+      if (data == null) return;
+
+      final status = (data['status'] ?? '').toString();
+      if (status != 'active') return;
+
+      if (_startedSignaling) return;
+      print("✅ CALL ACTIVE => callee starts signaling callId=$_callId");
+      _startSignaling();
+    });
+  }
+
+  void _startSignaling() {
+    if (_startedSignaling) return;
+    _startedSignaling = true;
+
+    print("🚦 START SIGNALING => role=${_isCaller ? 'CALLER' : 'CALLEE'} callId=$_callId");
+
+    if (_isCaller) {
+      _createOffer().then((_) {
+        _listenAnswer();
+      });
+    } else {
+      _listenOfferAndAnswer();
+    }
+  }
+
+  // MEDIA
   Future<void> _initMedia() async {
+    print("🎥 getUserMedia => video=$isVideo");
     _local = await navigator.mediaDevices.getUserMedia({
       'audio': true,
       'video': isVideo ? {'facingMode': 'user'} : false,
@@ -93,9 +129,9 @@ class WebRTCCallEngine implements CallEngine {
     }
   }
 
-  // PEER 
-
+  // PEER
   Future<void> _initPeer() async {
+    print("🔧 createPeerConnection");
     _pc = await createPeerConnection({
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
@@ -103,7 +139,7 @@ class WebRTCCallEngine implements CallEngine {
       'sdpSemantics': 'unified-plan',
     });
 
-    // add ONLY existing tracks
+    // add tracks
     for (final t in _local!.getAudioTracks()) {
       await _pc!.addTrack(t, _local!);
     }
@@ -117,10 +153,8 @@ class WebRTCCallEngine implements CallEngine {
     // remote tracks
     _pc!.onTrack = (e) {
       if (e.streams.isEmpty) return;
-
       _remote = e.streams.first;
 
-      //  enable remote audio
       for (final t in _remote!.getAudioTracks()) {
         t.enabled = true;
       }
@@ -128,6 +162,8 @@ class WebRTCCallEngine implements CallEngine {
       if (isVideo) {
         _remoteR.srcObject = _remote;
       }
+
+      print("📥 onTrack => remote streams=${e.streams.length} audio=${_remote!.getAudioTracks().length} video=${_remote!.getVideoTracks().length}");
     };
 
     // ICE send
@@ -135,7 +171,6 @@ class WebRTCCallEngine implements CallEngine {
       if (c.candidate == null) return;
 
       final role = _isCaller ? 'caller' : 'callee';
-
       _db
           .collection('calls')
           .doc(_callId)
@@ -143,12 +178,19 @@ class WebRTCCallEngine implements CallEngine {
           .doc(role)
           .collection('items')
           .add(c.toMap());
+
+      // small log
+      // print("🧊 ICE OUT ($role) mid=${c.sdpMid} index=${c.sdpMLineIndex}");
+    };
+
+    _pc!.onConnectionState = (s) {
+      print("🔗 PC connectionState=$s");
     };
   }
 
-  // OFFER 
-
+  // OFFER
   Future<void> _createOffer() async {
+    print("📤 createOffer");
     final offer = await _pc!.createOffer();
     await _pc!.setLocalDescription(offer);
 
@@ -156,34 +198,50 @@ class WebRTCCallEngine implements CallEngine {
       'offer': offer.toMap(),
       'callType': callType,
     }, SetOptions(merge: true));
+
+    print("✅ offer written to firestore callId=$_callId");
   }
 
-  // ANSWER 
-
+  // ANSWER
   void _listenOfferAndAnswer() {
     _docSub?.cancel();
 
     _docSub = _db.collection('calls').doc(_callId).snapshots().listen((d) async {
-      final offer = d.data()?['offer'];
+      final data = d.data();
+      if (data == null) return;
+
+      final offer = data['offer'];
       if (offer == null) return;
 
       if (_answering) return;
-      if (await _pc!.getRemoteDescription() != null) return;
+
+      final remote = await _pc!.getRemoteDescription();
+      if (remote != null) return;
 
       _answering = true;
 
-      await _pc!.setRemoteDescription(
-        RTCSessionDescription(offer['sdp'], offer['type']),
-      );
+      try {
+        print("📥 offer received => setRemoteDescription");
+        await _pc!.setRemoteDescription(
+          RTCSessionDescription(offer['sdp'], offer['type']),
+        );
 
-      final answer = await _pc!.createAnswer();
-      await _pc!.setLocalDescription(answer);
+        print("📤 createAnswer");
+        final answer = await _pc!.createAnswer();
+        await _pc!.setLocalDescription(answer);
 
-      await _db.collection('calls').doc(_callId).set({
-        'answer': answer.toMap(),
-      }, SetOptions(merge: true));
+        await _db.collection('calls').doc(_callId).set({
+          'answer': answer.toMap(),
+        }, SetOptions(merge: true));
 
-      _answering = false;
+        print("✅ answer written to firestore callId=$_callId");
+
+        await _flushPending();
+      } catch (e) {
+        print("🔥 ERROR in offer->answer: $e");
+      } finally {
+        _answering = false;
+      }
     });
   }
 
@@ -191,23 +249,32 @@ class WebRTCCallEngine implements CallEngine {
     _docSub?.cancel();
 
     _docSub = _db.collection('calls').doc(_callId).snapshots().listen((d) async {
-      final ans = d.data()?['answer'];
+      final data = d.data();
+      if (data == null) return;
+
+      final ans = data['answer'];
       if (ans == null) return;
 
-      if (await _pc!.getRemoteDescription() != null) return;
+      final remote = await _pc!.getRemoteDescription();
+      if (remote != null) return;
 
-      await _pc!.setRemoteDescription(
-        RTCSessionDescription(ans['sdp'], ans['type']),
-      );
+      try {
+        print("📥 answer received => setRemoteDescription");
+        await _pc!.setRemoteDescription(
+          RTCSessionDescription(ans['sdp'], ans['type']),
+        );
 
-      await _flushPending();
+        await _flushPending();
+      } catch (e) {
+        print("🔥 ERROR in answer setRemote: $e");
+      }
     });
   }
 
-  // ICE RECEIVE 
-
+  // ICE RECEIVE
   void _listenCandidates() {
     final other = _isCaller ? 'callee' : 'caller';
+    print("🧊 listenCandidates from=$other");
 
     _candSub = _db
         .collection('calls')
@@ -228,47 +295,62 @@ class WebRTCCallEngine implements CallEngine {
           m['sdpMLineIndex'],
         );
 
-        if (await _pc!.getRemoteDescription() == null) {
+        final remote = await _pc!.getRemoteDescription();
+
+        if (remote == null) {
           _pending.add(ice);
         } else {
-          await _pc!.addCandidate(ice);
+          try {
+            await _pc!.addCandidate(ice);
+          } catch (e) {
+            print("🔥 addCandidate error: $e");
+          }
         }
       }
     });
   }
 
   Future<void> _flushPending() async {
+    if (_pending.isEmpty) return;
+
+    final remote = await _pc!.getRemoteDescription();
+    if (remote == null) return;
+
+    print("🧊 flushPending => ${_pending.length} candidates");
     for (final c in _pending) {
-      await _pc!.addCandidate(c);
+      try {
+        await _pc!.addCandidate(c);
+      } catch (e) {
+        print("🔥 addCandidate(pending) error: $e");
+      }
     }
     _pending.clear();
   }
 
-  // STATUS 
-
+  // STATUS
   void _listenCallStatus() {
-    _statusSub =
-        _db.collection('calls').doc(_callId).snapshots().listen((d) async {
-      final s = d.data()?['status'];
+    _statusSub = _db.collection('calls').doc(_callId).snapshots().listen((d) async {
+      final data = d.data();
+      if (data == null) return;
+
+      final s = (data['status'] ?? '').toString();
       if (_ended) return;
 
-      if (s == 'ended' ||
-          s == 'missed' ||
-          s == 'declined' ||
-          s == 'cancelled') {
+      if (s == 'ended' || s == 'missed' || s == 'declined' || s == 'cancelled') {
+        print("🛑 CALL STATUS=$s => cleanup callId=$_callId");
         _ended = true;
         await _cleanup();
       }
     });
   }
 
-  // END 
-
+  // END
   @override
   Future<void> endCall() async {
     if (_ended) return;
     _ended = true;
 
+    print("🛑 endCall() requested callId=$_callId");
     await CallService().endCall(_callId);
     await _cleanup();
   }
@@ -277,24 +359,39 @@ class WebRTCCallEngine implements CallEngine {
     await _docSub?.cancel();
     await _candSub?.cancel();
     await _statusSub?.cancel();
+    await _activeGateSub?.cancel();
 
-    await _pc?.close();
+    try {
+      await _pc?.close();
+    } catch (_) {}
 
     for (final t in _local?.getTracks() ?? []) {
-      t.stop();
+      try {
+        t.stop();
+      } catch (_) {}
     }
 
-    await _local?.dispose();
-    await _remote?.dispose();
+    try {
+      await _local?.dispose();
+    } catch (_) {}
+
+    try {
+      await _remote?.dispose();
+    } catch (_) {}
 
     if (isVideo) {
-      await _localR.dispose();
-      await _remoteR.dispose();
+      try {
+        await _localR.dispose();
+      } catch (_) {}
+      try {
+        await _remoteR.dispose();
+      } catch (_) {}
     }
+
+    print("✅ cleanup done callId=$_callId");
   }
 
-  // CONTROLS 
-
+  // CONTROLS
   @override
   void setMuted(bool muted) {
     _muted = muted;
@@ -326,8 +423,7 @@ class WebRTCCallEngine implements CallEngine {
     }
   }
 
-  //  UI 
-
+  // UI
   @override
   Widget buildView() {
     if (!isVideo) {

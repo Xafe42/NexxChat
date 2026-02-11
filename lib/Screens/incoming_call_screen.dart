@@ -39,7 +39,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
       if (data == null) return;
 
       // read call type once
-      _callType = (data['type'] ?? 'video').toString();
+      _callType = (data['callType'] ?? 'video').toString();
 
       final status = (data['status'] ?? '').toString();
 

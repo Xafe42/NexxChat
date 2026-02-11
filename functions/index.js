@@ -95,8 +95,8 @@ exports.callTimeScheduler = onSchedule(SCHEDULE_RUN, async () => {
       const isGroup = !!conv.isGroup || members.length > 2;
 
       // create call doc with auto id
-      const callRef = db.collection("calls").doc();
-      const callId = callRef.id;
+     const callRef = db.collection("calls").doc(msgRef.id);
+     const callId = msgRef.id;
 
       tx.set(callRef, {
         callId,

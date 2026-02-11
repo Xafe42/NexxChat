@@ -16,6 +16,7 @@ import 'package:nexxchat_firebase/core/call/call_mini_overlay.dart';
 import 'package:nexxchat_firebase/core/call/webrtc_call_engine.dart';
 import 'package:nexxchat_firebase/core/call_listener.dart';
 import 'package:nexxchat_firebase/core/navigation.dart';
+import 'package:nexxchat_firebase/core/services/Call_service.dart';
 import 'package:nexxchat_firebase/theme/chat_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:nexxchat_firebase/core/services/notification_settings.dart'
@@ -48,43 +49,40 @@ void setupFCMCallHandling() {
           callId: callId,
           title: "Incoming Call",
           onAccept: () async {
-            final user = auth.currentUser;
-            if (user == null) return;
+  final user = auth.currentUser;
+  if (user == null) return;
 
-            await db.collection("calls").doc(callId).update({
-              'status': 'accepted',
-              'acceptedAt': FieldValue.serverTimestamp(),
-              'acceptedAtMs': DateTime.now().millisecondsSinceEpoch,
-            });
+  
+  await CallService().acceptCall(callId, user.uid);
 
-            final doc =
-                await db.collection("calls").doc(callId).get();
+  final doc =
+      await db.collection("calls").doc(callId).get();
 
-            final callType =
-                (doc.data()?['callType'] ?? 'audio') as String;
+  final callType =
+      (doc.data()?['callType'] ?? 'audio') as String;
 
-            final engine =
-                WebRTCCallEngine(isCaller: false, callType: callType);
+  final engine =
+      WebRTCCallEngine(isCaller: false, callType: callType);
 
-            await engine.init(
-              callId: callId,
-              userId: user.uid,
-              userName: user.email ?? "User",
-            );
+  await engine.init(
+    callId: callId,
+    userId: user.uid,
+    userName: user.email ?? "User",
+  );
 
-            globalNavigatorKey.currentState?.pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callId: callId,
-                  engine: engine,
-                  title: "Call",
-                  userId: user.uid,
-                  userName: user.email ?? "User",
-                  callType: callType,
-                ),
-              ),
-            );
-          },
+  globalNavigatorKey.currentState?.pushReplacement(
+    MaterialPageRoute(
+      builder: (_) => CallScreen(
+        callId: callId,
+        engine: engine,
+        title: "Call",
+        userId: user.uid,
+        userName: user.email ?? "User",
+        callType: callType,
+      ),
+    ),
+  );
+},
           onDecline: () async {
             await db.collection("calls").doc(callId).update({
               "status": "declined",
