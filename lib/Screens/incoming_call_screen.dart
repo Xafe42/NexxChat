@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:nexxchat_firebase/core/services/call_ringtone_service.dart';
 
 import '../core/services/call_service.dart';
 
@@ -33,7 +34,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   @override
   void initState() {
     super.initState();
-
+   RingtoneService.startIncoming();
     _sub = _callService.listenCall(widget.callId).listen((snap) {
       final data = snap.data();
       if (data == null) return;
@@ -47,6 +48,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           status == 'declined' ||
           status == 'missed' ||
           status == 'cancelled') {
+        RingtoneService.stop();
         _safeClose();
       }
 
@@ -149,6 +151,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     // Decline
                     GestureDetector(
                       onTap: () async {
+                        RingtoneService.stop();
                         await widget.onDecline();
                         _safeClose();
                       },
@@ -177,6 +180,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     // Accept
                     GestureDetector(
                       onTap: () async {
+                        RingtoneService.stop();
                         await widget.onAccept();
                       },
                       child: Container(

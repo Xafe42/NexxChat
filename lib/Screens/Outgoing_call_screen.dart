@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:nexxchat_firebase/core/services/call_ringtone_service.dart';
 
 import 'package:nexxchat_firebase/core/services/call_service.dart';
 import '../core/call/webrtc_call_engine.dart';
@@ -43,7 +44,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
   @override
   void initState() {
     super.initState();
-
+   RingtoneService.startOutgoing();
     _dotController =
         AnimationController(vsync: this, duration: const Duration(seconds: 1))
           ..repeat();
@@ -61,6 +62,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
     final status = (data['status'] ?? '').toString();
 
    if ((status == 'accepted' || status == 'active') && !_navigated){
+    RingtoneService.stop();
       _navigated = true;
 
       final engine = WebRTCCallEngine(
@@ -85,7 +87,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
             title: widget.title,
             userId: widget.userId,
             userName: widget.userName,
-            callType: widget.callType, // ✅ مهم
+            callType: widget.callType, 
           ),
         ),
       );
@@ -96,6 +98,7 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
         status == 'missed' ||
         status == 'ended' ||
         status == 'cancelled') {
+        RingtoneService.stop();
       _safeClose();
     }
   }
