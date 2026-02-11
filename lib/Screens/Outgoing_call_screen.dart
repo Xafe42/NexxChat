@@ -60,12 +60,12 @@ class _OutgoingCallScreenState extends State<OutgoingCallScreen>
 
     final status = (data['status'] ?? '').toString();
 
-    if (status == 'accepted' && !_navigated) {
+   if ((status == 'accepted' || status == 'active') && !_navigated){
       _navigated = true;
 
       final engine = WebRTCCallEngine(
         isCaller: true,
-        callType: widget.callType, // ✅ مهم
+        callType: widget.callType, 
       );
 
       await engine.init(

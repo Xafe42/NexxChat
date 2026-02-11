@@ -1,8 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-import 'package:nexxchat_firebase/core/services/call_service.dart';
 
 class CallTimeMessageCard extends StatefulWidget {
   final Map<String, dynamic> payload;
@@ -22,6 +19,7 @@ class CallTimeMessageCard extends StatefulWidget {
 
 class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
   bool isActive = false;
+  bool callTriggered = false;
 
   @override
   void initState() {
@@ -29,24 +27,72 @@ class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
     _checkActivation();
   }
 
+  /// ⏰ CHECK TIME
   void _checkActivation() {
     final dateString = widget.payload['date'];
     final timeString = widget.payload['time'];
 
-    final scheduled = DateTime.parse('$dateString $timeString:00');
+    final scheduled =
+        DateTime.parse('$dateString $timeString:00');
+
     final now = DateTime.now();
 
     if (now.isAfter(scheduled)) {
-      isActive = true;
+      _triggerScheduledCall();
       return;
     }
 
     final diff = scheduled.difference(now);
+
     Future.delayed(diff, () {
-      if (mounted) {
-        setState(() => isActive = true);
-      }
+      if (!mounted) return;
+      _triggerScheduledCall();
     });
+  }
+
+  /// 🚀 CREATE CALL FOR ALL MEMBERS
+  Future<void> _triggerScheduledCall() async {
+    if (callTriggered) return;
+    callTriggered = true;
+
+    final convSnap = await FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .get();
+
+    if (!convSnap.exists) return;
+
+    final data = convSnap.data()!;
+    final members =
+        List<String>.from(data['members'] ?? []);
+
+    if (members.isEmpty) return;
+
+    await FirebaseFirestore.instance
+        .collection('calls')
+        .add({
+      "conversationId": widget.conversationId,
+      "members": members,
+      "isGroup": members.length > 2,
+
+      "callerId": "system",
+      "callerName": "Scheduled Call",
+
+      "callType": "video",
+      "status": "ringing",
+
+      "createdAt":
+          FieldValue.serverTimestamp(),
+
+      "autoEndAt":
+          DateTime.now()
+                  .millisecondsSinceEpoch +
+              40000, // 40s timeout
+    });
+
+    if (mounted) {
+      setState(() => isActive = true);
+    }
   }
 
   String _formatMonth(int m) {
@@ -57,105 +103,79 @@ class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
     return months[m - 1];
   }
 
-  /// 🔵 JOIN CALL (creates REAL call)
-  Future<void> _handleJoinPressed() async {
-    if (!isActive) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    final callService = CallService();
-
-    // 🔹 Load conversation to know if group or private
-    final convSnap = await FirebaseFirestore.instance
-        .collection('conversations')
-        .doc(widget.conversationId)
-        .get();
-
-    if (!convSnap.exists) return;
-
-    final convData = convSnap.data()!;
-    final isGroup = convData['isGroup'] == true;
-    final members = List<String>.from(convData['members'] ?? []);
-
-    if (members.isEmpty) return;
-
-    String callId;
-
-    if (isGroup) {
-      // 🟢 GROUP CALL
-      callId = await callService.startGroupCall(
-        conversationId: widget.conversationId,
-        callerId: currentUser.uid,
-        members: members,
-        callerName: currentUser.email,
-      );
-    } else {
-      // 🟢 PRIVATE CALL
-      final receiverId =
-          members.firstWhere((id) => id != currentUser.uid);
-
-      callId = await callService.startPrivateCall(
-        conversationId: widget.conversationId,
-        callerId: currentUser.uid,
-        receiverId: receiverId,
-        callerName: currentUser.email,
-      );
-    }
-
-    if (!mounted) return;
-
-    
-  }
-
   @override
   Widget build(BuildContext context) {
     final dateString = widget.payload['date'];
     final timeString = widget.payload['time'];
-    final note = (widget.payload['note'] ?? '').toString();
+    final note =
+        (widget.payload['note'] ?? '').toString();
 
-    final scheduled = DateTime.parse('$dateString $timeString:00');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheduled =
+        DateTime.parse('$dateString $timeString:00');
+
+    final isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      margin: const EdgeInsets.symmetric(
+          vertical: 10, horizontal: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
+        borderRadius:
+            BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color:
+                Colors.black.withOpacity(0.15),
             blurRadius: 14,
             offset: const Offset(0, 6),
           )
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.blue,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(
+                          14),
                 ),
                 child: Column(
                   children: [
                     Text(
-                      _formatMonth(scheduled.month),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 12),
+                      _formatMonth(
+                          scheduled.month),
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white,
+                        fontSize: 12,
+                      ),
                     ),
                     Text(
-                      scheduled.day.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      scheduled.day
+                          .toString(),
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:
+                            FontWeight
+                                .bold,
                       ),
                     ),
                   ],
@@ -164,48 +184,75 @@ class _CallTimeMessageCardState extends State<CallTimeMessageCard> {
               const SizedBox(width: 12),
               const Text(
                 'Scheduled Call',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.access_time, size: 20),
+              const Icon(
+                  Icons.access_time,
+                  size: 20),
               const SizedBox(width: 8),
               Text(
                 '$dateString   $timeString',
-                style: const TextStyle(fontSize: 16),
+                style:
+                    const TextStyle(
+                        fontSize: 16),
               ),
             ],
           ),
           if (note.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(note, style: const TextStyle(fontSize: 15)),
+            Text(note,
+                style:
+                    const TextStyle(
+                        fontSize: 15)),
           ],
           const SizedBox(height: 16),
+
+          /// STATUS BUTTON (no join)
           ElevatedButton.icon(
-            icon: Icon(
+            icon: const Icon(
               Icons.call,
-              color: isActive ? Colors.white : Colors.grey,
+              color: Colors.white,
             ),
             label: Text(
-              isActive ? 'Join now' : 'Scheduled',
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
+              isActive
+                  ? 'Calling...'
+                  : 'Scheduled',
+              style:
+                  const TextStyle(
+                      fontWeight:
+                          FontWeight
+                              .w600),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isActive ? Colors.green : Colors.grey.shade300,
-              elevation: isActive ? 3 : 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+            style: ElevatedButton
+                .styleFrom(
+              backgroundColor:
+                  isActive
+                      ? Colors.green
+                      : Colors.grey,
+              shape:
+                  RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius
+                        .circular(
+                            14),
               ),
               padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  const EdgeInsets
+                      .symmetric(
+                          horizontal:
+                              22,
+                          vertical:
+                              12),
             ),
-            onPressed: isActive ? _handleJoinPressed : null,
+            onPressed: null,
           ),
         ],
       ),

@@ -84,41 +84,42 @@ class _GlobalCallListenerState extends State<GlobalCallListener> {
           title: title,
 
           // ACCEPT
-          onAccept: () async {
-            _blockedCalls.add(callId);
+        onAccept: () async {
+  final uid = _auth.currentUser!.uid;
 
-            await _callService.acceptCall(callId);
+  _blockedCalls.add(callId);
 
-            final doc = await _db.collection("calls").doc(callId).get();
+  await _callService.acceptCall(callId, uid); 
 
-            final callType = (doc.data()?['callType'] ?? 'audio') as String;
+  final doc = await _db.collection("calls").doc(callId).get();
+  final callType = (doc.data()?['callType'] ?? 'audio') as String;
 
-            print("📞 ACCEPT callType=$callType");
+  print("📞 ACCEPT callType=$callType");
 
-            final engine = WebRTCCallEngine(
-              isCaller: false,
-              callType: callType,
-            );
+  final engine = WebRTCCallEngine(
+    isCaller: false,
+    callType: callType,
+  );
 
-            await engine.init(
-              callId: callId,
-              userId: _auth.currentUser!.uid,
-              userName: _auth.currentUser!.email ?? "User",
-            );
+  await engine.init(
+    callId: callId,
+    userId: uid,
+    userName: _auth.currentUser!.email ?? "User",
+  );
 
-            navigator.pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => CallScreen(
-                  callId: callId,
-                  engine: engine,
-                  title: title,
-                  userId: _auth.currentUser!.uid,
-                  userName: _auth.currentUser!.email ?? "User",
-                  callType: callType,
-                ),
-              ),
-            );
-          },
+  navigator.pushReplacement(
+    MaterialPageRoute(
+      builder: (_) => CallScreen(
+        callId: callId,
+        engine: engine,
+        title: title,
+        userId: uid,
+        userName: _auth.currentUser!.email ?? "User",
+        callType: callType,
+      ),
+    ),
+  );
+},
 
           // DECLINE
           onDecline: () async {

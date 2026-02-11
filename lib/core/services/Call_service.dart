@@ -99,14 +99,29 @@ class CallService {
   }
 
   /// STATE CHANGES
-  Future<void> acceptCall(String callId) async {
-    await _db.collection('calls').doc(callId).update({
-      'status': 'accepted',
-      'acceptedAt': FieldValue.serverTimestamp(),
-      'acceptedAtMs': DateTime.now().millisecondsSinceEpoch,
-    });
-  }
+ Future<void> acceptCall(String callId, String userId) async {
+  final ref = _db.collection("calls").doc(callId);
 
+  await _db.runTransaction((tx) async {
+    final snap = await tx.get(ref);
+    if (!snap.exists) return;
+
+    final data = snap.data()!;
+    final participants = List<String>.from(data["participants"] ?? []);
+
+    
+    if (!participants.contains(userId)) {
+      participants.add(userId);
+    }
+
+    tx.update(ref, {
+      "status": "active", 
+      "participants": participants,
+      "callerId": participants.first,
+      "acceptedAtMs": DateTime.now().millisecondsSinceEpoch,
+    });
+  });
+}
   Future<void> declineCall(String callId) async {
     await _db.collection('calls').doc(callId).update({
       'status': 'declined',

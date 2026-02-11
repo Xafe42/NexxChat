@@ -49,6 +49,8 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    print("📞 CALL ID USED: ${widget.callId}");
+
     WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

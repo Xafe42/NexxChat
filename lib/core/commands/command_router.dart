@@ -53,13 +53,7 @@ class CommandRouter {
         );
       }
     }
-    if (raw.startsWith("/calltime")) {
-      return ChatCommand(
-        type: "calltime",
-        data: {},
-        previewText: "📞 Schedule a Call",
-      );
-    }
+  
     if (raw.startsWith("/calltime")) {
       return ChatCommand(
         type: "calltime",
