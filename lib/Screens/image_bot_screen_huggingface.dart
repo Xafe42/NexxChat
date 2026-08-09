@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/services/chat_theme.dart'; 
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";
@@ -46,7 +46,6 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
 
   Future<Uint8List?> _generateImage(String prompt) async {
     try {
-      print("Sende Anfrage an Hugging Face Router (SDXL Base)...");
       final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {
@@ -57,14 +56,11 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
       );
 
       if (response.statusCode == 200) {
-        print("Bild erfolgreich geladen!");
         return response.bodyBytes;
       } else {
-        print("Fehler API: ${response.statusCode} - ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Fehler Netzwerk: $e");
       return null;
     }
   }

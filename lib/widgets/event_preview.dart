@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../apps/event_app.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class EventPreview extends StatefulWidget {
   final VoidCallback onCancel;
@@ -34,6 +31,24 @@ class _EventPreviewState extends State<EventPreview> {
     _location.dispose();
     _description.dispose();
     super.dispose();
+  }
+
+  String _formatMonth(int m) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    return months[m - 1];
   }
 
   // Datumsauswahl (DatePicker öffnen)
@@ -69,22 +84,20 @@ class _EventPreviewState extends State<EventPreview> {
     );
   }
 
-  // Event abschicken → wird in Firestore gespeichert + als Message referenziert
-  void _submit() async {
+  // Event abschicken → Daten werden an onSend des Screens gereicht
+  void _submit() {
     final dt = _composeDateTime();
 
     // Validierung: Titel und Datum/Uhrzeit müssen gesetzt sein
     if (_title.text.trim().isEmpty || dt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bitte Titel, Datum und Uhrzeit ausfüllen')),
+        const SnackBar(
+            content: Text('Bitte Titel, Datum und Uhrzeit ausfüllen')),
       );
       return;
     }
 
-    final auth = FirebaseAuth.instance;
-    final user = auth.currentUser;
-
-    // Event-Daten sammeln
+    // Event-Daten sammeln und an den Screen zurückgeben
     final data = {
       'title': _title.text.trim(),
       'location': _location.text.trim(),
@@ -92,130 +105,172 @@ class _EventPreviewState extends State<EventPreview> {
       'datetime': dt,
     };
 
-    // Payload für Firestore generieren
-    final payload = EventApp.buildPayload(data);
-
-    // 1️⃣ Event in der "events"-Collection speichern
-    final eventDoc = await FirebaseFirestore.instance.collection("events").add({
-      ...payload,
-      'creator': user?.email,
-    });
-
-    // 2️⃣ Eine Message im Chat speichern, die auf das Event verweist
-    await FirebaseFirestore.instance.collection("messages").add({
-      'type': 'event_ref',
-      'eventId': eventDoc.id,
-      'sender': user?.email,
-      'time': FieldValue.serverTimestamp(),
-    });
-
-    // UI schließen
-    widget.onCancel();
+    widget.onSend(data);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Labels für Datum und Uhrzeit
-    final dateLabel = _date == null
-        ? 'Datum wählen'
-        : '${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}';
-
-    final timeLabel = _time == null
-        ? 'Uhrzeit wählen'
-        : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
 
     return Container(
-      color: Colors.grey[100],
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          // Kopfzeile „Event Preview“
-          Row(
-            children: const [
-              Icon(Icons.event, color: Colors.blueGrey),
-              SizedBox(width: 8),
-              Text(
-                'Event Preview',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Titel-Eingabe
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(
-              labelText: 'Titel',
-              border: OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Datum + Uhrzeit
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(dateLabel),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickTime,
-                  icon: const Icon(Icons.access_time),
-                  label: Text(timeLabel),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Ort
-          TextField(
-            controller: _location,
-            decoration: const InputDecoration(
-              labelText: 'Ort',
-              border: OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Beschreibung
-          TextField(
-            controller: _description,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Beschreibung (optional)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Buttons „Cancel“ und „Send“
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: widget.onCancel,
-                child: const Text('Abbrechen'),
-              ),
-              const SizedBox(width: 6),
-              ElevatedButton(
-                onPressed: _submit,
-                child: const Text('Senden'),
-              ),
-            ],
-          ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade700,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 15,
+            color: Colors.black.withOpacity(0.15),
+            offset: const Offset(0, 4),
+          )
         ],
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ---------- HEADER ----------
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade700,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _date == null ? "--" : _formatMonth(_date!.month),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                      Text(
+                        _date == null ? "--" : _date!.day.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  "New Event",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // ---------- FIELDS ----------
+            TextField(
+              controller: _title,
+              style: TextStyle(color: textColor, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: "Title",
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 12),
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.calendar_today, size: 12),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 36),
+                    ),
+                    label: Text(
+                      _date == null ? "Date" : "${_date!.day}.${_date!.month}.",
+                      style: TextStyle(color: textColor, fontSize: 11),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickTime,
+                    icon: const Icon(Icons.access_time, size: 12),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 36),
+                    ),
+                    label: Text(
+                      _time == null ? "Time" : _time!.format(context),
+                      style: TextStyle(color: textColor, fontSize: 11),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
+            TextField(
+              controller: _location,
+              style: TextStyle(color: textColor, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: "Location",
+                labelStyle: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    fontSize: 12),
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ---------- BUTTONS ----------
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: widget.onCancel,
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 36)),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(80, 36),
+                  ),
+                  child: const Text("Send", style: TextStyle(fontSize: 13)),
+                ),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }

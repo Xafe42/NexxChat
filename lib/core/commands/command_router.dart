@@ -36,12 +36,10 @@ class CommandRouter {
         data: {},
       );
     }
-      // event 
+    // event
     if (t == '/event') {
       return ChatCommand(
-        type: 'event',
-        data: {},
-        previewText: 'Create an event');
+          type: 'event', data: {}, previewText: 'Create an event');
     }
 
     // AI-Befehl: Erfordert '/ai ' gefolgt von einem nicht-leeren Prompt
@@ -55,7 +53,14 @@ class CommandRouter {
         );
       }
     }
-
+  
+    if (raw.startsWith("/calltime")) {
+      return ChatCommand(
+        type: "calltime",
+        data: {},
+        previewText: "Schedule a call",
+      );
+    }
 
     return null; // No known command
   }

@@ -80,3 +80,58 @@ Flutter Commands Im Projektverzeichnis ausführen."(C:\Users\.........\Workspace
 flutter pub get       # Lädt alle Abhängigkeiten aus pubspec.yaml
 flutter run
 ```
+
+---
+# 🚀 Features
+
+Unsere App bietet eine umfassende Kommunikationsplattform, die klassisches Messaging mit modernen KI-Funktionen und interaktiven Mini-Apps verbindet.
+
+### 💬 Kommunikation & Chat
+Erlebe flüssige Echtzeit-Kommunikation mit intuitiven Funktionen.
+* **Privatnachrichten:** Starte private Chats direkt über den „+“ Button.
+* **Rich Media Support:** Versende Texte und teile Bilder direkt aus deiner Galerie oder nimm sie live mit der Kamera auf.
+* **Reactions:** Reagiere auf Nachrichten mit Emojis, ändere deine Meinung oder entferne Reaktionen – alles in Echtzeit.
+* **Live-Status:** Sehe dank **Typing-Indikatoren**, wann dein Gesprächspartner schreibt.
+* **Smart UX:** Nutze den „Scroll-to-Bottom“ Button, um in langen Chats sofort wieder zum Geschehen zu springen.
+
+### 👥 Gruppen & Kollaboration
+Verbinde dich mit mehreren Personen gleichzeitig.
+* **Gruppenchats:** Erstelle neue Gruppen und füge Mitglieder hinzu. Die Gruppe synchronisiert sich sofort bei allen Teilnehmern.
+* **Event-Planung:** Nutze den `/event` Befehl, um Veranstaltungen zu planen. Mitglieder können direkt via Reactions zu- oder absagen.
+
+### 🎮 Mini-Apps & Entertainment
+Mehr als nur Text – interaktive Features direkt im Chat-Fenster.
+* **In-Chat Gaming:** Spiele eine Runde **Tetris** und teile deinen Highscore direkt in der Gruppe, um Freunde herauszufordern.
+* **Bot-Integration:** Teste die Konnektivität mit der `/hello` Mini-App.
+
+### 🤖 KI-Integration
+Nutze die Macht künstlicher Intelligenz für kreative Inhalte.
+* **KI-Bildgenerierung:** Erstelle einzigartige Bilder per Prompt und sende sie direkt in den Chat.
+* **Interaktion:** Auch KI-generierte Inhalte unterstützen volle Reaction-Funktionalität.
+
+### 🎨 Design & Personalisierung
+Eine Oberfläche, die sich dir anpasst.
+* **Dark & Light Mode:** Schalte nahtlos zwischen hellen und dunklen Designs um.
+* **Personalisierung:** Passe den Chat an deine visuellen Vorlieben an.
+
+### 📹 Videocalls
+* **Videoanrufe:** Führe direkte Videogespräche für eine noch persönlichere Verbindung.
+
+---
+# Tech Stack 
+
+
+| Komponente                      | Technologie                                                                         | Anmerkung                                                                       |
+| :------------------------------ | :---------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
+| **Frontend (Mobile/Web)**       | **Flutter**                                                                         | Single-Codebase für Android, iOS und Web; hohe Performance und konsistentes UI. |
+| **Programmiersprache**          | **Dart**                                                                            | Moderne, performante Sprache, optimal für Flutter.                              |
+| **Backend (Logik)**             | **Kein dediziertes Backend** – Logik erfolgt **clientseitig** in Flutter + Firebase | Keine Serververwaltung; niedriger Wartungsaufwand.                              |
+| **Datenbank & Realtime**        | **Firebase Firestore**                                                              | Dokumentenbasierte NoSQL-Datenbank mit nativer Realtime-Synchronisation.        |
+| **Realtime-Layer**              | **Firebase SDK Listener** (Firestore / Realtime DB)                                 | Direkt im Client implementiert; ersetzt WebSockets vollständig.                 |
+| **Authentifizierung**           | **Firebase Authentication**                                                         | E-Mail/Passwort, Google, Apple, anonyme Sessions u. a.                          |
+| **Medien-Speicher**             | **Firebase Storage**                                                                | Speicherung von Bildern, generierten Dateien, Uploads usw.                      |
+| **KI: Bildgenerierung**         | **Pollination AI**                                                                  | Für Avatare, Sticker, Bildgenerierung innerhalb der App.                        |
+| **KI: Support Bot / Assistant** | **Google Gemini API**                                                               | Intelligente Antworten, Chatbot, Moderation, Wissenssuche.                      |
+| **Versionsverwaltung**          | **GitLab** (Hochschule)                                                             | Code-Verwaltung, CI/CD Pipelines, Boards.                                       |
+| **Entwicklungsumgebung**        | **Visual Studio Code**                                      | Primäre Entwicklungsumgebungen für Flutter.                                     |
+| **Emulation / Debugging**       | **Android Studio Emulator**                                                         | Zum Testen, Profilen und Debuggen.                                              |

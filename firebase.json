@@ -1,1 +1,54 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"nexxchat-1f0fc","appId":"1:305319661189:android:5f798efc727a82e85863ec","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"nexxchat-1f0fc","appId":"1:305319661189:ios:952cdb17489edd5d5863ec","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"nexxchat-1f0fc","appId":"1:305319661189:ios:6ee2636ce6a262915863ec","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"nexxchat-1f0fc","configurations":{"android":"1:305319661189:android:5f798efc727a82e85863ec","ios":"1:305319661189:ios:952cdb17489edd5d5863ec","macos":"1:305319661189:ios:6ee2636ce6a262915863ec","web":"1:305319661189:web:e74fff35e389226f5863ec","windows":"1:305319661189:web:0a3e2da2ded586015863ec"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "nexxchat-1f0fc",
+          "appId": "1:305319661189:android:5f798efc727a82e85863ec",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "nexxchat-1f0fc",
+          "appId": "1:305319661189:ios:952cdb17489edd5d5863ec",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "nexxchat-1f0fc",
+          "appId": "1:305319661189:ios:6ee2636ce6a262915863ec",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "nexxchat-1f0fc",
+          "configurations": {
+            "android": "1:305319661189:android:5f798efc727a82e85863ec",
+            "ios": "1:305319661189:ios:952cdb17489edd5d5863ec",
+            "macos": "1:305319661189:ios:6ee2636ce6a262915863ec",
+            "web": "1:305319661189:web:e74fff35e389226f5863ec",
+            "windows": "1:305319661189:web:0a3e2da2ded586015863ec"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
