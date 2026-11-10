@@ -1,43 +1,60 @@
-import 'package:flutter/material.dart';
-import '../theme_notifier.dart';
-import '../core/services/chat_theme.dart';
-import 'welcome_screens.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/profile_screen.dart';
+import 'package:nexxchat_firebase/Screens/security_screen.dart';
+import 'package:nexxchat_firebase/core/services/notification_settings.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class SettingsScreen extends StatelessWidget {
+import '../theme_notifier.dart';
+import 'welcome_screens.dart';
+
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  void _refresh() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = FirebaseAuth.instance;
 
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, mode, _) {
-        final bool isDark = mode == ThemeMode.dark;
-        final Color textColor = isDark ? Colors.white : Colors.black;
+    return ValueListenableBuilder<int>(
+      valueListenable: ChatTheme.reloadNotifier,
+      builder: (context, _, __) {
+        final bool isDark = themeNotifier.value == ThemeMode.dark;
+        final textColor = isDark ? Colors.white : Colors.black;
+        // Nimmt die Hintergrundfarbe aus der main.dart (weiß oder dunkelgrau)
+        final bgColor = Theme.of(context).scaffoldBackgroundColor;
+        final accentColor = ChatTheme.getBubbleColor();
 
         return Scaffold(
-          body: Column(
+          backgroundColor: bgColor,
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
             children: [
-              
               // HEADER
-              
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                padding: const EdgeInsets.only(bottom: 25),
                 child: Row(
                   children: [
                     Text(
                       "Settings",
                       style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
                         color: textColor,
+                        letterSpacing: -0.5,
                       ),
                     ),
-
                     const Spacer(),
-
                     _circleButton(
                       icon: Icons.search,
                       iconColor: textColor,
@@ -51,108 +68,170 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              _profileHeader(isDark),
 
-              
-              //         SETTINGS ITEMS
-              
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // -------- Appearance --------
-                    _sectionTitle("Appearance"),
-
-                    _tile(
-                      context,
-                      icon: Icons.dark_mode,
-                      title: "Dark Mode",
-                      subtitle: "Switch between light & dark theme",
-                      trailing: Switch(
-                        value: isDark,
-                        onChanged: (val) {
-                          themeNotifier.value =
-                              val ? ThemeMode.dark : ThemeMode.light;
-                        },
-                      ),
-                    ),
-
-                    _tile(
-                      context,
-                      icon: Icons.color_lens,
-                      title: "Personalization",
-                      subtitle: "Theme colors & chat bubbles",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ChatDesignScreen(),
-                          ),
-                        );
+              // -------- Appearance Section --------
+              _sectionTitle("APPEARANCE"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.dark_mode_outlined,
+                    title: "Dark Mode",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      activeTrackColor: accentColor,
+                      onChanged: (val) {
+                        ChatTheme.saveThemeMode(val);
+                        setState(() {});
                       },
                     ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.color_lens_outlined,
+                    title: "Personalization",
+                    subtitle: "Theme colors & wallpapers",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const ChatDesignScreen()))
+                          .then((_) => _refresh());
+                    },
+                  ),
+                ],
+              ),
 
-                    const SizedBox(height: 20),
+              const SizedBox(height: 30),
 
-                    // -------- Security --------
-                    _sectionTitle("Security"),
+              // -------- AI Section --------
+              _sectionTitle("AI COMPANION"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.auto_awesome_outlined,
+                    title: "AI Personality",
+                    subtitle: "Customize how your AI responds",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AiSettingsScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
 
-                    _tile(
-                      context,
-                      icon: Icons.lock,
-                      title: "Privacy & Security",
-                      subtitle: "Password, activity & permissions",
-                      onTap: () {},
-                    ),
+              const SizedBox(height: 30),
 
-                    const SizedBox(height: 20),
-
-                    // -------- Notifications --------
-                    _sectionTitle("Notifications"),
-
-                    _tile(
-                      context,
-                      icon: Icons.notifications,
-                      title: "Notification Settings",
-                      subtitle: "Manage chat & system alerts",
-                      onTap: () {},
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // -------- About --------
-                    _sectionTitle("About"),
-
-                    _tile(
-                      context,
-                      icon: Icons.info,
-                      title: "About NexxChat",
-                      subtitle: "Version 1.0.0 – All rights reserved",
-                      onTap: () {},
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // -------- Logout button --------
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.logout, color: Colors.red),
-                        label: const Text(
-                          "Log Out",
-                          style:
-                              TextStyle(color: Colors.red, fontSize: 18),
-                        ),
-                        onPressed: () async {
-                          await auth.signOut();
-                          Navigator.pushNamedAndRemoveUntil(
-                            // ignore: use_build_context_synchronously
-                            context,
-                            WelcomeScreen.screenRoute,
-                            (_) => false,
-                          );
+              // -------- Security Section --------
+              _sectionTitle("PRIVACY & SECURITY"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.lock_outline,
+                    title: "Security",
+                    subtitle: "Password, FaceID & 2FA",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SecurityScreen()),
+                      );
+                    },
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: NotificationSettings.soundEnabled,
+                    builder: (_, enabled, __) {
+                      return _SettingsTile(
+                        icon: enabled
+                            ? Icons.notifications_outlined
+                            : Icons.notifications_off_outlined,
+                        title: "Notifications",
+                        accentColor: accentColor,
+                        isDark: isDark,
+                        onTap: () async {
+                          await NotificationSettings.setSound(!enabled);
                         },
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 30),
+
+              // -------- Support Section --------
+              _sectionTitle("SUPPORT"),
+              _SettingsGroup(
+                isDark: isDark,
+                children: [
+                  _SettingsTile(
+                    icon: Icons.privacy_tip,
+                    title: "Datenschutzerklärung",
+                    subtitle: "Privacy Policy",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () async {
+                      final url = Uri.parse(
+                        "https://isha1934.github.io/nexxchat-privacy/privacy_policy.html",
+                      );
+                      await launchUrl(url,
+                          mode: LaunchMode.externalApplication);
+                    },
+                  ),
+                  // 2. About NexxChat
+                  _SettingsTile(
+                    icon: Icons.info_outline,
+                    title: "About NexxChat",
+                    subtitle: "Version 1.0.0",
+                    accentColor: accentColor,
+                    isDark: isDark,
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+
+              // -------- Logout --------
+              Center(
+                child: TextButton(
+                  onPressed: () async {
+                    await auth.signOut();
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, WelcomeScreen.screenRoute, (_) => false);
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12),
+                    backgroundColor: Colors.red.withValues(alpha: 0.1),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.logout, size: 20),
+                      SizedBox(width: 8),
+                      Text("Log Out",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -162,78 +241,342 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ----------------------------------
-  // REUSABLE HEADER BUTTON
-  // ----------------------------------
-  Widget _circleButton({
-    required IconData icon,
-    required Color iconColor,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
+  Widget _profileHeader(bool isDark) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    final textColor = isDark ? Colors.white : Colors.black;
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final name = (data?['name'] ?? user.email?.split('@').first ?? 'User')
+            .toString();
+        final photoUrl = (data?['photoURL'] ?? '').toString();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 25),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: ChatTheme.myBubbleColor,
+                    backgroundImage:
+                        photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                    child: photoUrl.isEmpty
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.email ?? '',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _circleButton(
+      {required IconData icon,
+      required Color iconColor,
+      required bool isDark,
+      required VoidCallback onTap}) {
     return Container(
+      width: 45,
+      height: 45,
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[850] : Colors.grey[200],
+        color: isDark ? Colors.grey[800] : Colors.grey[200],
         shape: BoxShape.circle,
       ),
       child: IconButton(
-        icon: Icon(icon, color: iconColor),
-        onPressed: onTap,
-      ),
+          icon: Icon(icon, color: iconColor, size: 24), onPressed: onTap),
     );
   }
 
-  // ----------------------------------
-  // SECTION TITLE
-  // ----------------------------------
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 4),
+      padding: const EdgeInsets.only(bottom: 10, left: 10),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
-        ),
-      ),
-    );
-  }
-
-  // ----------------------------------
-  // TILE BUILDER
-  // ----------------------------------
-  Widget _tile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    Widget? trailing,
-    Function()? onTap,
-  }) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.orange),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: trailing ??
-            const Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey),
-        onTap: onTap,
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[500],
+            letterSpacing: 1.2),
       ),
     );
   }
 }
 
+// --- AI SETTINGS SCREEN ---
 
-// CHAT DESIGN SCREEN 
+class AiSettingsScreen extends StatefulWidget {
+  const AiSettingsScreen({super.key});
 
+  @override
+  State<AiSettingsScreen> createState() => _AiSettingsScreenState();
+}
+
+class _AiSettingsScreenState extends State<AiSettingsScreen> {
+  final _promptController = TextEditingController();
+  final _user = FirebaseAuth.instance.currentUser;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentPrompt();
+  }
+
+  Future<void> _loadCurrentPrompt() async {
+    if (_user == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user!.uid)
+        .get();
+    if (doc.exists && doc.data()!['ai_prompt'] != null) {
+      _promptController.text = doc.data()!['ai_prompt'];
+    } else {
+      _promptController.text = "Du bist eine hilfreiche persönliche KI.";
+    }
+  }
+
+  Future<void> _savePrompt() async {
+    if (_user == null) return;
+    setState(() => _isSaving = true);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user!.uid)
+        .update({
+      'ai_prompt': _promptController.text.trim(),
+    });
+    setState(() => _isSaving = false);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = themeNotifier.value == ThemeMode.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text("KI Einstellungen", style: TextStyle(color: textColor)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text("ANWEISUNGEN FÜR DIE KI",
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: TextField(
+              controller: _promptController,
+              maxLines: 6,
+              style: TextStyle(color: textColor),
+              decoration: const InputDecoration(
+                hintText: "Schreibe hier, wie die KI sich verhalten soll...",
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text("Vorlagen:", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            children: [
+              ActionChip(
+                label: const Text("Support Bot"),
+                onPressed: () => _promptController.text =
+                    "Du bist ein professioneller Support Bot. Antworte sachlich, präzise und hilfsbereit.",
+              ),
+              ActionChip(
+                label: const Text("Girlfriend"),
+                onPressed: () => _promptController.text =
+                    "Ich bin deine Freundin. Antworte liebevoll, humorvoll und ohne Emojis.",
+              ),
+              ActionChip(
+                label: const Text("Angry Coach"),
+                onPressed: () => _promptController.text =
+                    "Du bist ein strenger Fitness-Coach. Sei fordernd, motivierend und benutze keine Emojis.",
+              ),
+            ],
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: _isSaving ? null : _savePrompt,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ChatTheme.myBubbleColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: _isSaving
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text("Einstellungen speichern",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Hilfs-Widgets für das Grouped-Design ---
+
+class _SettingsGroup extends StatelessWidget {
+  final bool isDark;
+  final List<Widget> children;
+
+  const _SettingsGroup({required this.isDark, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 5))
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final Color accentColor;
+  final bool isDark;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+    required this.accentColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = isDark ? Colors.white : Colors.black; // dynamisch
+    final subtitleColor =
+        isDark ? Colors.grey[400] : Colors.grey[600]; //dynamisch
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: accentColor, size: 22),
+      ),
+      title: Text(title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: titleColor,
+          )),
+      subtitle: subtitle != null
+          ? Text(subtitle!,
+              style: TextStyle(color: subtitleColor, fontSize: 13))
+          : null,
+      trailing: trailing ??
+          const Icon(Icons.arrow_forward_ios_rounded,
+              size: 16, color: Colors.grey),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// CHAT DESIGN SCREEN (Modernisiert)
+// ----------------------------------------------------------------
 
 class ChatDesignScreen extends StatefulWidget {
   const ChatDesignScreen({super.key});
@@ -249,20 +592,26 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
     Colors.orange[800]!,
     Colors.green[700]!,
     Colors.redAccent,
-    Colors.black87,
+    const Color(0xFF2D3436),
     Colors.teal,
-    Colors.pink,
+    const Color(0xFFE84393),
   ];
 
   final List<Color> bgColors = [
-    Colors.white,
-    const Color(0xFFF5F5F5),
+    const Color(0xFFEEEEEE),
     const Color(0xFFE3F2FD),
     const Color(0xFFF3E5F5),
     const Color(0xFFFFF3E0),
     const Color(0xFFE8F5E9),
-    const Color(0xFF212121),
-    Colors.black,
+    const Color(0xFFECEFF1),
+  ];
+  final List<Color> darkBgColors = [
+    Colors.black, // echtes Schwarz
+    const Color(0xFF121212), // sehr dunkles Grau (Standard-Dark)
+    const Color(0xFF1E1E1E), // leicht helleres Grau
+    const Color(0xFF2C2C2C), // Anthrazit
+    const Color(0xFF0D0D0D), // fast Schwarz
+    const Color(0xFF181818), // dunkles Graphit
   ];
 
   @override
@@ -279,95 +628,133 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
   void _save(Color bubble, Color bg) {
     ChatTheme.saveTheme(bubble, bg);
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Design saved!"),
-        duration: Duration(milliseconds: 600),
-      ),
-    );
+    // Keine SnackBar mehr
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Chat Design"),
-        centerTitle: true,
-      ),
+    final isDark = themeNotifier.value == ThemeMode.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
 
+    final List<Color> displayBgColors = isDark ? darkBgColors : bgColors;
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      appBar: AppBar(
+        title: Text("Chat Design",
+            style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // PREVIEW
+          // PREVIEW BOX (Handy Mockup)
           Container(
+            height: 300,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
+              // In der Vorschau zeigen wir die gewählte Personalisierung
               color: ChatTheme.backgroundColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.2), width: 4),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10))
+              ],
             ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child:
-                        const Text("How do you like the new design?"),
+                        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                        borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                            bottomRight: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 5)
+                        ]),
+                    child: Text("How do you like the new design?",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87)),
                   ),
                 ),
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 15),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: ChatTheme.myBubbleColor,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Text(
-                      "Looks great!",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                        color: ChatTheme.myBubbleColor,
+                        borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                            bottomLeft: Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: ChatTheme.myBubbleColor
+                                  .withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ]),
+                    child: const Text("Looks great! 🚀",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w500)),
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
 
           // BUBBLE COLORS
-          const Text("Message Bubble Color",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-
+          Text("ACCENT COLOR",
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 1.5)),
+          const SizedBox(height: 15),
           SizedBox(
-            height: 50,
+            height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: bubbleColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, __) => const SizedBox(width: 15),
               itemBuilder: (_, i) {
                 final c = bubbleColors[i];
                 final selected = ChatTheme.myBubbleColor == c;
-
                 return GestureDetector(
                   onTap: () => _save(c, ChatTheme.backgroundColor),
-                  child: Container(
-                    width: 50,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: selected ? 55 : 45,
+                    height: selected ? 55 : 45,
                     decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: selected
-                          ? Border.all(color: Colors.black, width: 3)
-                          : null,
-                    ),
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: selected
+                            ? Border.all(color: textColor, width: 3)
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                              color: c.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ]),
                     child: selected
                         ? const Icon(Icons.check, color: Colors.white)
                         : null,
@@ -377,31 +764,39 @@ class _ChatDesignScreenState extends State<ChatDesignScreen> {
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
 
           // BACKGROUND COLORS
-          const Text("Chat Background",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-
+          Text("CHAT BACKGROUND COLOR",
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 1.5)),
+          const SizedBox(height: 15),
           SizedBox(
-            height: 50,
+            height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: bgColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemCount: displayBgColors.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 15),
               itemBuilder: (_, i) {
-                final c = bgColors[i];
+                final c = displayBgColors[i];
                 final selected = ChatTheme.backgroundColor == c;
-
                 return GestureDetector(
                   onTap: () => _save(ChatTheme.myBubbleColor, c),
-                  child: Container(
-                    width: 50,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: selected ? 55 : 45,
+                    height: selected ? 55 : 45,
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(
+                          color: selected
+                              ? Colors.blueAccent
+                              : Colors.grey.shade300,
+                          width: selected ? 3 : 1),
                     ),
                     child: selected
                         ? Icon(Icons.check,

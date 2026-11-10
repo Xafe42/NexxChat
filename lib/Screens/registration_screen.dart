@@ -11,7 +11,8 @@ class RegistrationScreen extends StatefulWidget {
 
   @override
   // ignore: library_private_types_in_public_api
-  _RegistrationScreenState createState() => _RegistrationScreenState(); // Erstellt den State
+  _RegistrationScreenState createState() =>
+      _RegistrationScreenState(); // Erstellt den State
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
@@ -98,48 +99,67 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 color: Colors.blue[800]!, // Buttonfarbe
                 titel: 'Register', // Buttontext
                 onPressed: () async {
-                  setState(() {
-                    showSpinner = true;
-                  }); // Spinner anzeigen
+                  setState(() => showSpinner = true);
+
                   try {
                     UserCredential userCred =
                         await _auth.createUserWithEmailAndPassword(
-                      email: email,
-                      password: password,
-                    ); // Registrierungsversuch
+                      email: email.trim(),
+                      password: password.trim(),
+                    );
 
-                    // USER IN FIRESTORE SPEICHERN
                     await FirebaseFirestore.instance
                         .collection("users")
                         .doc(userCred.user!.uid)
                         .set({
                       "uid": userCred.user!.uid,
-                      "email": email,
+                      "email": email.trim(),
                       "fullName": email.split('@')[0],
                       "profilePic": "",
                       "groups": [],
                     });
 
+                    if (!mounted) return;
+
                     Navigator.pushNamedAndRemoveUntil(
-                      // ignore: use_build_context_synchronously
                       context,
-                      ChatHomeScreen.screenRoute, // Weiterleitung zur Übersicht
+                      ChatHomeScreen.screenRoute,
                       (route) => false,
                     );
-                    setState(() {
-                      showSpinner = false;
-                    }); // Spinner ausblenden
+                  } on FirebaseAuthException catch (e) {
+                    if (e.code == "email-already-in-use") {
+                      _showError("Diese E-Mail wird bereits verwendet!");
+                    } else if (e.code == "invalid-email") {
+                      _showError("Ungültige E-Mail-Adresse.");
+                    } else if (e.code == "weak-password") {
+                      _showError("Passwort ist zu schwach (min. 6 Zeichen).");
+                    } else {
+                      _showError("Fehler: ${e.message}");
+                    }
                   } catch (e) {
-                    // Fehlerausgabe
-                    setState(() {
-                      showSpinner = false;
-                    }); // Spinner ausblenden
+                    _showError("Unbekannter Fehler beim Registrieren.");
+                  } finally {
+                    setState(() => showSpinner = false);
                   }
                 },
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

@@ -1,10 +1,13 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../core/services/chat_theme.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+
+import '../widgets/full_screen_image_page.dart';
 
 class ImageBotScreen extends StatefulWidget {
   static const String screenRoute = "image_bot_screen";
@@ -18,7 +21,6 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-
   final List<Map<String, dynamic>> _messages = [
     {
       'role': 'ai',
@@ -29,6 +31,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   ];
 
   bool _isLoading = false;
+  bool _isUploading = false; // Status für den Spinner beim Firebase-Upload
 
   @override
   void initState() {
@@ -41,14 +44,11 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     if (mounted) setState(() {});
   }
 
-  // -------------------------------
-  // 🔥 Upload Bild zu Firebase
-  // -------------------------------
+  //Upload Bild zu Firebase
   Future<String?> _uploadToFirebase(Uint8List bytes) async {
     try {
       final fileName = "ai_${DateTime.now().millisecondsSinceEpoch}.png";
-      final ref =
-          FirebaseStorage.instance.ref().child("chat_images/$fileName");
+      final ref = FirebaseStorage.instance.ref().child("chat_images/$fileName");
 
       await ref.putData(
         bytes,
@@ -62,31 +62,49 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     }
   }
 
-  // -------------------------------
-  // 🔥 Generiere Bild mit Pollinations
-  // -------------------------------
-  Future<Uint8List?> _generateImage(String prompt) async {
+  // Generiere Bild mit Pollinations
+
+  Future<dynamic> _generateImage(String prompt) async {
+    const String myApiKey = "sk_OsgzUPABqx04kQQ2GIeEZwKKX4XtswXd";
+
     try {
-      // 1. URL erstellen (wie im alten Code)
-      final encodedPrompt = Uri.encodeComponent(prompt);
-      // Wir nutzen model=flux für bessere Qualität und einen Seed gegen Caching
-      final String url = "https://pollinations.ai/p/$encodedPrompt?width=800&height=800&seed=${DateTime.now().millisecondsSinceEpoch}&model=flux";
+      final encodedPrompt = Uri.encodeComponent(prompt.trim());
+      final int seed = Random().nextInt(1000000);
 
-      print("Lade Bild von: $url");
+      const String model = "flux";
 
-      // 2. Bild herunterladen, um die Bytes zu bekommen
-      // Dies ist notwendig, damit wir es danach zu Firebase hochladen können.
-      final response = await http.get(Uri.parse(url));
+      final String url = "https://gen.pollinations.ai/image/$encodedPrompt"
+          "?width=1024"
+          "&height=1024"
+          "&nologo=true"
+          "&seed=$seed"
+          "&model=$model";
+
+      print("DEBUG: Sende Anfrage an: $url");
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $myApiKey",
+        },
+      ).timeout(const Duration(seconds: 40));
 
       if (response.statusCode == 200) {
-        return response.bodyBytes;
+        if (response.bodyBytes.length > 20000) {
+          return response.bodyBytes;
+        }
+        return "FEHLER: Bilddaten zu klein.";
+      } else if (response.statusCode == 429) {
+        // Falls das Limit deines Accounts doch erreicht wird:
+        return "Dein Account-Limit wurde erreicht. Bitte kurz warten. ⏳";
       } else {
-        print("Pollinations API error: ${response.statusCode}");
-        return null;
+        print(
+            "API FEHLER: ${response.statusCode} - Nachricht: ${response.body}");
+        return "Fehler: ${response.statusCode}. Bitte prüfe deinen API Key.";
       }
     } catch (e) {
-      print("Network error: $e");
-      return null;
+      print("Netzwerkfehler: $e");
+      return "Netzwerkfehler. Bitte Internetverbindung prüfen.";
     }
   }
 
@@ -102,9 +120,8 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     });
   }
 
-  // -------------------------------
-  // 🔥 Nachricht senden
-  // -------------------------------
+  //  Nachricht senden
+
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -119,41 +136,38 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
     _scrollToBottom();
 
     // Generierung aufrufen
-    final imageBytes = await _generateImage(text);
+    final result = await _generateImage(text);
 
     if (mounted) {
       setState(() {
         _isLoading = false;
-        if (imageBytes != null) {
+        if (result is Uint8List) {
           _messages.add({
             'role': 'ai',
-            'data': imageBytes, // Speichert die Bytes
+            'data': result, // Speichert die Bytes
             'type': 'image',
             'prompt': text,
           });
         } else {
-          _messages.add({
-            'role': 'ai',
-            'text': "Fehler beim Laden des Bildes von Pollinations.",
-            'type': 'text'
-          });
+          // Zeige Fehlermeldung direkt im Chat
+          _messages
+              .add({'role': 'ai', 'text': result.toString(), 'type': 'text'});
         }
       });
       _scrollToBottom();
     }
   }
 
-  // -------------------------------
   // UI (Unverändert übernommen)
-  // -------------------------------
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+    final accentColor = ChatTheme.myBubbleColor;
     return Scaffold(
       backgroundColor: ChatTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.pink[800],
+        backgroundColor: accentColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context, null),
@@ -180,48 +194,73 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
-                    crossAxisAlignment:
-                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isMe ? "Dein Prompt" : "Generiertes Bild",
+                        isMe ? "Dein Prompt" : "KI Bot",
                         style: TextStyle(
-                            color: Colors.pink[800],
+                            color: accentColor,
                             fontSize: 12,
                             fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-
-                      //
-                      // IMAGE
-                      //
                       if (isImage)
                         Column(
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.memory(
-                                msg['data'],
-                                width: 300,
-                                fit: BoxFit.cover,
+                            // Klickbar für VOLLBILD
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FullScreenImagePage(
+                                        imageBytes: msg['data']),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Image.memory(
+                                  msg['data'],
+                                  width: 300,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 10),
 
-                            // 🔥 Send to Chat Button
+                            // Send to Chat Button
                             ElevatedButton.icon(
-                              onPressed: () async {
-                                final url =
-                                    await _uploadToFirebase(msg['data']);
+                              onPressed: _isUploading
+                                  ? null
+                                  : () async {
+                                      setState(() => _isUploading = true);
 
-                                if (url != null) {
-                                  Navigator.pop(context, url);
-                                }
-                              },
-                              icon: const Icon(Icons.send),
-                              label: const Text("Send to Chat"),
+                                      final url =
+                                          await _uploadToFirebase(msg['data']);
+
+                                      if (url != null) {
+                                        Navigator.pop(context, url);
+                                      }
+
+                                      if (mounted) {
+                                        setState(() => _isUploading = false);
+                                      }
+                                    },
+                              icon: _isUploading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
+                                  : const Icon(Icons.send),
+                              label: Text(_isUploading
+                                  ? "Wird gesendet..."
+                                  : "Send to Chat"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.pink[700],
+                                backgroundColor: accentColor,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 30, vertical: 12),
@@ -232,16 +271,12 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                             ),
                           ],
                         )
-                      //
-                      // TEXT
-                      //
                       else
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isMe
-                                ? ChatTheme.myBubbleColor
-                                : Colors.white,
+                            color:
+                                isMe ? ChatTheme.myBubbleColor : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -263,16 +298,18 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
-                children: [
-                  const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.pink)),
+                children:[
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: accentColor),
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     "Bild wird generiert...",
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black),
                   )
                 ],
               ),
@@ -291,8 +328,9 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                       decoration: InputDecoration(
                         hintText: "Beschreibe ein Bild...",
                         filled: true,
-                        fillColor:
-                            isDarkMode ? Colors.grey[800] : const Color(0xFFF2F2F2),
+                        fillColor: isDarkMode
+                            ? Colors.grey[800]
+                            : const Color(0xFFF2F2F2),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(30),
                           borderSide: BorderSide.none,
@@ -305,7 +343,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
                   const SizedBox(width: 8),
                   FloatingActionButton(
                     onPressed: _isLoading ? null : _sendMessage,
-                    backgroundColor: Colors.pink[700],
+                    backgroundColor: accentColor,
                     child: const Icon(Icons.brush_rounded, color: Colors.white),
                   ),
                 ],

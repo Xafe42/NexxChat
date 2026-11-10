@@ -43,6 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/app/gradle.properties
+nexxchat-1f0fc-c533a8e4f04d.json
+gradle.properties
+api_key_pollination
 
 # Build artifacts, APKs & Bundles
 *.apk

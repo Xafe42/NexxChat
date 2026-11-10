@@ -31,6 +31,7 @@ class Message {
   final Timestamp timestamp;
   final Attachment? attachment;
   MessageStatus status;
+  final Map<String, dynamic>? reactions;
 
   Message({
     required this.id,
@@ -40,6 +41,7 @@ class Message {
     required this.timestamp,
     required this.status,
     this.attachment,
+    this.reactions,
   });
 
   factory Message.fromMap(Map<String, dynamic> msgData) {
@@ -53,6 +55,9 @@ class Message {
       attachment: msgData["attachment"] != null
           ? Attachment.fromMap(msgData["attachment"])
           : null,
+      reactions: msgData["reactions"] != null
+          ? Map<String, dynamic>.from(msgData["reactions"])
+          : {},
     );
   }
 
@@ -90,6 +95,8 @@ class Message {
       'receiverId': receiverId,
       'timestamp': timestamp,
       "attachment": attachment?.toMap(),
+      "reactions": reactions,
+
     };
   }
 }

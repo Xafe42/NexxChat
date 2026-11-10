@@ -5,16 +5,49 @@
 
 ---
 
-### ✨ Core-Funktionen
-* **Echtzeit-Chat:** Nachrichten, Bilder, Reactions, Typing-Indikator, Gruppen, Dark/Light Mode und Chat-Personalisierung.
-* **Integrierte Mini-Apps:** Mini-App-Erlebnisse direkt im Chatverlauf (Events, Tetris, Bildgenerierung etc.).
-* **Ziel:** Chats lebendig, spielerisch und produktiv machen, mit Mini-Apps als Haupt-Alleinstellungsmerkmal.
+## 🌟 Features & Highlights
 
-### 🛠️ Technologien
-* **Frontend:** Flutter / Dart
-* **Backend & Cloud:** Firebase (Auth, Firestore, Storage, Cloud Functions)
-* **Deployment:** Google Play
-* **Versionskontrolle:** GitHub
+### 💬 Kommunikation & Chat
+* **Privatnachrichten:** Starte private Chats direkt über den „+“-Button.
+* **Rich Media Support:** Versende Texte und teile Bilder direkt aus deiner Galerie oder nimm sie live mit der Kamera auf.
+* **Reactions:** Reagiere auf Nachrichten mit Emojis, ändere deine Meinung oder entferne Reaktionen – alles in Echtzeit.
+* **Live-Status:** Sieh dank **Typing-Indikatoren**, wann dein Gesprächspartner schreibt.
+* **Smart UX:** Nutze den „Scroll-to-Bottom“-Button, um in langen Chats sofort wieder zum Geschehen zu springen.
+
+### 👥 Gruppen & Kollaboration
+* **Gruppenchats:** Erstelle neue Gruppen und füge Mitglieder hinzu. Die Gruppe synchronisiert sich sofort bei allen Teilnehmern.
+* **Event-Planung:** Nutze den `/event` Befehl, um Veranstaltungen zu planen. Mitglieder können direkt via Reactions zu- oder absagen.
+
+### 🎮 Mini-Apps & Entertainment
+* **In-Chat Gaming:** Spiele eine Runde **Tetris** und teile deinen Highscore direkt in der Gruppe, um Freunde herauszufordern.
+* **Bot-Integration:** Teste die Konnektivität mit der `/hello` Mini-App.
+
+### 🤖 KI-Integration
+* **KI-Bildgenerierung:** Erstelle einzigartige Bilder per Prompt und sende sie direkt in den Chat.
+* **Interaktion:** Auch KI-generierte Inhalte unterstützen volle Reaction-Funktionalität.
+* **KI-Support-Bot:** Integrierter Assistent auf Basis der Google Gemini API.
+
+### 🎨 Design & Personalisierung
+* **Dark & Light Mode:** Schalte nahtlos zwischen hellen und dunklen Designs um.
+* **Personalisierung:** Passe den Chat an deine visuellen Vorlieben an.
+
+### 📹 Audio- & Video-Calls
+* **Audio- & Videoanrufe:** Führe direkte Video- und Sprachanrufe via WebRTC mit Mini-Overlay direkt in der App.
+
+---
+
+## 🛠️ Tech Stack 
+
+| Komponente | Technologie | Anmerkung |
+| :--- | :--- | :--- |
+| **Frontend** | **Flutter / Dart** | Single-Codebase für Android, iOS und Web; hohe Performance und konsistentes UI. |
+| **Backend & Cloud** | **Firebase** | Firestore, Authentication, Cloud Storage, Cloud Functions. |
+| **Echtzeit-Synchronisation** | **Firestore Realtime Listeners** | Direkt im Client implementiert; ersetzt WebSockets vollständig. |
+| **Calls & Medien** | **WebRTC** | Peer-to-Peer Audio- & Video-Calls. |
+| **KI: Bildgenerierung** | **Hugging Face / Pollination AI** | Für Avatare, Sticker, Bildgenerierung innerhalb der App. |
+| **KI: Support Assistant** | **Google Gemini API** | Intelligente Antworten, Chatbot, Moderation, Wissenssuche. |
+| **Versionsverwaltung** | **GitHub** | Code-Verwaltung, Pull Requests, Issues, Wiki. |
+| **IDE & Emulation** | **VS Code / Android Studio** | Entwicklungsumgebung und Android-Emulator. |
 
 ---
 
@@ -40,7 +73,6 @@
    ```bash
    flutter doctor
    ```
-   *(Visual Studio für Windows Desktop muss nicht zwingend installiert sein; Android reicht für die App).*
 
 ---
 
@@ -70,8 +102,8 @@ cd NexxChat
    ```bash
    flutter devices
    ```
-3. Abhängigkeiten laden und starten:
+3. Abhängigkeiten laden und starten (mit automatischer `.env`-Einbindung):
    ```bash
    flutter pub get
-   flutter run
+   flutter run --dart-define-from-file=.env
    ```

@@ -1,8 +1,17 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:nexxchat_firebase/Screens/SearchUsersScreen.dart';
 import 'package:nexxchat_firebase/Screens/people_screen.dart';
+import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
+import 'package:nexxchat_firebase/core/navigation.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
 
+import '../core/widgets/ui/banner_service.dart';
 import 'chat_screen.dart';
 import 'image_bot_screen.dart';
 import 'private_chat_screen.dart';
@@ -23,92 +32,406 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
   int _selectedIndex = 0;
   User? currentUser;
 
-  // Mock-Daten für die statischen Chats (außer Global Chat)
-  final List<Map<String, dynamic>> _staticChats = [
-    // Index 1: Support Bot
-    {
-      "name": "Support Bot",
-      "message": "Ich bin bereit für AI Fragen...",
-      "time": "Gestern",
-      "avatar": null,
-      "icon": Icons.smart_toy_rounded,
-      "isGroup": false,
-      "unread": 0,
-      "color": Colors.purple,
-    },
-  ];
-   
+  late PageController _pageController;
+  StreamSubscription? _msgSub;
+  String? _openedConversationId;
+  Timestamp? _lastBannerTime;
+  late DateTime _appStartTime;
+  final Map<String, String> _lastShownPerConv = {};
 
+  /// IDs of hidden conversations
+  List<String> _hiddenChats = [];
+
+  /// For every hidden chat: when it was hidden (so we know if there's a newer message)
+  Map<String, Timestamp?> _hiddenChatTimes = {};
+
+  bool _loadingUserHiddenChats = true;
+  bool _initialLoadDone = false;
+  // Statische Bots (Behalten ihre eigene Farbe, da sie "Brands" sind)
+  final List<Map<String, dynamic>> _staticChats = [];
+  final CallService _callService = CallService();
+
+  final Set<String> _handledCallIds = {};
+  final bool _incomingDialogOpen = false;
+  String? _initialConversationId;
   @override
   void initState() {
     super.initState();
+    if (_initialConversationId != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      globalNavigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => PrivateChatScreen(
+            conversationId: _initialConversationId!,
+            title: 'Chat',
+          ),
+        ),
+      );
+      _initialConversationId = null; // مهم
+    });
+  }
+    _setupFCMClickHandling();
+    _appStartTime = DateTime.now();
     currentUser = _auth.currentUser;
+    _pageController = PageController(initialPage: _selectedIndex);
+    _loadTheme();
+    _loadHiddenChats();
+    _saveFcmToken(); //Adresse des Handys speichern
+    _listenIncomingCalls();
+    _listenNewMessages();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+    _msgSub?.cancel();
+  }
+
+  final Map<String, int> _lastSeenTime = {};
+  final Map<String, String> _lastSeenKey = {};
+
+  bool _ready = false;
+
+  void _listenNewMessages() {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
+
+    _msgSub?.cancel();
+
+    _msgSub = _firestore
+        .collection("conversations")
+        .where("members", arrayContains: uid)
+        .snapshots()
+        .listen((snap) {
+      
+      if (!_ready) {
+        for (final d in snap.docs) {
+          final t = d["lastMessageTime"] as Timestamp?;
+          if (t != null) {
+            _lastSeenTime[d.id] = t.millisecondsSinceEpoch;
+
+            final data = d.data();
+            _lastSeenKey[d.id] =
+                "${data["lastSenderId"]}|${data["lastMessage"]}";
+          }
+        }
+        _ready = true;
+        return;
+      }
+
+      for (final change in snap.docChanges) {
+        if (change.type != DocumentChangeType.modified) continue;
+
+        final doc = change.doc;
+
+       
+        if (doc.metadata.hasPendingWrites) continue;
+        if (doc.metadata.isFromCache) continue;
+
+        final data = doc.data();
+        if (data == null) continue;
+
+        final senderId = data["lastSenderId"];
+        final text = (data["lastMessage"] ?? "").toString();
+        final time = data["lastMessageTime"] as Timestamp?;
+        final convId = doc.id;
+
+        if (time == null) continue;
+
+        final ms = time.millisecondsSinceEpoch;
+        final prevTime = _lastSeenTime[convId] ?? 0;
+
+        if (ms <= prevTime) continue;
+        _lastSeenTime[convId] = ms;
+
+        final key = "$senderId|$text";
+        if (_lastSeenKey[convId] == key) continue;
+        _lastSeenKey[convId] = key;
+
+        if (senderId == uid) continue;
+        if (ChatOpenTracker.openedConversationId == convId) continue;
+
+        final name =
+            data["lastSenderName"] ?? data["lastSenderEmail"] ?? "User";
+
+        if (!mounted) return;
+
+        BannerService.show(
+          context,
+          title: name.toString(),
+          message: text,
+          avatarUrl: data["lastSenderPhoto"]?.toString(),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PrivateChatScreen(
+                  conversationId: convId,
+                  title: name,
+                ),
+              ),
+            );
+          },
+        );
+      }
+    });
+  }
+void _setupFCMClickHandling() {
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    final convId = message.data['conversationId'];
+    if (convId == null) return;
+
+    globalNavigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => PrivateChatScreen(
+          conversationId: convId,
+          title: 'Chat',
+        ),
+      ),
+    );
+  });
+}
+  void _listenIncomingCalls() {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
+  }
+
+  Future<void> _saveFcmToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    print("FCM TOKEN = $token");
+    if (token != null && currentUser != null) {
+      await _firestore.collection("users").doc(currentUser!.uid).set({
+        'fcmToken': token.trim(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  // Hide specific conversation + store hide timestamp
+  Future<void> _hideChat(String chatId) async {
+    if (currentUser == null) return;
+
+    try {
+      await _firestore.collection("users").doc(currentUser!.uid).update({
+        "hiddenChats": FieldValue.arrayUnion([chatId]),
+        // speichere den Zeitpunkt, wann genau diese Konversation versteckt wurde
+        "hiddenChatsTime.$chatId": FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _hiddenChats.add(chatId);
+        _hiddenChatTimes[chatId] = Timestamp.now();
+      });
+    } catch (e) {
+      debugPrint("Error hiding chat: $e");
+    }
+  }
+
+  //  Unhide specific conversation (z.B. wenn neue Nachricht nach hide kam)
+  Future<void> _unhideChat(String chatId) async {
+    if (currentUser == null) return;
+
+    try {
+      await _firestore.collection("users").doc(currentUser!.uid).update({
+        "hiddenChats": FieldValue.arrayRemove([chatId]),
+        "hiddenChatsTime.$chatId": FieldValue.delete(),
+      });
+
+      setState(() {
+        _hiddenChats.remove(chatId);
+        _hiddenChatTimes.remove(chatId);
+      });
+    } catch (e) {
+      debugPrint("Error un-hiding chat: $e");
+    }
+  }
+
+  //  Bottom Sheet bei Longpress
+  void _showChatOptions(Map<String, dynamic> chat) {
+    if (chat['docId'] == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility_off, color: Colors.red),
+                title: const Text("Konversation ausblenden"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _hideChat(chat['docId']);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _loadHiddenChats() async {
+    if (currentUser == null) {
+      setState(() => _loadingUserHiddenChats = false);
+      return;
+    }
+
+    try {
+      final userDoc =
+          await _firestore.collection("users").doc(currentUser!.uid).get();
+
+      final data = userDoc.data();
+      if (data != null) {
+        _hiddenChats = List<String>.from(data["hiddenChats"] ?? <String>[]);
+
+        final hiddenTimesRaw = data["hiddenChatsTime"] as Map<String, dynamic>?;
+
+        _hiddenChatTimes = {};
+        if (hiddenTimesRaw != null) {
+          hiddenTimesRaw.forEach((key, value) {
+            if (value is Timestamp) {
+              _hiddenChatTimes[key] = value;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error loading hidden chats: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _loadingUserHiddenChats = false);
+      }
+    }
+  }
+
+  void _loadTheme() async {
+    await ChatTheme.loadTheme();
+    // Dark Mode auf Notifier hören (optional)
+    setState(() {});
   }
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return "";
     final date = timestamp.toDate();
-    return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    final now = DateTime.now();
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
+      return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    }
+    return "${date.day}.${date.month}.";
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-    final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey;
+    // FIX: Nutzt jetzt die System-Helligkeit statt der statischen Variable
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final List<Widget> pages = [
-      Column(
-        children: [
-          _buildHeader(textColor, isDarkMode),
-          Expanded(child: _buildChatList(textColor, subTextColor)),
-        ],
-      ),
-      const PeopleScreen(),
-      const SettingsScreen(),
-    ];
+    // FIX: Nutzt jetzt die System-Hintergrundfarbe (aus main.dart) statt der personalisierten Farbe
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
+    final textColor = isDark ? Colors.white : const Color(0xFF2D3436);
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final accentColor = ChatTheme.getBubbleColor();
+
+    if (currentUser == null || _loadingUserHiddenChats) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: pages[_selectedIndex],
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          children: [
+            Column(
+              children: [
+                _buildHeader(textColor, isDark),
+                Expanded(
+                  child: _buildChatList(textColor, subTextColor, accentColor),
+                ),
+              ],
+            ),
+            const PeopleScreen(),
+            const SettingsScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)
+            BoxShadow(
+              // FIX: withOpacity -> withValues
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            )
           ],
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: Colors.orange[800],
+          onTap: (index) {
+            _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          },
+          selectedItemColor: accentColor,
           unselectedItemColor: Colors.grey[400],
           showSelectedLabels: false,
           showUnselectedLabels: false,
           elevation: 0,
-          backgroundColor: bgColor,
+          backgroundColor: Colors.transparent,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded), label: "Chats"),
+              icon: Icon(Icons.chat_bubble_rounded),
+              activeIcon: Icon(Icons.chat_bubble),
+              label: "Chats",
+            ),
             BottomNavigationBarItem(
-                icon: Icon(Icons.people_alt_rounded), label: "People"),
+              icon: Icon(Icons.people_alt_rounded),
+              activeIcon: Icon(Icons.people_alt),
+              label: "People",
+            ),
             BottomNavigationBarItem(
-                icon: Icon(Icons.settings_rounded), label: "Settings"),
+              icon: Icon(Icons.settings_rounded),
+              activeIcon: Icon(Icons.settings),
+              label: "Settings",
+            ),
           ],
         ),
       ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
-                setState(() {
-                  _selectedIndex = 1; // Wechselt zum People Tab
-                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SupportBotScreen(),
+                  ),
+                );
               },
-              backgroundColor: isDarkMode ? Colors.grey[800] : Colors.black,
-              child: const Icon(Icons.add, color: Colors.white),
+              // Farbe passt sich jetzt dynamisch an
+              backgroundColor: isDark ? Colors.grey[800] : Colors.white,
+              elevation: 6,
+              child: Icon(
+                Icons.smart_toy_rounded, // 🤖 KI icon
+                color: ChatTheme.myBubbleColor,
+                size: 28,
+              ),
             )
           : null,
     );
@@ -116,26 +439,65 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
 
   Widget _buildHeader(Color textColor, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 15),
       child: Row(
         children: [
           Text(
             "Chats",
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
               color: textColor,
+              letterSpacing: -0.5,
             ),
           ),
           const Spacer(),
           Container(
+            margin: const EdgeInsets.only(right: 10),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey[850] : Colors.grey[200],
-              shape: BoxShape.circle,
+              color: isDark ? Colors.grey[800] : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  // FIX: withOpacity -> withValues
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
             ),
             child: IconButton(
-              icon: Icon(Icons.search, color: textColor),
-              onPressed: () {},
+              icon: Icon(Icons.add_rounded, color: textColor, size: 26),
+              onPressed: () {
+                _pageController.animateToPage(
+                  1,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[800] : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  // FIX: withOpacity -> withValues
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(Icons.search_rounded, color: textColor),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SearchUsersScreen()),
+                );
+              },
             ),
           ),
         ],
@@ -143,12 +505,15 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     );
   }
 
-  Widget _buildChatList(Color textColor, Color? subTextColor) {
+  Widget _buildChatList(
+    Color textColor,
+    Color? subTextColor,
+    Color accentColor,
+  ) {
     if (currentUser == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: accentColor));
     }
 
-    // Stream der privaten Unterhaltungen aus Firestore
     return StreamBuilder<QuerySnapshot>(
       stream: _firestore
           .collection('conversations')
@@ -156,8 +521,6 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
           .orderBy('lastMessageTime', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        
-        // --- 1. Globaler Chat Tile (immer ganz oben) ---
         final globalChatTile = StreamBuilder<QuerySnapshot>(
           stream: _firestore
               .collection('messages')
@@ -173,7 +536,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               if (data['type'] == 'image') {
                 lastMessage = "📷 Foto";
               } else if (data['type'] == 'app') {
-                lastMessage = "App Aktivität";
+                lastMessage = "✨ App Aktivität";
               } else {
                 lastMessage = data['payload']?['text'] ?? "Nachricht";
               }
@@ -188,68 +551,94 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               "avatar": "images/nexxchat.png",
               "isGroup": true,
               "unread": 0,
-              "color": Colors.orange,
+              "color": accentColor,
             };
-            return _buildChatTile(liveChat,
-                isLive: true, textColor: textColor, subTextColor: subTextColor);
+            return _buildChatTile(
+              liveChat,
+              isLive: true,
+              textColor: textColor,
+              subTextColor: subTextColor,
+            );
           },
         );
 
         final conversations = snapshot.hasData ? snapshot.data!.docs : [];
-
-        // Gesamtliste: 
-        // 1. Global Chat
-        // 2. Statische Chats (Support Bot, AI Bot, etc.)
-        // 3. Dynamische Chats aus Firestore
         final totalCount = 1 + _staticChats.length + conversations.length;
 
         return ListView.builder(
           itemCount: totalCount,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 6),
+          physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
-            // Index 0: Globaler Chat
             if (index == 0) return globalChatTile;
 
-            // Index 1 bis staticChats.length: Statische Chats
             if (index <= _staticChats.length) {
               final chat = _staticChats[index - 1];
-              return _buildChatTile(chat, isLive: false, textColor: textColor, subTextColor: subTextColor);
+              return _buildChatTile(
+                chat,
+                isLive: false,
+                textColor: textColor,
+                subTextColor: subTextColor,
+              );
             }
 
-            // Ab hier: Dynamische Chats aus Firestore
             final convIndex = index - (1 + _staticChats.length);
             final convDoc = conversations[convIndex];
             final convData = convDoc.data() as Map<String, dynamic>;
-            
+
+            final lastMsgTime = convData['lastMessageTime'] as Timestamp?;
+            final isHidden = _hiddenChats.contains(convDoc.id);
+            final hiddenAt = _hiddenChatTimes[convDoc.id];
+
+            if (isHidden) {
+              final lastDate = lastMsgTime?.toDate();
+              final hiddenDate = hiddenAt?.toDate();
+
+              final hasNewMessage = lastDate != null &&
+                  (hiddenDate == null || lastDate.isAfter(hiddenDate));
+
+              if (!hasNewMessage) {
+                return const SizedBox.shrink();
+              } else {
+                _unhideChat(convDoc.id);
+              }
+            }
+
             final isGroup = convData['isGroup'] ?? false;
             final lastMsg = convData['lastMessage'] ?? "";
-            final ts = convData['lastMessageTime'] as Timestamp?;
-            final timeStr = _formatTimestamp(ts);
+            final timeStr = _formatTimestamp(lastMsgTime);
 
-            // FALL 1: GRUPPE
             if (isGroup) {
-               final groupName = convData['name'] ?? "Gruppe";
-               final chatMap = {
-                 "name": groupName,
-                 "message": lastMsg,
-                 "time": timeStr,
-                 "avatar": null,
-                 "icon": Icons.groups, // Gruppen-Icon
-                 "isGroup": true,
-                 "unread": 0,
-                 "color": Color(convData['color'] ?? Colors.blue.value),
-                 "docId": convDoc.id,
-               };
-               return _buildChatTile(chatMap, isLive: false, textColor: textColor, subTextColor: subTextColor);
-            } 
-            
-            // FALL 2: EINZELCHAT
-            else {
-              final members = List<String>.from(convData['members']);
-              final otherUid = members.firstWhere((id) => id != currentUser!.uid,
-                  orElse: () => "");
+              final groupName = convData['name'] ?? "Gruppe";
+              final groupPhotoUrl = convData['groupPhotoURL'];
+              final storedColor = convData['color'] != null
+                  ? Color(convData['color'])
+                  : accentColor;
 
-              // Daten des Chatpartners laden
+              final chatMap = {
+                "name": groupName,
+                "message": lastMsg,
+                "time": timeStr,
+                "avatar": groupPhotoUrl,
+                "icon": Icons.groups_rounded,
+                "isGroup": true,
+                "unread": 0,
+                "color": storedColor,
+                "docId": convDoc.id,
+              };
+              return _buildChatTile(
+                chatMap,
+                isLive: false,
+                textColor: textColor,
+                subTextColor: subTextColor,
+              );
+            } else {
+              final members = List<String>.from(convData['members']);
+              final otherUid = members.firstWhere(
+                (id) => id != currentUser!.uid,
+                orElse: () => "",
+              );
+
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore.collection('users').doc(otherUid).get(),
                 builder: (context, userSnap) {
@@ -257,23 +646,27 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                   final userData =
                       userSnap.data!.data() as Map<String, dynamic>?;
                   final name = userData?['fullName'] ?? "Unbekannt";
+                  final photoUrl = userData?['photoURL'];
 
                   final chatMap = {
                     "name": name,
                     "message": lastMsg,
                     "time": timeStr,
-                    "avatar": null,
+                    "avatarUrl": photoUrl,
                     "icon": null,
                     "isGroup": false,
                     "unread": 0,
-                    "color": Colors.blue,
+                    "color": accentColor,
                     "docId": convDoc.id,
                   };
-                  return _buildChatTile(chatMap,
-                      isLive: false,
-                      textColor: textColor,
-                      subTextColor: subTextColor);
-                });
+                  return _buildChatTile(
+                    chatMap,
+                    isLive: false,
+                    textColor: textColor,
+                    subTextColor: subTextColor,
+                  );
+                },
+              );
             }
           },
         );
@@ -281,116 +674,175 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
     );
   }
 
-  Widget _buildChatTile(Map<String, dynamic> chat,
-      {required bool isLive,
-      required Color textColor,
-      required Color? subTextColor}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+  Widget _buildChatTile(
+    Map<String, dynamic> chat, {
+    required bool isLive,
+    required Color textColor,
+    required Color? subTextColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: () {
           if (chat['name'] == "Support Bot") {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => SupportBotScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SupportBotScreen()),
+            );
           } else if (chat['name'] == "AI Image Generator") {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => ImageBotScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ImageBotScreen()),
+            );
           } else if (isLive) {
             Navigator.pushNamed(context, ChatScreen.screenRoute);
           } else if (chat['docId'] != null) {
-            // Navigation zum Private Chat (nur wenn docId vorhanden)
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => PrivateChatScreen(
-                          conversationId: chat['docId'],
-                          title: chat['name'],
-                        )));
-          } else {
-             // Fallback für statische Chats ohne spezielle Navigation
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text("Dieser Chat ist noch nicht verbunden."))
-             );
+              context,
+              MaterialPageRoute(
+                builder: (_) => PrivateChatScreen(
+                  conversationId: chat['docId'],
+                  title: chat['name'],
+                ),
+              ),
+            );
           }
         },
-        borderRadius: BorderRadius.circular(20),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: (chat['color'] as Color).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: _buildAvatarContent(chat),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(chat['name'],
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor)),
-                  const SizedBox(height: 5),
-                  Text(
-                    chat['message'],
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 14, color: subTextColor),
+        onLongPress: () {
+          if (chat['docId'] != null) {
+            _showChatOptions(chat);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+          child: Row(
+            children: [
+              // Avatar
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: ClipOval(
+                  child: Container(
+                    color: (chat['color'] as Color),
+                    child: _buildAvatarContent(chat),
                   ),
-                ],
+                ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(chat['time'],
-                    style: TextStyle(fontSize: 12, color: subTextColor)),
-                const SizedBox(height: 5),
-                if ((chat['unread'] as int) > 0)
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
+
+              const SizedBox(width: 12),
+
+              // Name + Message
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat['name'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          chat['time'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subTextColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      chat['unread'].toString(),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat['message'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: subTextColor,
+                            ),
+                          ),
+                        ),
+                        if ((chat['unread'] as int) > 0)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue,
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-              ],
-            ),
-          ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildAvatarContent(Map<String, dynamic> chat) {
+    // GROUP IMAGE (from Firebase)
+    final groupAvatar = chat['avatar'];
+    if (groupAvatar != null &&
+        groupAvatar.toString().isNotEmpty &&
+        groupAvatar.toString().startsWith('http')) {
+      return Image.network(
+        groupAvatar,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitial(chat),
+      );
+    }
+
+    //  USER PROFILE IMAGE
+    final avatarUrl = chat['avatarUrl'];
+    if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
+      return Image.network(
+        avatarUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitial(chat),
+      );
+    }
+
+    //  ICON (groups without image / bots)
     if (chat['icon'] != null) {
-      return Icon(chat['icon'] as IconData, color: chat['color'], size: 30);
+      return Icon(
+        chat['icon'] as IconData,
+        color: Colors.white,
+        size: 28,
+      );
     }
-    if (chat['avatar'] != null) {
-      return Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Image.asset(chat['avatar']));
-    }
+
+    //  FALLBACK LETTER
+    return _buildInitial(chat);
+  }
+
+  Widget _buildInitial(Map<String, dynamic> chat) {
     return Center(
-        child: Text(
-            (chat['name'] as String).isNotEmpty
-                ? (chat['name'] as String)[0].toUpperCase()
-                : "?",
-            style: TextStyle(
-                color: chat['color'],
-                fontWeight: FontWeight.bold,
-                fontSize: 20)));
+      child: Text(
+        (chat['name'] as String).isNotEmpty
+            ? (chat['name'] as String)[0].toUpperCase()
+            : "?",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
+        ),
+      ),
+    );
   }
 }

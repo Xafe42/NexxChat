@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,21 +7,29 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:nexxchat_firebase/Screens/ai_video_call_screen.dart';
 import 'package:nexxchat_firebase/Screens/image_bot_screen.dart';
+import 'package:nexxchat_firebase/Screens/outgoing_call_screen.dart';
+import 'package:nexxchat_firebase/core/chat_open_tracker.dart';
+import 'package:nexxchat_firebase/core/services/call_service.dart';
+import 'package:nexxchat_firebase/theme/chat_theme.dart';
+import 'package:nexxchat_firebase/widgets/call_time_message_card.dart';
+import 'package:nexxchat_firebase/widgets/calltime_preview.dart';
 import 'package:path/path.dart' as path;
 
-// Mini-apps & previews
 import '../Screens/TetrisFullScreenPage.dart';
 import '../apps/event_app.dart';
 import '../apps/hello_app.dart';
 import '../core/commands/command_router.dart';
 import '../core/models/chat_command.dart';
 import '../core/services/chat_service.dart';
-import '../core/services/chat_theme.dart';
-import '../widgets/ai_preview.dart';
+import '../widgets/ai_preview.dart'; // Enthält die fetchAi Logik
 import '../widgets/event_card.dart';
 import '../widgets/event_preview.dart';
+import '../widgets/full_screen_image_page.dart';
+import '../widgets/group_settings_sheet.dart';
 import '../widgets/hello_preview.dart';
+import '../widgets/reaction_picker.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final String conversationId;
@@ -43,24 +52,30 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _picker = ImagePicker();
-
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _scheduledCallSub;
+  String? otherUserPhotoUrl;
+  final Set<String> _handledScheduledCalls = {};
   User? _user;
+
   bool _sending = false;
   bool _lastTypingState = false;
   bool _showScrollBtn = false;
 
-  // -------- Mini-apps state --------
+  // ignore: unused_field
   String _raw = "";
   ChatCommand? _aktiveCmd;
-  bool _isAiPreviewVisible = false;
   bool _isSlashToolbarVisible = false;
+  String? otherUserId;
+  bool userDeleted = false;
 
   @override
   void initState() {
     super.initState();
+    ChatOpenTracker.openedConversationId = widget.conversationId;
     _user = _auth.currentUser;
     _loadTheme();
-
+    _loadOtherUser();
+    _listenScheduledCalls();
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
 
@@ -81,88 +96,52 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _setTyping(false);
     _ctrl.dispose();
     _scrollCtrl.dispose();
+    _scheduledCallSub?.cancel();
+    ChatOpenTracker.openedConversationId = null;
     super.dispose();
   }
 
-  // Funktion für Gruppen Einstellungen
-  void _showGroupSettings(BuildContext context, Map<String, dynamic> convData) {
-    final currentUid = _auth.currentUser?.uid;
-    final adminUid = convData['admin'];
-    final isGroup = convData['isGroup'] == true;
+  // Load Other User
+  Future<void> _loadOtherUser() async {
+    try {
+      final convDoc = await _db
+          .collection("conversations")
+          .doc(widget.conversationId)
+          .get();
 
-    // Nur bei Gruppen anzeigen
-    if (!isGroup) return;
+      if (!convDoc.exists) return;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        final nameCtrl = TextEditingController(text: convData['name']);
-        
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20, 
-            right: 20, 
-            top: 20
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("Gruppen Einstellungen", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              
-              // Name ändern
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: "Gruppenname"),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () async {
-                  if (nameCtrl.text.trim().isNotEmpty) {
-                    await _db.collection('conversations').doc(widget.conversationId).update({
-                      'name': nameCtrl.text.trim()
-                    });
-                    if(mounted) Navigator.pop(context);
-                  }
-                },
-                child: const Text("Speichern"),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Löschen (Nur wenn Admin)
-              if (currentUid == adminUid)
-                TextButton.icon(
-                  onPressed: () async {
-                    // Sicherheitsabfrage
-                    showDialog(context: context, builder: (c) => AlertDialog(
-                      title: const Text("Gruppe löschen?"),
-                      content: const Text("Dies kann nicht rückgängig gemacht werden."),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(c), child: const Text("Abbrechen")),
-                        TextButton(onPressed: () async {
-                           Navigator.pop(c); // Dialog zu
-                           Navigator.pop(context); // BottomSheet zu
-                           Navigator.pop(context); // Screen zu
-                           await _db.collection('conversations').doc(widget.conversationId).delete();
-                        }, child: const Text("Löschen", style: TextStyle(color: Colors.red))),
-                      ],
-                    ));
-                  }, 
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text("Gruppe löschen", style: TextStyle(color: Colors.red)),
-                ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
+      final data = convDoc.data()!;
+      final isGroup = data['isGroup'] == true;
+
+      if (isGroup) return;
+
+      final members = List<String>.from(data['members'] ?? []);
+      final currentUid = _auth.currentUser?.uid;
+
+      if (currentUid == null) return;
+
+      otherUserId =
+          members.firstWhere((id) => id != currentUid, orElse: () => "");
+
+      if (otherUserId!.isNotEmpty) {
+        final userDoc = await _db.collection("users").doc(otherUserId!).get();
+        if (!userDoc.exists) {
+          if (mounted) setState(() => userDeleted = true);
+        } else {
+          if (mounted) {
+            setState(() {
+              otherUserPhotoUrl = userDoc.data()?['photoURL'];
+            });
+          }
+        }
       }
-    );
+    } catch (e) {
+      debugPrint("Fehler beim Laden des Users: $e");
+    }
   }
 
-  // ---------- Typing indicator ----------
+  // - Typing indicator
 
   Future<void> _setTyping(bool isTyping) async {
     if (_user == null) return;
@@ -170,14 +149,49 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _lastTypingState = isTyping;
 
-    await _db.collection('conversations').doc(widget.conversationId).update({
-      'typingUsers': isTyping
-          ? FieldValue.arrayUnion([_user!.uid])
-          : FieldValue.arrayRemove([_user!.uid]),
+    try {
+      await _db.collection('conversations').doc(widget.conversationId).update({
+        'typingUsers': isTyping
+            ? FieldValue.arrayUnion([_user!.uid])
+            : FieldValue.arrayRemove([_user!.uid]),
+      });
+    } catch (_) {}
+  }
+
+  void _listenScheduledCalls() {
+    if (_user == null) return;
+
+    final convRef = _db.collection("conversations").doc(widget.conversationId);
+
+    _scheduledCallSub = convRef
+        .collection("messages")
+        .where("type", isEqualTo: "calltime")
+        .snapshots()
+        .listen((snap) {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final status = (data["status"] ?? "scheduled") as String;
+        final scheduledAt = data["scheduledAt"] as int?;
+
+        if (scheduledAt == null) continue;
+
+        final msgId = doc.id;
+
+        if (_handledScheduledCalls.contains(msgId)) continue;
+
+        final diff = nowMs - scheduledAt;
+        final isDue = diff >= 0 && diff < 2 * 60 * 1000;
+
+        if (status == "scheduled" && isDue) {
+          _handledScheduledCalls.add(msgId);
+        }
+      }
     });
   }
 
-  // ---------- Input change (typing + slash commands) ----------
+  // Input change (typing + slash commands)
 
   void _onTextChanged(String value) {
     _raw = value;
@@ -188,7 +202,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       if (value.startsWith("/") && _aktiveCmd == null) {
         _isSlashToolbarVisible = true;
-        _isAiPreviewVisible = false;
       } else {
         _isSlashToolbarVisible = false;
       }
@@ -201,15 +214,44 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  // ---------- Basic send (text or command) ----------
-
+  // Basic send (text or command)
   Future<void> _send() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending || _user == null) return;
 
+    // AI
+    if (text.startsWith("/ai ")) {
+      final prompt = text.replaceFirst("/ai ", "").trim();
+      if (prompt.isEmpty) return;
+
+      setState(() => _sending = true);
+      _ctrl.clear();
+
+      try {
+        await _chatService.sendTextMessage(
+          conversationId: widget.conversationId,
+          text: "🤖 Fragt KI: $prompt",
+          senderUid: _user!.uid,
+          senderEmail: _user!.email ?? '',
+        );
+
+        await _updateConversationMeta("🤖 Fragt KI: $prompt");
+
+        final response = await fetchAi(prompt);
+
+        await _sendAiMessage(
+          prompt: prompt,
+          response: response,
+        );
+      } finally {
+        if (mounted) setState(() => _sending = false);
+      }
+      return;
+    }
+
+    // Commands
     if (_aktiveCmd != null) {
       final cmd = _aktiveCmd!;
-
       if (cmd.type == "hello") {
         await _sendHelloCommand(cmd);
         _resetInput();
@@ -217,7 +259,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     }
 
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(_user!.uid)
+        .update({
+      "hiddenChats": FieldValue.arrayRemove([widget.conversationId])
+    });
+
     setState(() => _sending = true);
+
     try {
       await _chatService.sendTextMessage(
         conversationId: widget.conversationId,
@@ -225,6 +275,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         senderUid: _user!.uid,
         senderEmail: _user!.email ?? '',
       );
+
+      await _updateConversationMeta(text);
 
       _ctrl.clear();
       _raw = "";
@@ -243,20 +295,43 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  // ---------- Special send helpers (mini-apps) ----------
+  Future<void> _updateConversationMeta(String text) async {
+    if (_user == null) return;
+
+    final myDoc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(_user!.uid)
+        .get();
+
+    final myName = myDoc.data()?["fullName"] ??
+        myDoc.data()?["name"] ??
+        _user!.email ??
+        "User";
+
+    await FirebaseFirestore.instance
+        .collection("conversations")
+        .doc(widget.conversationId)
+        .set({
+      "lastMessage": text,
+      "lastMessageTime": FieldValue.serverTimestamp(),
+      "lastSenderId": _user!.uid,
+      "lastSenderName": myName,
+      "lastSenderEmail": _user!.email,
+    }, SetOptions(merge: true));
+  }
+
+  // Special send helpers (mini-apps)
 
   Future<void> _sendHelloCommand(ChatCommand cmd) async {
     if (_user == null) return;
 
-    final convRef =
-        _db.collection('conversations').doc(widget.conversationId);
+    final convRef = _db.collection('conversations').doc(widget.conversationId);
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
         members.firstWhere((m) => m != _user!.uid, orElse: () => '');
 
     final helloPayload = HelloApp.buildPayload(cmd.data);
-
     final msgRef = convRef.collection('messages').doc();
 
     await msgRef.set({
@@ -280,9 +355,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _sendAiImage(String url) async {
     if (_user == null) return;
 
-    final convRef =
-        _db.collection('conversations').doc(widget.conversationId);
-
+    final convRef = _db.collection('conversations').doc(widget.conversationId);
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
@@ -318,8 +391,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _sendTetrisScore(int score) async {
     if (_user == null) return;
 
-    final convRef =
-        _db.collection('conversations').doc(widget.conversationId);
+    final convRef = _db.collection('conversations').doc(widget.conversationId);
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
@@ -354,8 +426,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }) async {
     if (_user == null) return;
 
-    final convRef =
-        _db.collection('conversations').doc(widget.conversationId);
+    final convRef = _db.collection('conversations').doc(widget.conversationId);
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
@@ -365,9 +436,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     await msgRef.set({
       'id': msgRef.id,
-      'senderId': _user!.uid,
+      'senderId': 'nexx_bot', // Spezial ID für den Bot
       'receiverId': receiverUid,
-      'sender': _user!.email,
+      'sender': 'NexxAI@bot.com',
       'timestamp': FieldValue.serverTimestamp(),
       'status': "SENT",
       'type': 'ai',
@@ -387,8 +458,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _sendEventRef(String eventId) async {
     if (_user == null) return;
 
-    final convRef =
-        _db.collection('conversations').doc(widget.conversationId);
+    final convRef = _db.collection('conversations').doc(widget.conversationId);
     final snap = await convRef.get();
     final members = List<String>.from(snap['members']);
     final receiverUid =
@@ -420,50 +490,155 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _raw = "";
       _aktiveCmd = null;
       _isSlashToolbarVisible = false;
-      _isAiPreviewVisible = false;
     });
     _setTyping(false);
   }
 
-  // ---------- Images (gallery / camera) ----------
+  void _openReactionPicker(String messageId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return ReactionPicker(
+          onSelect: (emoji) {
+            if (emoji == "REMOVE_ALL") {
+              _removeAllMyReactions(messageId);
+            } else {
+              _toggleReaction(messageId, emoji);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _sendScheduledCall(Map<String, dynamic> data) async {
+    if (_user == null) return;
+
+    final scheduledDateTime =
+        DateTime.parse("${data["date"]} ${data["time"]}:00");
+    final convRef = _db.collection("conversations").doc(widget.conversationId);
+
+    await convRef.collection("messages").add({
+      "type": "calltime",
+      "senderId": _user!.uid,
+      "timestamp": FieldValue.serverTimestamp(),
+      "scheduledAt": scheduledDateTime.millisecondsSinceEpoch,
+      "status": "scheduled",
+      "payload": data,
+    });
+
+    await convRef.update({
+      "lastMessage": "📞 Call scheduled",
+      "lastMessageTime": FieldValue.serverTimestamp(),
+    });
+
+    _resetInput();
+  }
+
+  Future<void> _toggleReaction(String messageId, String emoji) async {
+    if (_user == null) return;
+    final myUid = _user!.uid;
+
+    final msgRef = _db
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .doc(messageId);
+
+    final snap = await msgRef.get();
+    if (!snap.exists) return;
+
+    final reactions = snap.data()?['reactions'] as Map<String, dynamic>? ?? {};
+    final users = List<dynamic>.from(reactions[emoji] ?? []);
+
+    if (users.contains(myUid)) {
+      await msgRef.update({
+        'reactions.$emoji': FieldValue.arrayRemove([myUid])
+      });
+    } else {
+      await msgRef.update({
+        'reactions.$emoji': FieldValue.arrayUnion([myUid])
+      });
+    }
+  }
+
+  Future<void> _removeAllMyReactions(String messageId) async {
+    if (_user == null) return;
+    final myUid = _user!.uid;
+
+    final msgRef = _db
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .doc(messageId);
+
+    final snap = await msgRef.get();
+    if (!snap.exists) return;
+
+    final Map<String, dynamic> reactions = snap.data()?['reactions'] ?? {};
+
+    Map<String, dynamic> updates = {};
+    reactions.forEach((emoji, userList) {
+      if (userList is List && (userList).contains(myUid)) {
+        updates['reactions.$emoji'] = FieldValue.arrayRemove([myUid]);
+      }
+    });
+
+    if (updates.isNotEmpty) {
+      await msgRef.update(updates);
+    }
+  }
+
+  // Images (gallery / camera)
 
   Future<void> _sendImage(File file) async {
     if (_user == null) return;
 
-    final filename =
-        '${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}';
+    setState(() => _sending = true);
 
-    final ref = FirebaseStorage.instance.ref().child('chat_images/$filename');
+    try {
+      final filename =
+          '${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}';
 
-    await ref.putFile(file);
-    final url = await ref.getDownloadURL();
+      final ref = FirebaseStorage.instance.ref().child('chat_images/$filename');
 
-    await _chatService.sendImageMessage(
-      conversationId: widget.conversationId,
-      url: url,
-      senderUid: _user!.uid,
-    );
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
 
-    if (_scrollCtrl.hasClients) {
-      _scrollCtrl.animateTo(
-        0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
+      await _chatService.sendImageMessage(
+        conversationId: widget.conversationId,
+        url: url,
+        senderUid: _user!.uid,
       );
+
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } catch (e) {
+      debugPrint("Fehler beim Bildversand: $e");
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   Future<void> _pickFromGallery() async {
     final XFile? img = await _picker.pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    await _sendImage(File(img.path));
+    if (img != null) {
+      await _sendImage(File(img.path));
+    }
     setState(() => _isSlashToolbarVisible = false);
   }
 
   Future<void> _pickFromCamera() async {
     final XFile? img = await _picker.pickImage(source: ImageSource.camera);
-    if (img == null) return;
-    await _sendImage(File(img.path));
+    if (img != null) {
+      await _sendImage(File(img.path));
+    }
     setState(() => _isSlashToolbarVisible = false);
   }
 
@@ -522,20 +697,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ---------- Mini-apps UI helpers ----------
+  // Mini-apps UI helpers
 
   void _toggleSlashToolbar() {
     setState(() {
       _isSlashToolbarVisible = !_isSlashToolbarVisible;
-      if (_isSlashToolbarVisible) _isAiPreviewVisible = false;
-    });
-  }
-
-  void _openAiPreview() {
-    setState(() {
-      _isAiPreviewVisible = true;
-      _isSlashToolbarVisible = false;
-      _aktiveCmd = null;
     });
   }
 
@@ -550,11 +716,59 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ),
       ),
     );
-
     _resetInput();
   }
 
-  // ---------- Formatting ----------
+  void _showDevelopmentDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child:
+                  const Icon(Icons.construction, color: Colors.amber, size: 40),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "In Entwicklung",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Diese Funktion wird bald verfügbar sein!",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChatTheme.myBubbleColor,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text("OK", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Formatting
 
   String _formatTime(Timestamp? ts) {
     if (ts == null) return "";
@@ -572,634 +786,949 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return DateFormat('dd MMM yyyy').format(dt);
   }
 
-  // ---------- BUILD ----------
+  // BUILD
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    final bubbleMe = ChatTheme.myBubbleColor; 
+    final bubbleMe = ChatTheme.myBubbleColor;
     final bubbleOther = isDark ? const Color(0xFF262D31) : Colors.white;
 
-    // 🔥 Stream für live updates (Titeländerung)
     return StreamBuilder<DocumentSnapshot>(
-      stream: _db.collection('conversations').doc(widget.conversationId).snapshots(),
-      builder: (context, snapshot) {
-        
-        String displayTitle = widget.title;
-        Map<String, dynamic>? convData;
-        bool isGroup = false;
+        stream: _db
+            .collection('conversations')
+            .doc(widget.conversationId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String displayTitle = widget.title;
+          Map<String, dynamic>? convData;
+          bool isGroup = false;
 
-        if (snapshot.hasData && snapshot.data!.data() != null) {
-          convData = snapshot.data!.data() as Map<String, dynamic>;
-          isGroup = convData['isGroup'] == true;
-          if (isGroup) {
-            displayTitle = convData['name'] ?? widget.title;
+          if (snapshot.hasData && snapshot.data!.data() != null) {
+            convData = snapshot.data!.data() as Map<String, dynamic>;
+            isGroup = convData['isGroup'] == true;
+            if (isGroup) {
+              displayTitle = convData['name'] ?? widget.title;
+            }
           }
-        }
 
-        return Scaffold(
-          backgroundColor: ChatTheme.backgroundColor, 
-          appBar: AppBar(
-            backgroundColor: isDark ? Colors.grey[900] : const Color(0xFF075E54),
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            titleSpacing: 0,
-            title: Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-                CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: isGroup
-                    ? const Icon(Icons.groups, color: Colors.white, size: 20)
-                    : Text(
-                        displayTitle.isNotEmpty
-                            ? displayTitle[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: InkWell(
-                    // Klick auf den Titel öffnet Einstellungen bei Gruppen
-                    onTap: (isGroup && convData != null) 
-                        ? () => _showGroupSettings(context, convData!) 
-                        : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayTitle,
-                          style: const TextStyle(color: Colors.white, fontSize: 18),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (isGroup) 
-                          const Text("Tippen für Infos", style: TextStyle(color: Colors.white70, fontSize: 12))
-                      ],
+          return Scaffold(
+            backgroundColor: ChatTheme.backgroundColor,
+            resizeToAvoidBottomInset: true,
+            appBar: AppBar(
+              backgroundColor:
+                  isDark ? Colors.grey[900] : ChatTheme.myBubbleColor,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor:
+                        isGroup ? ChatTheme.myBubbleColor : Colors.white24,
+                    child: ClipOval(
+                      child: isGroup
+                          ? _buildGroupAvatar(convData)
+                          : _buildPrivateAvatar(displayTitle),
                     ),
                   ),
-                ),
-              ],
-            ),
-            actions: [
-              // Einstellungen Icon (nur bei Gruppen)
-              if (isGroup && convData != null)
-                IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  onPressed: () => _showGroupSettings(context, convData!),
-                )
-            ],
-          ),
-          body: Stack(
-            children: [
-              Column(
-                children: [
-                  // -------- Messages list --------
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _chatService.messagesStream(widget.conversationId),
-                      builder: (context, snap) {
-                        if (!snap.hasData) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-
-                        final docs = snap.data!.docs;
-
-                        if (docs.isEmpty) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text(
-                                'Say hi 👋',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          reverse: true,
-                          controller: _scrollCtrl,
-                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                          itemCount: docs.length + 2,
-                          itemBuilder: (_, index) {
-                            // Top encryption banner
-                            if (index == docs.length + 1) {
-                              return Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 8,
-                                  bottom: 4,
-                                  left: 24,
-                                  right: 24,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: isDark
-                                        ? const Color.fromARGB(200, 24, 34, 40)
-                                        : const Color.fromARGB(148, 248, 236, 130),
-                                  ),
-                                  child: Text(
-                                    '🔒 Messages are end-to-end encrypted. No one outside this chat can read them.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark
-                                          ? Colors.yellow[200]
-                                          : Colors.black87,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                    child: InkWell(
+                      onTap: (isGroup && convData != null)
+                          ? () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                useSafeArea: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => GroupSettingsSheet(
+                                  conversationId: widget.conversationId,
                                 ),
                               );
                             }
-
-                            // First date chip (oldest message)
-                            if (index == docs.length) {
-                              final msgData = docs.last.data();
-                              final ts = (msgData['timestamp'] ??
-                                      msgData['time']) as Timestamp?;
-                              final dt = ts?.toDate() ?? DateTime.now();
-                              return _DateChip(label: _formatDateLabel(dt));
-                            }
-
-                            final msgIndex = index;
-                            final msg = docs[msgIndex].data();
-                            final senderEmail = msg['sender'] ?? '';
-                            final isMe = msg['senderId'] == _user?.uid ||
-                                senderEmail == _user?.email;
-
-                            final type = msg['type'] ?? 'text';
-                            final ts = (msg['timestamp'] ?? msg['time'])
-                                as Timestamp?;
-                            final dt = ts?.toDate() ?? DateTime.now();
-                            final time = _formatTime(ts);
-
-                            // Need date chip before this message?
-                            bool showDateChip = false;
-                            if (msgIndex < docs.length - 1) {
-                              final nextMsg = docs[msgIndex + 1].data();
-                              final nextTs = (nextMsg['timestamp'] ??
-                                      nextMsg['time']) as Timestamp?;
-                              final nextDt =
-                                  nextTs?.toDate() ?? DateTime.now();
-
-                              final d1 = DateTime(dt.year, dt.month, dt.day);
-                              final d2 = DateTime(
-                                  nextDt.year, nextDt.month, nextDt.day);
-                              if (d1.difference(d2).inDays != 0) {
-                                showDateChip = true;
-                              }
-                            }
-
-                            final bubble = _buildMessageBubble(
-                              msg: msg,
-                              isMe: isMe,
-                              type: type,
-                              time: time,
-                              bubbleMe: bubbleMe,
-                              bubbleOther: bubbleOther,
-                            );
-
-                            if (!showDateChip) return bubble;
-
-                            return Column(
-                              children: [
-                                _DateChip(label: _formatDateLabel(dt)),
-                                bubble,
-                              ],
-                            );
-                          },
-                        );
-                      },
+                          : null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayTitle,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 18),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (isGroup)
+                            const Text(
+                              "Tippen für Infos",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
+                ],
+              ),
+              actions: [
+                if (!isGroup && convData != null && !userDeleted)
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
 
-                  // -------- Typing indicator --------
-                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: _db
-                        .collection("conversations")
-                        .doc(widget.conversationId)
-                        .snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData || snap.data!.data() == null) {
-                        return const SizedBox(height: 0);
-                      }
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      final otherUserId = members.firstWhere(
+                        (m) => m != _user!.uid,
+                        orElse: () => "",
+                      );
+                      if (otherUserId.isEmpty) return;
 
-                      final data = snap.data!.data()!;
-                      final typingUsers =
-                          List<String>.from(data["typingUsers"] ?? []);
-                      final members = List<String>.from(data["members"] ?? []);
+                      final callId = await CallService().startPrivateCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        receiverId: otherUserId,
+                        type: 'audio',
+                      );
 
-                      final me = _user?.uid;
-                      final otherUid =
-                          members.firstWhere((m) => m != me, orElse: () => "");
-
-                      final isTyping =
-                          otherUid.isNotEmpty && typingUsers.contains(otherUid);
-
-                      if (!isTyping) return const SizedBox(height: 0);
-
-                      return Padding(
-                        padding: const EdgeInsets.only(
-                          left: 18,
-                          bottom: 4,
-                          top: 2,
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 4),
-                            Text(
-                              "typing…",
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'audio',
+                          ),
                         ),
                       );
                     },
                   ),
+                if (!isGroup && convData != null && !userDeleted)
+                  IconButton(
+                    icon:
+                        const Icon(Icons.videocam_rounded, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
 
-                  // -------- Input row (attach + ⚡ mini-apps + text + send) --------
-                  _buildInput(isDark),
-                ],
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      final otherUserId = members.firstWhere(
+                        (m) => m != _user!.uid,
+                        orElse: () => "",
+                      );
+                      if (otherUserId.isEmpty) return;
+
+                      final callId = await CallService().startPrivateCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        receiverId: otherUserId,
+                        type: 'video',
+                      );
+
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'video',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                if (isGroup && convData != null)
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
+
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      if (members.isEmpty) return;
+
+                      final callId = await CallService().startGroupCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        members: members,
+                        type: 'audio',
+                      );
+
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'audio',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                if (isGroup && convData != null)
+                  IconButton(
+                    icon: const Icon(Icons.videocam, color: Colors.white),
+                    onPressed: () async {
+                      if (_user == null) return;
+
+                      final members =
+                          List<String>.from(convData!['members'] ?? []);
+                      if (members.isEmpty) return;
+
+                      final callId = await CallService().startGroupCall(
+                        conversationId: widget.conversationId,
+                        callerId: _user!.uid,
+                        members: members,
+                      );
+
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OutgoingCallScreen(
+                            callId: callId,
+                            title: widget.title,
+                            userId: _user!.uid,
+                            userName: _user!.email ?? "User",
+                            callType: 'video',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+            body: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream:
+                            _chatService.messagesStream(widget.conversationId),
+                        builder: (context, snap) {
+                          if (!snap.hasData) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          final docs = snap.data!.docs;
+
+                          if (userDeleted) {
+                            return const Center(
+                              child: Text(
+                                "Dieser Benutzer existiert nicht mehr.",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            reverse: true,
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                            itemCount: docs.length,
+                            itemBuilder: (_, index) {
+                              final msg = docs[index].data();
+                              final msgId = docs[index].id;
+                              final isMe = msg['senderId'] == _user?.uid;
+
+                              final type = msg['type'] ?? 'text';
+
+                              // Zeitstempel-Sicherung
+                              var ts = msg['timestamp'] ?? msg['time'];
+                              String timeLabel = "";
+                              if (ts is Timestamp) {
+                                timeLabel = _formatTime(ts);
+                              } else if (ts is String) {
+                                var dt = DateTime.tryParse(ts);
+                                if (dt != null) {
+                                  timeLabel = DateFormat('HH:mm').format(dt);
+                                }
+                              }
+
+                              final bubble = _buildMessageBubble(
+                                msg: msg,
+                                messageId: msgId,
+                                isMe: isMe,
+                                type: type,
+                                time: timeLabel,
+                                bubbleMe: bubbleMe,
+                                bubbleOther: bubbleOther,
+                              );
+
+                              // Datum-Chips (Verwendet _formatDateLabel)
+                              bool showDateChip = false;
+                              DateTime dt = (ts is Timestamp)
+                                  ? ts.toDate()
+                                  : DateTime.now();
+                              if (index == docs.length - 1) {
+                                showDateChip = true;
+                              } else {
+                                var prevTs =
+                                    docs[index + 1].data()['timestamp'] ??
+                                        docs[index + 1].data()['time'];
+                                if (prevTs is Timestamp) {
+                                  DateTime prevDt = prevTs.toDate();
+                                  if (dt.day != prevDt.day ||
+                                      dt.month != prevDt.month ||
+                                      dt.year != prevDt.year) {
+                                    showDateChip = true;
+                                  }
+                                }
+                              }
+
+                              if (showDateChip) {
+                                return Column(
+                                  children: [
+                                    _DateChip(label: _formatDateLabel(dt)),
+                                    bubble,
+                                  ],
+                                );
+                              }
+                              return bubble;
+                            },
+                          );
+                        },
+                      ),
+                      if (_showScrollBtn)
+                        Positioned(
+                          right: 12,
+                          bottom: 10,
+                          child: FloatingActionButton(
+                            mini: true,
+                            backgroundColor: isDark
+                                ? Colors.grey[800]
+                                : ChatTheme.myBubbleColor,
+                            onPressed: () {
+                              if (_scrollCtrl.hasClients) {
+                                _scrollCtrl.animateTo(
+                                  0,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              }
+                            },
+                            child: const Icon(Icons.arrow_downward, size: 20),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: _db
+                      .collection("conversations")
+                      .doc(widget.conversationId)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    if (!snap.hasData || snap.data!.data() == null) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final data = snap.data!.data()!;
+                    final typingUsers =
+                        List<String>.from(data["typingUsers"] ?? []);
+                    final members = List<String>.from(data["members"] ?? []);
+                    final me = _user?.uid;
+                    final otherUid =
+                        members.firstWhere((m) => m != me, orElse: () => "");
+
+                    final isTyping =
+                        otherUid.isNotEmpty && typingUsers.contains(otherUid);
+
+                    if (!isTyping) return const SizedBox.shrink();
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(left: 18, bottom: 4, top: 2),
+                      child: Row(
+                        children: [
+                          Text(
+                            "typing…",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, animation) => SizeTransition(
+                    sizeFactor: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: _buildInteractionArea(),
+                ),
+                _buildInput(isDark),
+              ],
+            ),
+          );
+        });
+  }
+
+  Widget _buildInteractionArea() {
+    if (_isSlashToolbarVisible) {
+      return _slashToolbar();
+    } else if (_aktiveCmd?.type == "hello") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: HelloPreview(
+          text: _aktiveCmd!.previewText!,
+          onCancel: _resetInput,
+          onSend: _send,
+        ),
+      );
+    } else if (_aktiveCmd?.type == "calltime") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: CallTimePreview(
+          onCancel: _resetInput,
+          onSend: (data) => _sendScheduledCall(data),
+        ),
+      );
+    } else if (_aktiveCmd?.type == "event") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: EventPreview(
+          onCancel: _resetInput,
+          onSend: (form) async {
+            final eventPayload = EventApp.buildPayload(form);
+            final doc = await _db.collection("events").add({
+              ...eventPayload,
+              "creator": _user!.email,
+            });
+            await _sendEventRef(doc.id);
+            _resetInput();
+          },
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  void _openImageActions({
+    required String messageId,
+    required bool isMe,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[900]
+                : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _toggleReaction(messageId, emoji);
+                    },
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 26),
+                    ),
+                  );
+                }).toList(),
               ),
-
-              // Scroll to bottom FAB
-              if (_showScrollBtn)
-                Positioned(
-                  right: 12,
-                  bottom: 90,
-                  child: FloatingActionButton(
-                    mini: true,
-                    backgroundColor:
-                        isDark ? Colors.grey[800] : const Color(0xFF075E54),
-                    onPressed: () {
-                      if (_scrollCtrl.hasClients) {
-                        _scrollCtrl.animateTo(
-                          0,
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeOutCubic,
-                        );
-                      }
-                    },
-                    child: const Icon(Icons.arrow_downward, size: 20),
+              const SizedBox(height: 16),
+              const Divider(),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'Delete image',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _deleteImageMessage(messageId);
+                  },
                 ),
-
-              // -------- Mini-apps overlays --------
-
-              // Hello preview
-              if (_aktiveCmd?.type == "hello")
-                Positioned(
-                  bottom: 70,
-                  left: 0,
-                  right: 0,
-                  child: HelloPreview(
-                    text: _aktiveCmd!.previewText!,
-                    onCancel: _resetInput,
-                    onSend: _send,
-                  ),
-                ),
-
-              // AI preview
-              if (_isAiPreviewVisible)
-                Positioned(
-                  bottom: 70,
-                  left: 0,
-                  right: 0,
-                  child: AiPreview(
-                    onCancel: () =>
-                        setState(() => _isAiPreviewVisible = false),
-                    onSend: (prompt, response) async {
-                      await _sendAiMessage(prompt: prompt, response: response);
-                      setState(() => _isAiPreviewVisible = false);
-                    },
-                  ),
-                ),
-
-              // Event preview
-              if (_aktiveCmd?.type == "event")
-                Positioned(
-                  bottom: 70,
-                  left: 0,
-                  right: 0,
-                  child: EventPreview(
-                    onCancel: _resetInput,
-                    onSend: (form) async {
-                      final eventPayload = EventApp.buildPayload(form);
-                      final doc =
-                          await _db.collection("events").add({
-                        ...eventPayload,
-                        "creator": _user!.email,
-                      });
-
-                      await _sendEventRef(doc.id);
-                      _resetInput();
-                    },
-                  ),
-                ),
-
-              // Slash mini-apps toolbar
-              if (_isSlashToolbarVisible) _slashToolbar(),
             ],
           ),
         );
-      }
+      },
     );
   }
 
-  // ---------- Build one message bubble (text + image + mini-apps) ----------
+  Future<void> _deleteImageMessage(String messageId) async {
+    await FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .update({
+      'type': 'deleted',
+      'content': '🗑 Image deleted',
+      'payload': {},
+    });
+  }
+
+  Widget _buildPrivateAvatar(String name) {
+    if (otherUserPhotoUrl != null && otherUserPhotoUrl!.isNotEmpty) {
+      return Image.network(
+        otherUserPhotoUrl!,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _privateFallback(name),
+      );
+    }
+
+    return _privateFallback(name);
+  }
+
+  Widget _privateFallback(String name) {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupAvatar(Map<String, dynamic>? convData) {
+    final url = convData?['groupPhotoURL'];
+
+    if (url != null && url.toString().isNotEmpty) {
+      return Image.network(
+        url,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return const Icon(Icons.groups, color: Colors.white, size: 20);
+        },
+      );
+    }
+
+    return const Icon(Icons.groups, color: Colors.white, size: 20);
+  }
 
   Widget _buildMessageBubble({
     required Map<String, dynamic> msg,
+    required String messageId,
     required bool isMe,
     required String type,
     required String time,
     required Color bubbleMe,
     required Color bubbleOther,
   }) {
-    // 🔥 FIX: Lesbarkeit im Dark Mode verbessert
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     final bubbleColor = isMe ? bubbleMe : bubbleOther;
-    
-    // Wenn es meine Nachricht ist: Weiß
-    // Wenn andere Person & DarkMode: Weiß (damit man es auf dunkelgrau lesen kann)
-    // Wenn andere Person & LightMode: Schwarz
-    final textColor = isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
-
+    final textColor =
+        isMe ? Colors.white : (isDark ? Colors.white : Colors.black);
     final payload = msg['payload'] as Map<String, dynamic>?;
-    final senderEmail = msg['sender'] ?? '';
+    final senderEmail = (msg['sender'] ?? '').toString();
 
-    // IMAGE
-    if (type == 'image') {
-      final imageUrl =
-          (msg['content'] ?? payload?['url'] ?? '').toString();
-      return _ImageBubble(
-        imageUrl: imageUrl,
-        time: time,
-        isMe: isMe,
-      );
-    }
+    Widget bubbleWidget;
 
-    // APP: TETRIS / HELLO / others
-    if (type == 'app') {
-      final appName = (payload?['app'] ?? '').toString();
-      Widget child;
-
-      if (appName == 'tetris') {
-        final score = payload?['data']?['score'] ?? 0;
-        child = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.videogame_asset,
-                size: 26, color: Colors.white),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Tetris Score",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  "Score: $score",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      } else if (appName == 'hello') {
-        final who = payload?['data']?['who'] ?? 'there';
-        child = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("👋", style: TextStyle(fontSize: 22)),
-            const SizedBox(width: 8),
-            Text(
-              "Hello $who!",
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        );
-      } else {
-        child = Text(
-          "App message",
-          style: TextStyle(color: textColor),
-        );
-      }
-
-      return _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        child: child,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
-      );
-    }
-    if (type == 'ai_image') {
-      return _ImageBubble(
-        imageUrl: msg['content'] ?? '',
-        time: time,
-        isMe: isMe,
-      );
-    } 
-
-    // AI
-    if (type == 'ai') {
-      final prompt = payload?['prompt'] ?? '';
-      final response = payload?['response'] ?? '';
-      final child = Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          if (prompt.toString().isNotEmpty)
-            Text(
-              "Q: $prompt",
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: isMe ? Colors.white70 : Colors.black54,
-              ),
-            ),
-          if (prompt.toString().isNotEmpty) const SizedBox(height: 4),
-          Text(
-            response.toString(),
-            style: TextStyle(color: textColor, fontSize: 15),
-          ),
-        ],
-      );
-
-      return _Bubble(
-        isMe: isMe,
-        bubbleColor: bubbleColor,
-        child: child,
-        time: time,
-        textColor: textColor,
-        senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
-      );
-    }
-
-    // EVENT REF
+    // --- FIX: SICHERER DATUM-CHECK ---
     if (type == 'event_ref') {
-      final eventId = msg['eventId']?.toString();
-      if (eventId == null) {
-        return _Bubble(
-          isMe: isMe,
-          bubbleColor: bubbleColor,
-          child: const Text("Event not found"),
-          time: time,
-          textColor: textColor,
-          senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
-        );
-      }
-
+      final eventId = msg['eventId'];
       return Align(
-        alignment:
-            isMe ? Alignment.centerRight : Alignment.centerLeft,
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.85,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: _db.collection('events').doc(eventId).snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData || !snap.data!.exists) {
+                return const Text("Lädt Event...");
+              }
+              final eventData = snap.data!.data() as Map<String, dynamic>;
+              final ePayload = eventData['payload']['data'] ?? {};
+              final votes =
+                  ePayload['votes'] ?? {'yes': [], 'maybe': [], 'no': []};
+
+              DateTime? parsedDate;
+              var rawDate = ePayload['datetime'];
+              if (rawDate is Timestamp) {
+                parsedDate = rawDate.toDate();
+              } else if (rawDate is String) {
+                parsedDate = DateTime.tryParse(rawDate);
+              }
+
+              return EventCard(
+                title: ePayload['title'] ?? '',
+                datetime: parsedDate,
+                location: ePayload['location'] ?? '',
+                description: ePayload['description'] ?? '',
+                votes: votes,
+                messageId: snap.data!.id,
+                currentUser: _user?.email ?? '',
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // --- NEUES KI DESIGN ---
+    if (type == 'ai') {
+      final response = payload?['response'] ?? '';
+      return Align(
+        alignment: Alignment.centerLeft,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [const Color(0xFF1A237E), const Color(0xFF0D47A1)]
+                  : [Colors.blue.shade50, Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: 0.1),
+                blurRadius: 10,
+                spreadRadius: 2,
+              )
+            ],
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
           child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!isMe)
-                Text(
-                  (senderEmail as String).split('@').first,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              Container(
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(isMe ? 12 : 0),
-                    topRight: Radius.circular(isMe ? 0 : 12),
-                    bottomLeft: const Radius.circular(12),
-                    bottomRight: const Radius.circular(12),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: StreamBuilder<DocumentSnapshot>(
-                    stream: _db
-                        .collection('events')
-                        .doc(eventId)
-                        .snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text(
-                            "Loading event...",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }
-
-                      if (!snap.data!.exists) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text(
-                            "Event deleted",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }
-
-                      final eventData =
-                          snap.data!.data() as Map<String, dynamic>;
-                      final ePayload =
-                          eventData['payload']['data'] ?? {};
-                      final votes =
-                          ePayload['votes'] ??
-                              {'yes': [], 'maybe': [], 'no': []};
-
-                      return EventCard(
-                        title: ePayload['title'] ?? '',
-                        datetime: DateTime.tryParse(
-                            ePayload['datetime'] ?? ''),
-                        location: ePayload['location'] ?? '',
-                        description: ePayload['description'] ?? '',
-                        votes: votes,
-                        messageId: eventId,
-                        currentUser: _user?.email ?? '',
-                      );
-                    },
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.smart_toy_rounded,
+                        size: 16, color: Colors.blueAccent),
+                    const SizedBox(width: 6),
+                    Text("NexxAI",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.blueAccent.shade400,
+                          letterSpacing: 1.1,
+                        )),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                time,
-                style: TextStyle(
-                  color: isMe ? Colors.white70 : Colors.black54,
-                  fontSize: 11,
-                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Text(response.toString(),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isDark ? Colors.white : Colors.black87,
+                      height: 1.4,
+                    )),
               ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12, bottom: 6),
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(time,
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.white54 : Colors.grey)),
+                ),
+              )
             ],
           ),
         ),
       );
     }
 
-    // TEXT (default)
-    final text =
-        msg['content'] ?? payload?['text'] ?? '';
+    if (type == 'calltime') {
+      final status = msg['status'] ?? 'scheduled';
+      if (status != 'scheduled') return const SizedBox.shrink();
 
-    return _Bubble(
-      isMe: isMe,
-      bubbleColor: bubbleColor,
-      child: Text(
-        text.toString(),
-        style: TextStyle(color: textColor, fontSize: 17),
-      ),
-      time: time,
-      textColor: textColor,
-      senderName: isMe ? null : (senderEmail as String?)?.split('@').first,
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+          child: CallTimeMessageCard(
+            payload: msg["payload"] ?? {},
+            conversationId: widget.conversationId,
+            messageId: messageId,
+          ),
+        ),
+      );
+    }
+
+    if (type == 'image' || type == 'ai_image') {
+      final url = (msg['content'] ?? payload?['url'] ?? '').toString();
+
+      return Column(
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onLongPress: () =>
+                _openImageActions(messageId: messageId, isMe: isMe),
+            child: _ImageBubble(
+              imageUrl: url,
+              time: time,
+              isMe: isMe,
+            ),
+          ),
+          _buildReactionsDisplay(msg, messageId),
+        ],
+      );
+    }
+    if (type == 'deleted') {
+      return _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor.withValues(alpha: 0.5),
+        textColor: Colors.grey,
+        time: time,
+        onLongPress: () {},
+        child: const Text(
+          '🗑 Image deleted',
+          style: TextStyle(fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+    if (type == 'call') {
+      final status = msg['status'];
+      final duration = msg['duration'] ?? 0;
+      final isAudio = msg['callType'] == 'audio';
+
+      late String text;
+
+      if (status == "missed") {
+        text =
+            isAudio ? "📞 Verpasster Audioanruf" : "🎥 Verpasster Videoanruf";
+      } else {
+        final mm = (duration ~/ 60).toString().padLeft(2, '0');
+        final ss = (duration % 60).toString().padLeft(2, '0');
+
+        text = isAudio
+            ? "📞 Audioanruf beendet – Dauer: $mm:$ss"
+            : "🎥 Videoanruf beendet – Dauer: $mm:$ss";
+      }
+
+      bubbleWidget = _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        textColor: textColor,
+        time: time,
+        onLongPress: () => _openReactionPicker(messageId),
+        child: Text(
+          text,
+          style: TextStyle(color: textColor, fontSize: 16),
+        ),
+      );
+    } else if (type == 'app') {
+      final appName = (payload?['app'] ?? '').toString();
+      Widget child;
+
+      if (appName == "tetris") {
+        final score = payload?['data']?['score'] ?? 0;
+        child = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.videogame_asset, size: 26, color: Colors.white),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Tetris Score",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  Text("Score: $score",
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.white70)),
+                ],
+              ),
+            ),
+          ],
+        );
+      } else if (appName == "hello") {
+        final who = payload?['data']?['who'] ?? 'there';
+        child = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("👋", style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text("Hello $who!",
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      } else {
+        child = Text("App message", style: TextStyle(color: textColor));
+      }
+
+      bubbleWidget = _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
+        senderName: isMe ? null : senderEmail.split("@").first,
+        onLongPress: () => _openReactionPicker(messageId),
+        child: child,
+      );
+    } else {
+      final text = msg['content'] ?? payload?['text'] ?? '';
+      bubbleWidget = _Bubble(
+        isMe: isMe,
+        bubbleColor: bubbleColor,
+        time: time,
+        textColor: textColor,
+        senderName: isMe ? null : senderEmail.split("@").first,
+        onLongPress: () => _openReactionPicker(messageId),
+        child: Text(text.toString(),
+            style: TextStyle(fontSize: 17, color: textColor)),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onLongPress: () => _openReactionPicker(messageId),
+          child: bubbleWidget,
+        ),
+        _buildReactionsDisplay(msg, messageId),
+      ],
     );
   }
 
-  // ---------- Input row ----------
+  Widget _buildReactionsDisplay(Map<String, dynamic> msg, String messageId) {
+    final Map<String, dynamic> reactions = msg['reactions'] ?? {};
+    if (reactions.isEmpty) return const SizedBox.shrink();
+
+    final activeReactions = reactions.entries
+        .where((e) => e.value is List && (e.value as List).isNotEmpty)
+        .toList();
+
+    if (activeReactions.isEmpty) return const SizedBox.shrink();
+
+    final isMe = msg['senderId'] == _user?.uid;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 8, right: 8),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+        children: activeReactions.map((entry) {
+          final emoji = entry.key;
+          final List users = entry.value as List;
+          final count = users.length;
+          final bool iReacted = users.contains(_user?.uid);
+
+          return GestureDetector(
+            onTap: () => _toggleReaction(messageId, emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: iReacted
+                    ? ChatTheme.myBubbleColor.withValues(alpha: 0.2)
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white10
+                        : Colors.grey[200]),
+                borderRadius: BorderRadius.circular(12),
+                border: iReacted
+                    ? Border.all(color: ChatTheme.myBubbleColor, width: 1)
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: iReacted
+                            ? ChatTheme.myBubbleColor
+                            : (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white70
+                                : Colors.black87)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
   Widget _buildInput(bool isDark) {
-    // 🔥 FIX: Container ist jetzt außen, damit die Farbe bis ganz nach unten reicht
+    if (userDeleted) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        alignment: Alignment.center,
+        color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
+        child: const Text("Dieser Benutzer existiert nicht mehr.",
+            style: TextStyle(color: Colors.red, fontSize: 14)),
+      );
+    }
     return Container(
       color: isDark ? Colors.grey[900] : const Color(0xFFEEEEEE),
       child: SafeArea(
-        top: false, // Oben keine Safearea, damit es direkt an die Liste anschließt
+        top: false,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             children: [
-              // Text field (jetzt links)
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.black : Colors.white,
                     borderRadius: BorderRadius.circular(24),
@@ -1212,49 +1741,32 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     minLines: 1,
                     maxLines: 5,
                     decoration: const InputDecoration(
-                      hintText: "Nachricht senden",
-                      border: InputBorder.none,
-                    ),
+                        hintText: "Nachricht senden", border: InputBorder.none),
                   ),
                 ),
               ),
-
-              // Attach (jetzt rechts)
+              IconButton(
+                  icon: Icon(Icons.attach_file,
+                      color: isDark ? Colors.white70 : Colors.grey[700]),
+                  onPressed: _openAttachmentMenu),
               IconButton(
                 icon: Icon(
-                  Icons.attach_file,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
-                ),
-                onPressed: _openAttachmentMenu,
-              ),
-
-              // Mini-apps toggle (jetzt rechts)
-              // 🔥 ICON GEÄNDERT zu Puzzle (Extension)
-              IconButton(
-                icon: Icon(
-                  _isSlashToolbarVisible
-                      ? Icons.extension
-                      : Icons.extension_outlined,
-                  color: Colors.orange,
-                ),
+                    _isSlashToolbarVisible
+                        ? Icons.extension
+                        : Icons.extension_outlined,
+                    color: ChatTheme.myBubbleColor),
                 onPressed: _toggleSlashToolbar,
               ),
-
               const SizedBox(width: 2),
-
-              // Send button (ganz rechts)
               CircleAvatar(
-                backgroundColor: ChatTheme.myBubbleColor, 
+                backgroundColor: ChatTheme.myBubbleColor,
                 child: IconButton(
                   icon: _sending
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                              strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.send, color: Colors.white),
                   onPressed: _sending ? null : _send,
                 ),
@@ -1266,184 +1778,178 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ---------- Slash (mini-apps) toolbar ----------
-
+  // SLASH MENU
   Widget _slashToolbar() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final backgroundColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 80,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 18),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
+    return Container(
+      key: const ValueKey("slash_toolbar"),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _commandCard(
+              offset: const Offset(0, -4))
+        ],
+      ),
+      child: GridView.count(
+        shrinkWrap: true,
+        crossAxisCount: 4,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.85,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          /*
+          _commandTile(
               icon: "👋",
               title: "Hello",
-              description: "Sende eine freundliche Nachricht",
               onTap: () {
                 _ctrl.text = "/hello ";
                 _onTextChanged("/hello ");
                 setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
-              icon: "🖼️",
-              title: "Bild senden",
-              description: "Wähle ein Bild aus der Galerie",
-              onTap: _pickFromGallery,
-            ),
-            _commandCard(
+              }),
+              */
+          _commandTile(icon: "🖼️", title: "Galerie", onTap: _pickFromGallery),
+          _commandTile(
               icon: "🧠",
               title: "KI Image",
-              description: "Bild mit KI generieren",
               onTap: () async {
                 setState(() => _isSlashToolbarVisible = false);
-
-                final imageUrl = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ImageBotScreen()),
-                );
-
+                final imageUrl = await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ImageBotScreen()));
                 if (imageUrl != null && imageUrl is String) {
                   await _sendAiImage(imageUrl);
                 }
-              },
-            ),
-            _commandCard(
+              }),
+          _commandTile(
               icon: "🎮",
               title: "Tetris",
-              description: "Spiele ein Mini-Tetris",
               onTap: () {
                 _ctrl.text = "/tetris";
                 _onTextChanged("/tetris");
                 setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
+              }),
+          _commandTile(
+              icon: "📞",
+              title: "Calltime",
+              onTap: () {
+                _ctrl.text = "/calltime";
+                _onTextChanged("/calltime");
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
               icon: "📅",
               title: "Event",
-              description: "Erstelle ein Gruppen-Event",
               onTap: () {
                 _ctrl.text = "/event";
                 _onTextChanged("/event");
                 setState(() => _isSlashToolbarVisible = false);
-              },
-            ),
-            _commandCard(
+              }),
+          _commandTile(
               icon: "🤖",
               title: "AI",
-              description: "Chatte mit AI",
-              onTap: _openAiPreview,
-            ),
-          ],
-        ),
+              onTap: () {
+                _ctrl.text = "/ai ";
+                _ctrl.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _ctrl.text.length));
+                setState(() => _isSlashToolbarVisible = false);
+              }),
+          _commandTile(
+              icon: "💖",
+              title: "AI Call",
+              onTap: () {
+                setState(() => _isSlashToolbarVisible = false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          const AiVideoCallScreen(name: "Deine KI-Freundin")),
+                );
+              }),
+          _commandTile(
+              icon: "➕",
+              title: "Widget",
+              onTap: () {
+                setState(() => _isSlashToolbarVisible = false);
+                _showDevelopmentDialog();
+              }),
+        ],
       ),
     );
   }
 
-  Widget _commandCard({
-    required String icon,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-  }) {
+  Widget _commandTile(
+      {required String icon,
+      required String title,
+      required VoidCallback onTap}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
-    final borderColor =
-        isDarkMode ? Colors.grey[700]! : Colors.grey.shade300;
-    final titleColor = isDarkMode ? Colors.white : Colors.black;
-    final descColor =
-        isDarkMode ? Colors.grey[400] : Colors.grey.shade700;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
-          color: cardColor,
-        ),
-        child: Row(
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 26)),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: titleColor,
-                  ),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: descColor,
-                  ),
-                ),
-              ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: isDarkMode
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.grey.shade50,
+            border: Border.all(
+              color: isDarkMode ? Colors.white10 : Colors.grey.shade200,
+              width: 1.5,
             ),
-          ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 26)),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(title,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white70 : Colors.black87)),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------- Small helper widgets ----------
-
 class _DateChip extends StatelessWidget {
   final String label;
-
   const _DateChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: isDark
-                ? const Color.fromARGB(200, 24, 34, 40)
-                : Colors.grey[300],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white70 : Colors.black87,
-            ),
-          ),
+              color: isDark
+                  ? const Color.fromARGB(200, 24, 34, 40)
+                  : Colors.grey[300],
+              borderRadius: BorderRadius.circular(16)),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : Colors.black87)),
         ),
       ),
     );
@@ -1455,49 +1961,48 @@ class _ImageBubble extends StatelessWidget {
   final String time;
   final bool isMe;
 
-  const _ImageBubble({
-    required this.imageUrl,
-    required this.time,
-    required this.isMe,
-  });
+  const _ImageBubble(
+      {required this.imageUrl, required this.time, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.only(
-      topLeft: Radius.circular(isMe ? 12 : 0),
-      topRight: Radius.circular(isMe ? 0 : 12),
-      bottomLeft: const Radius.circular(12),
-      bottomRight: const Radius.circular(12),
-    );
-
     return Align(
-      alignment:
-          isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin:
-            const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: borderRadius,
-              child: Image.network(
-                imageUrl,
-                width: 230,
-                height: 260,
-                fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => FullScreenImagePage(imageUrl: imageUrl))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isMe ? 12 : 0),
+                    topRight: Radius.circular(isMe ? 0 : 12),
+                    bottomLeft: const Radius.circular(12),
+                    bottomRight: const Radius.circular(12)),
+                child: Image.network(
+                  imageUrl,
+                  width: 230,
+                  height: 260,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          width: 230,
+                          height: 260,
+                          color: Colors.grey[300],
+                          child:
+                              const Center(child: CircularProgressIndicator())),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              time,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-              ),
-            ),
+            Text(time, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
           ],
         ),
       ),
@@ -1512,67 +2017,59 @@ class _Bubble extends StatelessWidget {
   final Color bubbleColor;
   final Color textColor;
   final String? senderName;
+  final VoidCallback onLongPress;
 
-  const _Bubble({
-    required this.child,
-    required this.time,
-    required this.isMe,
-    required this.bubbleColor,
-    required this.textColor,
-    this.senderName,
-  });
+  const _Bubble(
+      {required this.child,
+      required this.time,
+      required this.isMe,
+      required this.bubbleColor,
+      required this.textColor,
+      this.senderName,
+      required this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment:
-          isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin:
-            const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            if (!isMe && senderName != null)
-              Text(
-                senderName!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75),
+          child: Column(
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (!isMe && senderName != null)
+                Text(senderName!,
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(isMe ? 12 : 0),
+                        topRight: Radius.circular(isMe ? 0 : 12),
+                        bottomLeft: const Radius.circular(12),
+                        bottomRight: const Radius.circular(12))),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      child,
+                      const SizedBox(height: 3),
+                      Text(time,
+                          style: TextStyle(
+                              color: textColor.withValues(alpha: 0.7),
+                              fontSize: 11)),
+                    ]),
               ),
-            Container(
-              padding:
-                  const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(isMe ? 12 : 0),
-                  topRight: Radius.circular(isMe ? 0 : 12),
-                  bottomLeft: const Radius.circular(12),
-                  bottomRight: const Radius.circular(12),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: isMe
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  child,
-                  const SizedBox(height: 3),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: textColor.withOpacity(0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
