@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../core/config/api_config.dart';
 
 // --- KONSTANTEN FÜR GOOGLE GEMINI API ---
 // API-Key für den Zugriff auf die Google Gemini API
-const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM';
+const String apiKey = ApiConfig.geminiApiKey;
 // Modellname
 const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
 // URL für die API-Anfrage, inkl. API-Key

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/config/api_config.dart';
 import '../core/services/chat_theme.dart'; 
 
 class SupportBotScreen extends StatefulWidget {
@@ -27,7 +28,7 @@ class _SupportBotScreenState extends State<SupportBotScreen> {
 
   // --- API KONFIGURATION ---
   // Hier werden die Schlüssel und die URL für Gemini definiert
-  static const String apiKey = 'AIzaSyAfv2px4R99wkA2gWgZB-moIuYTiJi9gAM'; 
+  static const String apiKey = ApiConfig.geminiApiKey; 
   static const String geminiModel = 'gemini-2.5-flash-preview-09-2025';
   static const String geminiApiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey';

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../core/config/api_config.dart';
 
 import '../core/services/chat_theme.dart'; 
 
@@ -19,7 +20,7 @@ class _ImageBotScreenState extends State<ImageBotScreen> {
   final ScrollController _scrollController = ScrollController();
 
 
-  final String _apiKey = "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"; 
+  final String _apiKey = ApiConfig.huggingFaceToken; 
   
   final String _apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0";
 

@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import '../core/config/api_config.dart';
 
 // Dein Hugging Face Token hier einfügen
-const String hfToken = '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';
+const String hfToken = ApiConfig.huggingFaceToken;
 
 // Modell, das wir nutzen
 const String model = 'gpt2';

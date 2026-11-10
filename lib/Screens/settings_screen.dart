@@ -125,7 +125,7 @@ class SettingsScreen extends StatelessWidget {
                     _tile(
                       context,
                       icon: Icons.info,
-                      title: "About NexChat",
+                      title: "About NexxChat",
                       subtitle: "Version 1.0.0 – All rights reserved",
                       onTap: () {},
                     ),

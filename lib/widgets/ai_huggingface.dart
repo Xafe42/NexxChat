@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../core/config/api_config.dart';
 
 // Hugging Face Token 
-const String hfToken = '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';
+const String hfToken = ApiConfig.huggingFaceToken;
 // Modell auswählen
 const String model = 'distilgpt2';
 
