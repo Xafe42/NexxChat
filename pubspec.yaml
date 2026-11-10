@@ -1,5 +1,5 @@
 name: nexxchat_firebase
-description: "A new Flutter project."
+description: "Mobiler Chat-Messenger (Android), der Chats durch eingebettete Mini-Apps interaktiv macht."
 publish_to: 'none'
 
 version: 1.0.0+1
